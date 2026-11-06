@@ -243,6 +243,13 @@ try {
   await dhcpPage.locator("#request").click();
   assert.match(await dhcpPage.locator("#client-status").innerText(),/APIPA/);
   assert.match(await dhcpPage.locator("#client-ip").innerText(),/169\.254\.10\.20/);
+  await dhcpPage.locator("#ipconfig").click();
+  assert.match(await dhcpPage.locator("#console").innerText(),/IPv4 autoconfiguration.*169\.254\.10\.20.*APIPA/);
+  assert.match(await dhcpPage.locator("#console").innerText(),/255\.255\.0\.0/);
+  await dhcpPage.locator("#ipconfig-all").click();
+  assert.match(await dhcpPage.locator("#console").innerText(),/IPv4 autoconfiguration.*169\.254\.10\.20.*APIPA/);
+  assert.doesNotMatch(await dhcpPage.locator("#console").innerText(),/Bail obtenu|Bail expirant/);
+  assert.match(await dhcpPage.locator("#feedback").innerText(),/attribué une adresse IPv4 APIPA/);
   await dhcpPage.locator("#ping").click();
   assert.match(await dhcpPage.locator("#ping-console").innerText(),/reçus = 0/);
   await dhcpPage.locator("#toggle-cable").click();
