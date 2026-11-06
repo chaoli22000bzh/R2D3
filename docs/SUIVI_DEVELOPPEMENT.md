@@ -216,3 +216,12 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - Contenu toujours issu de l'état courant de R2D3 (adresse, masque, statut du câble). Le format est recalculé en cas de changement de largeur.
 - Ajout d'un essai Chromium mobile de 360 px pour vérifier les libellés et l'absence de débordement horizontal, dans `tests/browser-smoke.mjs`.
 - La V1 de référence et le Core R2D3 ne sont pas modifiés. L'appréciation visuelle sur le smartphone réel reste à recueillir.
+
+
+### 6 novembre 2026 - Exemple DHCP conforme au cours, publication expérimentale
+
+- Accord utilisateur pour publier le modèle `ipconfig /all` précédemment validé dans le chat, cohérent avec le cours DHCP de `chaoli22000bzh/portails-pedagogiques/ressources/dhcp/index.html`.
+- Ajout dans `C2-Lab/main/r2d3-v1/experiment.html` d'un panneau replié « Exemple de poste en DHCP ». Il est distinct des deux PC du scénario, toujours statiques : il s'agit d'une **maquette de présentation**, pas d'un bail obtenu du moteur.
+- Exemple : REN-PC-01, IPv4 192.168.1.26/24, passerelle et serveur DHCP 192.168.1.1, DNS 192.168.1.10 et 1.1.1.1, bail du 06 au 07/11/2026. Aucun type de nœud, routage IP, proxy WINS ni en-tête « Carte Ethernet Ethernet ».
+- Remplacement de `C:\Users\Eleve` par `C:\Users\technicien` dans l'interface expérimentale pour conserver le contexte professionnel. Une adresse MAC n'a pas été ajoutée à la maquette DHCP validée ; le modèle moteur devra plus tard posséder des MAC constructeur fiables et versionnées.
+- Contrôles Chromium ajoutés pour les champs obligatoires et exclus dans le panneau DHCP mobile. Le moteur R2D3, le scénario et C² n'ont pas changé.
