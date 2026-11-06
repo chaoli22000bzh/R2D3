@@ -139,6 +139,11 @@ function makeEngine(scenario, existing) {
     if(s.capabilities.network!==true)return {status:"unavailable",reason:"Capacité réseau désactivée"};
     return networkPing(q.sourceId,q.targetId);
   }
+  function apipaAddress(clientId, current) {
+    const clients=Object.values(current.objectsById).filter(o=>o.config.ipv4?.mode==="dhcp").map(o=>o.id).sort();
+    // Adresse stable par client pour cette première simulation, sans conflit entre clients.
+    return "169.254.10."+(20+clients.indexOf(clientId));
+  }
   function dispatch(c) {
     if(!isObj(c) || c.commandVersion!==1 || typeof c.id!=="string" || !c.id ||
        typeof c.type!=="string" || typeof c.targetId!=="string" || !isObj(c.params))
@@ -193,14 +198,14 @@ function makeEngine(scenario, existing) {
         }else if(prior){
           next.runtime[c.targetId]={dhcpStatus:"lease-retained",error:"Plage DHCP épuisée"};
         }else{
-          ip.address="169.254.10.20";ip.prefix=16;ip.lease=null;
+          ip.address=apipaAddress(c.targetId,next);ip.prefix=16;ip.lease=null;
           client.config.networkOptions={gateway:null,dns:[]};
           next.runtime[c.targetId]={dhcpStatus:"apipa",error:"Plage DHCP épuisée"};
         }
       }else if(prior){
         next.runtime[c.targetId]={dhcpStatus:"lease-retained",error:"Serveur DHCP inaccessible"};
       }else{
-        ip.address="169.254.10.20";ip.prefix=16;ip.lease=null;
+        ip.address=apipaAddress(c.targetId,next);ip.prefix=16;ip.lease=null;
         client.config.networkOptions={gateway:null,dns:[]};
         next.runtime[c.targetId]={dhcpStatus:"apipa",error:"Serveur DHCP inaccessible"};
       }
