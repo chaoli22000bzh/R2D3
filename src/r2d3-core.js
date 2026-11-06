@@ -161,6 +161,14 @@ function makeEngine(scenario, existing) {
       if(!o?.config.dhcpPool || typeof c.params.enabled!=="boolean")
         return fail("invalid_dhcp_server","Serveur DHCP ou état invalide");
       o.config.dhcpEnabled=c.params.enabled;
+    }else if(c.type==="dhcp.release"){
+      const client=next.objectsById[c.targetId], ip=client?.config.ipv4;
+      if(!ip || ip.mode!=="dhcp")return fail("not_dhcp_client","Client DHCP inexistant");
+      ip.address=null;
+      ip.prefix=null;
+      ip.lease=null;
+      client.config.networkOptions={gateway:null,dns:[]};
+      next.runtime[c.targetId]={dhcpStatus:"released"};
     }else if(c.type==="dhcp.request"){
       const client=next.objectsById[c.targetId], ip=client?.config.ipv4;
       if(!ip || ip.mode!=="dhcp")return fail("not_dhcp_client","Client DHCP inexistant");
