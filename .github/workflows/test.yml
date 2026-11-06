@@ -1,0 +1,35 @@
+name: Tests R2D3 V1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "scenarios/**"
+      - "tests/**"
+      - "package.json"
+      - ".github/workflows/test.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "scenarios/**"
+      - "tests/**"
+      - "package.json"
+      - ".github/workflows/test.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer R2D3
+        uses: actions/checkout@v4
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Exécuter les tests
+        run: npm test
