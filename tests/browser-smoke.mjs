@@ -238,6 +238,18 @@ try {
   assert.match(await dhcpPage.locator("#client-ip").innerText(),/192\.168\.10\.100/);
   console.log("PASS DHCP-2 : conservation du bail après arrêt du serveur");passed++;
 
+  await dhcpPage.locator("#release").click();
+  assert.match(await dhcpPage.locator("#client-status").innerText(),/Adresse DHCP libérée/);
+  assert.match(await dhcpPage.locator("#client-ip").innerText(),/Aucune adresse IPv4/);
+  await dhcpPage.locator("#ipconfig-all").click();
+  const releasedOutput=await dhcpPage.locator("#console").innerText();
+  assert.match(releasedOutput,/Adresse IPv4.*Non attribuée/);
+  assert.doesNotMatch(releasedOutput,/Bail obtenu|Bail expirant|192\.168\.10\.100/);
+  await dhcpPage.locator("#request").click();
+  assert.match(await dhcpPage.locator("#client-status").innerText(),/APIPA/);
+  assert.match(await dhcpPage.locator("#client-ip").innerText(),/169\.254\.10\.20/);
+  console.log("PASS DHCP-2B : release puis renew avec service arrêté donne APIPA");passed++;
+
   await dhcpPage.locator("#reset").click();
   await dhcpPage.locator("#toggle-cable").click();
   await dhcpPage.locator("#request").click();
@@ -252,7 +264,7 @@ try {
   for(const value of ["Description","Intel(R) Ethernet Controller (3) I225-V","Adresse physique","48-21-0B-5F-8C-90","Configuration automatique activée","Adresse d'autoconfiguration IPv4","169.254.10.20 (préféré)","255.255.0.0","NetBIOS sur Tcpip"])assert.ok(apipaOutput.includes(value),value);
   assert.doesNotMatch(apipaOutput,/\(APIPA\)|IPv4 autoconfiguration|Bail obtenu|Bail expirant/);
 
-  assert.match(await dhcpPage.locator("#feedback").innerText(),/attribué une adresse IPv4 APIPA/);
+  assert.match(await dhcpPage.locator("#feedback").innerText(),/adresse APIPA attribuée/);
   await dhcpPage.locator("#ping").click();
   assert.match(await dhcpPage.locator("#ping-console").innerText(),/reçus = 0/);
   await dhcpPage.locator("#toggle-cable").click();
