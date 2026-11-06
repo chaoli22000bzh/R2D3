@@ -140,6 +140,35 @@ try {
   assert.doesNotMatch(await xp.locator("#terminal").innerText(),/Simulation d'une commande ping Windows/);
   console.log("PASS EXP-8 : mention de simulation retirée du ping");passed++;
 
+  // Nouveaux paramètres statiques : les DNS ne modifient pas un ping sur IP.
+  await xp.locator("#device").selectOption("pc-01");
+  await xp.locator("#gateway").fill("192.168.10.1");
+  await xp.locator("#dns1").fill("192.168.10.10");
+  await xp.locator("#dns2").fill("1.1.1.1");
+  await xp.locator("#options-form button").click();
+  assert.match(await xp.locator("#feedback").innerText(),/Modification appliquée/);
+  await xp.locator("#console-pc").selectOption("pc-01");
+  await xp.locator("#ipconfig-all").click();
+  let optView=await xp.locator("#windows-console").innerText();
+  assert.match(optView,/Passerelle.*192\.168\.10\.1/);
+  assert.match(optView,/192\.168\.10\.10/);
+  assert.match(optView,/1\.1\.1\.1/);
+  await xp.locator("#source").selectOption("pc-01");
+  assert.match(await xp.locator("#connectivity").innerText(),/Communication possible/);
+  console.log("PASS EXP-12 : passerelle, DNS 1 et DNS 2 affichés sans affecter le ping LAN");passed++;
+
+  await xp.locator("#dns1").fill("999.10.1.1");
+  await xp.locator("#options-form button").click();
+  assert.match(await xp.locator("#feedback").innerText(),/Opération refusée/);
+  await xp.locator("#ipconfig-all").click();
+  optView=await xp.locator("#windows-console").innerText();
+  assert.match(optView,/192\.168\.10\.10/);
+  assert.doesNotMatch(optView,/999\.10\.1\.1/);
+  await xp.locator("#device").selectOption("pc-02");
+  assert.equal(await xp.locator("#gateway").inputValue(),"");
+  assert.equal(await xp.locator("#dns1").inputValue(),"");
+  console.log("PASS EXP-13 : DNS impossible rejeté et paramètres propres à chaque PC");passed++;
+
   await xp.reload({waitUntil:"networkidle"});
   await xp.locator("#feedback").getByText("Scénario chargé.").waitFor();
   assert.equal(await xp.locator("#ip-pc2").innerText(),"192.168.10.30/24");
