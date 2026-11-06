@@ -196,3 +196,13 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - Ajout de contrôles `ipconfig`, `ipconfig /all` et relecture de configuration dans `R2D3/main/tests/browser-smoke.mjs`.
 - La V1 historique, le Core, les TP C² et la branche `integration-c2` restent inchangés.
 - La validation manuelle pédagogique des deux commandes reste à réaliser par le professeur depuis GitHub Pages.
+
+
+### 6 novembre 2026 - Vérification automatisée de la console Windows expérimentale
+
+- Correction effective de la ligne « Simulation d'une commande ping Windows » dans `C2-Lab/r2d3-v1/experiment.js`.
+- Vérification complète dans Chromium du même moteur et des fichiers du laboratoire récupérés depuis GitHub : **17/17 essais navigateur réussis**, dont 9 scénarios expérimentaux et les contrôles `ipconfig`/`ipconfig /all`.
+- Cas vérifiés : changement de poste, IPv4/masque affichés, état « Média déconnecté » si câble retiré, actualisation après changement d'adresse, quatre réponses ping et absence de l'annonce de simulation dans la console ping.
+- Rapport GitHub Actions : https://github.com/chaoli22000bzh/R2D3/actions/runs/42203579319
+- Les adresses MAC présentes dans `ipconfig /all` sont des valeurs de banc d'essai et non une simulation des mécanismes MAC du Core.
+- La validation de pertinence pédagogique et du rendu sur l'appareil du professeur reste à faire. C² et la V1 classique ne sont pas modifiés.
