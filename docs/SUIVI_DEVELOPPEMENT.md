@@ -118,3 +118,16 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - Rapport : https://github.com/chaoli22000bzh/R2D3/actions/runs/42177764780
 - Les vérifications approfondies de l'interface dans un navigateur, la recharge de page et l'absence de persistance navigateur restent à confirmer séparément ; une réussite Node.js ne vaut pas recette graphique.
 - Aucun changement de fonctionnalités métier et aucune modification de C² ou de C2-Lab pour cette étape.
+
+
+### 6 novembre 2026 - Recette automatisée du démonstrateur dans Chromium
+
+- Création de `tests/browser-smoke.mjs` et de `.github/workflows/browser.yml` dans `R2D3/main`.
+- Le workflow récupère séparément les dépôts R2D3 et C2-Lab ; il vérifie que le code métier et le scénario de démonstration correspondent à ceux du moteur, puis sert C2-Lab localement dans Chromium.
+- Premier lancement échoué uniquement pendant l'installation du navigateur : le runner Ubuntu par défaut n'était pas compatible avec l'installateur Playwright choisi. Correction du workflow : utilisation d'Ubuntu 24.04. Aucun changement du moteur.
+- **Deuxième lancement : succès, 8 essais navigateur réussis sur 8**, exécution GitHub Actions `42178196199`.
+- Contrôles : chargement de l'interface, ping initial, mauvaise IPv4, cumul de deux anomalies, réparation indépendante, restauration de l'état initial au rechargement, absence d'utilisation de localStorage/sessionStorage/IndexedDB et absence de requêtes externes ou d'erreurs JavaScript.
+- Preuve : https://github.com/chaoli22000bzh/R2D3/actions/runs/42178196199
+- L'automatisation navigateur teste les fichiers du dépôt C2-Lab servis localement et non directement la disponibilité publique de GitHub Pages. Le professeur a confirmé séparément le fonctionnement général de l'URL publique.
+- **Bilan automatisé V1 : 14 tests Node.js et 8 tests Chromium réussis.**
+- Aucun fichier des dépôts C² ou C2-Lab n'a été modifié durant cette étape ; seuls les tests, le workflow et les documents du dépôt R2D3 ont été ajoutés/actualisés.
