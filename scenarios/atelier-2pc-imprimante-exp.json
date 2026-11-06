@@ -1,0 +1,139 @@
+{
+  "format": "r2d3-scenario",
+  "schemaVersion": 1,
+  "scenarioId": "atelier-trois-equipements-v2",
+  "scenarioVersion": "2.0.0-exp",
+  "capabilities": {
+    "network": true
+  },
+  "objects": [
+    {
+      "id": "pc-01",
+      "kind": "pc-windows",
+      "name": "PC Windows",
+      "ports": [
+        {
+          "id": "eth0",
+          "type": "rj45"
+        }
+      ],
+      "config": {
+        "ipv4": {
+          "interfaceId": "eth0",
+          "mode": "static",
+          "address": "192.168.10.20",
+          "prefix": 24
+        }
+      },
+      "runtime": {}
+    },
+    {
+      "id": "sw-01",
+      "kind": "ethernet-switch",
+      "name": "Switch Ethernet",
+      "ports": [
+        {
+          "id": "0",
+          "type": "rj45"
+        },
+        {
+          "id": "1",
+          "type": "rj45"
+        },
+        {
+          "id": "2",
+          "type": "rj45"
+        }
+      ],
+      "config": {},
+      "runtime": {}
+    },
+    {
+      "id": "printer-01",
+      "kind": "network-printer",
+      "name": "Imprimante réseau",
+      "ports": [
+        {
+          "id": "eth0",
+          "type": "rj45"
+        }
+      ],
+      "config": {
+        "ipv4": {
+          "interfaceId": "eth0",
+          "mode": "static",
+          "address": "192.168.10.50",
+          "prefix": 24
+        }
+      },
+      "runtime": {}
+    },
+    {
+      "id": "pc-02",
+      "kind": "pc-windows",
+      "name": "PC 2",
+      "ports": [
+        {
+          "id": "eth0",
+          "type": "rj45"
+        }
+      ],
+      "config": {
+        "ipv4": {
+          "interfaceId": "eth0",
+          "mode": "static",
+          "address": "192.168.10.30",
+          "prefix": 24
+        }
+      },
+      "runtime": {}
+    }
+  ],
+  "links": [
+    {
+      "id": "cable-pc",
+      "kind": "ethernet-cable",
+      "endpoints": [
+        {
+          "objectId": "pc-01",
+          "portId": "eth0"
+        },
+        {
+          "objectId": "sw-01",
+          "portId": "0"
+        }
+      ],
+      "connected": true
+    },
+    {
+      "id": "cable-printer",
+      "kind": "ethernet-cable",
+      "endpoints": [
+        {
+          "objectId": "printer-01",
+          "portId": "eth0"
+        },
+        {
+          "objectId": "sw-01",
+          "portId": "1"
+        }
+      ],
+      "connected": true
+    },
+    {
+      "id": "cable-pc2",
+      "kind": "ethernet-cable",
+      "endpoints": [
+        {
+          "objectId": "pc-02",
+          "portId": "eth0"
+        },
+        {
+          "objectId": "sw-01",
+          "portId": "2"
+        }
+      ],
+      "connected": true
+    }
+  ]
+}
