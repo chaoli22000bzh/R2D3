@@ -142,3 +142,17 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - Pas de campagne multi-navigateurs, ni de couverture des fonctionnalités avancées reportées à d'autres lots.
 - Aucune modification du moteur, du démonstrateur, de C² ou des TP D3 lors de cette formalisation.
 - **Prochaine décision attendue : choix du périmètre de la V2 par le professeur. Ne pas démarrer l'intégration C².**
+
+
+### 6 novembre 2026 - Lot C : préparation d'un adaptateur hôte fictif
+
+**Autorisation du professeur :** lancement du lot C après clôture de la V1. Le lot D et l'intégration réelle dans C² ne sont pas autorisés.
+
+- Création de `adapters/host-test.js` et `tests/host-adapter.test.mjs` dans `R2D3/main`.
+- Banc d'essai hôte entièrement en mémoire : chargement et sauvegarde d'instantanés, clé de copie opaque fournie par l'hôte, contrôle de révision.
+- Un changement est calculé dans un moteur provisoire ; il n'est visible et notifié qu'après confirmation de l'hôte fictif. Un refus d'enregistrement n'annonce aucune sauvegarde réussie.
+- Export/restauration sans rejeu, isolation entre copies et refus des conflits de révision vérifiés.
+- **GitHub Actions : 22/22 tests Node.js réussis**, dont 8 nouveaux tests du lot C. Exécution : https://github.com/chaoli22000bzh/R2D3/actions/runs/42197242201
+- Rapport créé : `docs/RECETTE_LOT_C.md`.
+- Le Core métier, C2-Lab et le dépôt C² restent inchangés.
+- **Lot C livré sur banc d'essai fictif.** Pas de persistance réelle, pas de sécurité serveur ni d'API C². Le lot D attend une nouvelle décision.
