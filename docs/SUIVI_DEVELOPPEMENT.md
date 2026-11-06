@@ -261,3 +261,15 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - Dans `C2-Lab/main/r2d3-v1/dhcp.html` et `dhcp.js`, boutons portant les noms Windows et retours d'état propres aux deux commandes.
 - Ajout de tests Node sur l'abandon, la conservation du bail, l'APIPA, la nouvelle attribution et le refus sur équipement statique, plus recette Chromium sur les boutons.
 - Maintien de la sortie `ipconfig /all` APIPA basée sur le chapitre 7 du cours DHCP ; ancien laboratoire IPv4 et C² inchangés.
+
+
+### 6 novembre 2026 - Deux clients DHCP dans un laboratoire autonome
+
+- Nouveau scénario `R2D3/scenarios/atelier-dhcp-deux-pc-v1.json` avec PC 1 et PC 2 DHCP, serveur, switch à quatre ports et imprimante statique. Aucun changement du scénario DHCP à un PC.
+- Nouveaux fichiers `C2-Lab/r2d3-v1/dhcp-deux-pc.html`, `dhcp-deux-pc.js` et `dhcp-deux-pc-scenario.json` pour une interface autonome à deux postes, chacun avec `ipconfig /release`, `ipconfig /renew`, son câble, et `ipconfig /all` du poste choisi.
+- Moteur R2D3 : IP APIPA déterministe distincte par client afin d'éviter les doublons lorsque deux clients n'obtiennent aucun bail. Pas de changement sur l'adresse APIPA du laboratoire individuel.
+- Tests unitaires ajoutés dans `tests/dhcp-multi.test.mjs` : attribution .100/.101, ordre inverse, renouvellement isolé, perte physique d'un poste, deux APIPA, restauration et ping.
+- Recette navigateur étendue pour vérifier attribution, diagnostics de chaque PC, panne du PC 2 sans effet sur le PC 1 et retour à l'état normal.
+- Le moteur reste commun aux deux laboratoires. Aucune modification de C² ni des laboratoires précédents.
+- Limitations : premiers baux simplifiés ; pas de réservation DHCP persistante par MAC après `release` ; horloge de simulation fixe et pas d'expiration réelle. 
+- **Validation finale attendue :** tests GitHub Actions et retour manuel du professeur.
