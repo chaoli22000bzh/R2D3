@@ -225,3 +225,16 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - Exemple : REN-PC-01, IPv4 192.168.1.26/24, passerelle et serveur DHCP 192.168.1.1, DNS 192.168.1.10 et 1.1.1.1, bail du 06 au 07/11/2026. Aucun type de nœud, routage IP, proxy WINS ni en-tête « Carte Ethernet Ethernet ».
 - Remplacement de `C:\Users\Eleve` par `C:\Users\technicien` dans l'interface expérimentale pour conserver le contexte professionnel. Une adresse MAC n'a pas été ajoutée à la maquette DHCP validée ; le modèle moteur devra plus tard posséder des MAC constructeur fiables et versionnées.
 - Contrôles Chromium ajoutés pour les champs obligatoires et exclus dans le panneau DHCP mobile. Le moteur R2D3, le scénario et C² n'ont pas changé.
+
+
+### 6 novembre 2026 - Paramètres réseau statiques : passerelle et deux DNS
+
+- Accord du professeur pour poursuivre une évolution incrémentale des paramètres IPv4, après validation des pannes indépendantes sur deux PC.
+- Dans `R2D3/main/src/r2d3-core.js`, ajout de la commande `network.setNetworkOptions` avec `gateway` (IPv4 ou null) et `dns` (0 à 2 IPv4 distinctes). Vérification stricte des valeurs et rejet atomique des entrées invalides ; aucune modification du diagnostic ping ou introduction de routage/DHCP.
+- Conservation de ces paramètres dans l'état exportable et restaurable. Les paramètres restent indépendants des changements d'adresse IPv4 effectués par `network.setIPv4`.
+- Synchronisation du code moteur identique dans `C2-Lab/main/r2d3-v1/r2d3-core.js`.
+- Atelier GitHub Pages : champs passerelle, DNS 1 et DNS 2 pour l'équipement sélectionné, puis restitution dans `ipconfig /all` ; aucun serveur, aucune sauvegarde locale.
+- Trois nouveaux tests Node de validité et non-régression et deux scénarios supplémentaires dans Chromium (options, refus d'adresse impossible, isolation des équipements).
+- Le scénario reste en mode statique. Aucun bail DHCP n'est simulé ; la fenêtre d'exemple DHCP demeure un aperçu distinct.
+- Aucun changement dans C², `integration-c2` ni le démonstrateur V1 d'origine (`index.html`/`app.js`).
+- **Réserve :** ce jalon ne constitue pas la simulation de services DNS ni de routage. Attendre la recette GitHub Actions et le retour navigateur du professeur.
