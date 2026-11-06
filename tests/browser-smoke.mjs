@@ -66,6 +66,53 @@ try {
   console.log("PASS 7 : aucun stockage navigateur utilisé");passed++;
   assert.deepEqual(errors,[]);
   console.log("PASS 8 : aucune erreur JS ni requête externe");passed++;
+
+  // Nouvelle page expérimentale : elle utilise le moteur V1 sans le modifier.
+  assert.deepEqual(
+    JSON.parse(readFileSync("c2-lab/r2d3-v1/experiment-scenario.json","utf8")),
+    JSON.parse(readFileSync("scenarios/atelier-2pc-imprimante-exp.json","utf8")),
+    "Le scénario expérimental GitHub Pages doit être identique au scénario de référence"
+  );
+  const xp=await browser.newPage();
+  const xerrors=[];
+  xp.on("pageerror",e=>xerrors.push(e.message));
+  const xres=await xp.goto("http://127.0.0.1:8765/r2d3-v1/experiment.html",{waitUntil:"networkidle"});
+  assert.equal(xres.status(),200);
+  await xp.locator("#feedback").getByText("Scénario chargé.").waitFor();
+  assert.match(await xp.locator("#connectivity").innerText(),/Communication possible/);
+  console.log("PASS EXP-1 : scénario trois terminaux chargé");passed++;
+
+  await xp.locator("#wrong-ip").click();
+  await xp.locator("#source").selectOption("pc-02");
+  await xp.locator("#target").selectOption("printer-01");
+  assert.match(await xp.locator("#connectivity").innerText(),/Communication impossible/);
+  await xp.locator("#ping").click();
+  assert.match(await xp.locator("#terminal").innerText(),/Échec/);
+  console.log("PASS EXP-2 : panne IP PC 2 détectée");passed++;
+
+  await xp.locator("#source").selectOption("pc-01");
+  assert.match(await xp.locator("#connectivity").innerText(),/Communication possible/);
+  console.log("PASS EXP-3 : PC 1 reste fonctionnel quand PC 2 est mal configuré");passed++;
+
+  await xp.locator("#device").selectOption("pc-02");
+  await xp.locator("#reset-ip").click();
+  await xp.locator("#source").selectOption("pc-02");
+  assert.match(await xp.locator("#connectivity").innerText(),/Communication possible/);
+  console.log("PASS EXP-4 : restauration de l'IP de PC 2");passed++;
+
+  await xp.locator("#cables button").nth(1).click();
+  assert.match(await xp.locator("#connectivity").innerText(),/Communication impossible/);
+  await xp.locator("#source").selectOption("pc-01");
+  assert.match(await xp.locator("#connectivity").innerText(),/Communication possible/);
+  console.log("PASS EXP-5 : débranchement du seul PC 2, PC 1 non affecté");passed++;
+
+  await xp.reload({waitUntil:"networkidle"});
+  await xp.locator("#feedback").getByText("Scénario chargé.").waitFor();
+  assert.equal(await xp.locator("#ip-pc2").innerText(),"192.168.10.30/24");
+  await xp.locator("#source").selectOption("pc-02");
+  assert.match(await xp.locator("#connectivity").innerText(),/Communication possible/);
+  assert.deepEqual(xerrors,[]);
+  console.log("PASS EXP-6 : rechargement restaure toutes les configurations");passed++;
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
   await browser.close();
