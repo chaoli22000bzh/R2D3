@@ -14,6 +14,12 @@ function sameSubnet(a,b,p) {
   const mask = p===0 ? 0 : (0xffffffff << (32-p)) >>> 0;
   return (x & mask) === (y & mask);
 }
+function validNetworkOptions(v) {
+  return isObj(v) && (v.gateway===null || ipv4ToInt(v.gateway)!==null) &&
+    Array.isArray(v.dns) && v.dns.length<=2 &&
+    v.dns.every(address=>ipv4ToInt(address)!==null) &&
+    new Set(v.dns).size===v.dns.length;
+}
 function checkScenario(s) {
   if (!isObj(s) || s.format!=="r2d3-scenario" || s.schemaVersion!==1 ||
       typeof s.scenarioId!=="string" || !s.scenarioId ||
@@ -24,6 +30,7 @@ function checkScenario(s) {
   for (const o of s.objects) {
     if (!o.id || ids.has(o.id) || !Array.isArray(o.ports) || !isObj(o.config)) throw new Error("Objet ou identifiant invalide");
     ids.add(o.id);
+    if(o.config.networkOptions!==undefined && !validNetworkOptions(o.config.networkOptions)) throw new Error("Paramètres réseau invalides");
     for (const p of o.ports) {
       const key=o.id+":"+p.id;
       if (!p.id || ports.has(key)) throw new Error("Port invalide");
@@ -130,6 +137,11 @@ function makeEngine(scenario, existing) {
          !Number.isInteger(p.prefix) || p.prefix<0 || p.prefix>32)
         return fail("invalid_ipv4","Adresse IPv4 ou préfixe impossible");
       o.config.ipv4={mode:"static",address:p.address,prefix:p.prefix,interfaceId:p.interfaceId};
+    }else if(c.type==="network.setNetworkOptions"){
+      const o=next.objectsById[c.targetId], p=c.params;
+      if(!o || !o.config.ipv4)return fail("unsupported_target","Équipement IPv4 inexistant");
+      if(!validNetworkOptions(p))return fail("invalid_network_options","Passerelle ou DNS invalides");
+      o.config.networkOptions={gateway:p.gateway,dns:[...p.dns]};
     }else if(c.type==="network.setLinkConnected"){
       const l=next.linksById[c.targetId];
       if(!l || typeof c.params.connected!=="boolean")
