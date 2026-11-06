@@ -40,3 +40,14 @@ Neuf essais du cœur JavaScript ont été exécutés directement sur le code lu 
 - Les faits de correction pédagogique restent hors périmètre du démonstrateur.
 
 Aucun fichier du dépôt C2 n'a été modifié par ce chantier.
+
+
+## Complément de recette du 6 novembre 2026
+
+L'utilisateur confirme que la démonstration GitHub Pages s'ouvre et fonctionne dans son navigateur. Les manipulations détaillées restent distinctes de cette confirmation générale.
+
+Cinq contrôles supplémentaires du moteur ont été exécutés dans un banc JavaScript sur le code récupéré dans R2D3, et ont réussi : commande dupliquée dans une instance, restauration sans mutation supplémentaire, IPv4 hors plage refusée, scénario avec port inexistant rejeté, requêtes ping sans mutation. Les cinq cas ont été ajoutés à `tests/core.test.mjs`.
+
+**Bilan des essais manuels JavaScript sur le moteur : 14 réussites sur 14 contrôles exécutés.**
+
+L'exécution de la suite `npm test` sous Node.js et la vérification manuelle détaillée des différents navigateurs restent à confirmer. Ces contrôles ne sont pas présentés comme exécutés.
