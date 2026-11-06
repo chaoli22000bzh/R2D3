@@ -108,3 +108,13 @@ Les documents normatifs demeurent dans `C2/main/docs`. Le journal ne les remplac
 - Les décisions prises et les actions restant à conduire.
 
 Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Préserver l'historique des étapes précédentes plutôt que de le réécrire.
+
+
+### 6 novembre 2026 - Automatisation et exécution Node.js des tests
+
+- Ajout de `.github/workflows/test.yml` dans `R2D3/main`.
+- Déclenchement automatique sur les modifications du moteur, des scénarios, des tests ou du workflow, ainsi que lors des pull requests concernées ; lancement manuel possible depuis GitHub Actions.
+- Premier lancement réel `npm test` avec Node.js 22.23.4 sur GitHub Actions, exécution **42177764780** : **succès, 14 tests réussis, 0 échec, 0 test ignoré**.
+- Rapport : https://github.com/chaoli22000bzh/R2D3/actions/runs/42177764780
+- Les vérifications approfondies de l'interface dans un navigateur, la recharge de page et l'absence de persistance navigateur restent à confirmer séparément ; une réussite Node.js ne vaut pas recette graphique.
+- Aucun changement de fonctionnalités métier et aucune modification de C² ou de C2-Lab pour cette étape.
