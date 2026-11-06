@@ -87,12 +87,19 @@ try {
   await xp.locator("#target").selectOption("printer-01");
   assert.match(await xp.locator("#connectivity").innerText(),/Communication impossible/);
   await xp.locator("#ping").click();
-  assert.match(await xp.locator("#terminal").innerText(),/Échec/);
-  console.log("PASS EXP-2 : panne IP PC 2 détectée");passed++;
+  const failedPing=await xp.locator("#terminal").innerText();
+  assert.match(failedPing,/Échec/);
+  assert.equal((failedPing.match(/Délai d'attente de la demande dépassé/g)||[]).length,4);
+  assert.match(failedPing,/envoyés = 4, reçus = 0, perdus = 4/);
+  console.log("PASS EXP-2 : panne IP PC 2 et quatre échecs ping détectés");passed++;
 
   await xp.locator("#source").selectOption("pc-01");
   assert.match(await xp.locator("#connectivity").innerText(),/Communication possible/);
-  console.log("PASS EXP-3 : PC 1 reste fonctionnel quand PC 2 est mal configuré");passed++;
+  await xp.locator("#ping").click();
+  const successfulPing=await xp.locator("#terminal").innerText();
+  assert.equal((successfulPing.match(/Réponse de 192\.168\.10\.50/g)||[]).length,4);
+  assert.match(successfulPing,/envoyés = 4, reçus = 4, perdus = 0/);
+  console.log("PASS EXP-3 : PC 1 fonctionnel et quatre réponses ping reçues");passed++;
 
   await xp.locator("#device").selectOption("pc-02");
   await xp.locator("#reset-ip").click();
