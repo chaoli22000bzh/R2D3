@@ -156,3 +156,12 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - Rapport créé : `docs/RECETTE_LOT_C.md`.
 - Le Core métier, C2-Lab et le dépôt C² restent inchangés.
 - **Lot C livré sur banc d'essai fictif.** Pas de persistance réelle, pas de sécurité serveur ni d'API C². Le lot D attend une nouvelle décision.
+
+
+### 6 novembre 2026 - Préparation du lot D, sans modification de C²
+
+- À la suite de l'accord de principe du professeur pour poursuivre après le lot C, lecture ciblée des contrats C² et des points d'entrée existants (`ouvrir_tp.php`, `api/session_eleve.php`, `api/reponses_tp.php`, `api/demarrer_seance.php`).
+- Constat : les réponses pédagogiques actuelles ne constituent pas un stockage d'état technique avec contrôle de révision ; le lot D doit préserver les responsabilités existantes de C².
+- Création de `docs/PREPARATION_LOT_D.md` dans `R2D3/main` avec les points d'ancrage, risques, contraintes de transaction, isolation des copies et ordre recommandé pour une première tranche d'intégration.
+- **Aucun fichier du dépôt C² modifié, aucune migration SQL, aucun déploiement et aucun code d'intégration PHP créé.**
+- Prochaine décision technique : désigner/autoriser explicitement une branche C² d'intégration après validation du contrat d'architecture, sans modifier `main` ni les branches D3.
