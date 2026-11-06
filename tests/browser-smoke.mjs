@@ -113,13 +113,40 @@ try {
   assert.match(await xp.locator("#connectivity").innerText(),/Communication possible/);
   console.log("PASS EXP-5 : débranchement du seul PC 2, PC 1 non affecté");passed++;
 
+  await xp.locator("#console-pc").selectOption("pc-02");
+  await xp.locator("#ipconfig").click();
+  let iptext=await xp.locator("#windows-console").innerText();
+  assert.match(iptext,/ipconfig\b/);
+  assert.match(iptext,/Statut du média.*Média déconnecté/);
+  await xp.locator("#cables button").nth(1).click();
+  await xp.locator("#ipconfig-all").click();
+  iptext=await xp.locator("#windows-console").innerText();
+  assert.match(iptext,/ipconfig \/all/);
+  assert.match(iptext,/192\.168\.10\.30/);
+  assert.match(iptext,/255\.255\.255\.0/);
+  assert.match(iptext,/02-00-00-00-00-02/);
+  assert.match(iptext,/DHCP activé.*Non/);
+  console.log("PASS EXP-6 : ipconfig et ipconfig /all du PC 2 cohérents");passed++;
+
+  await xp.locator("#device").selectOption("pc-02");
+  await xp.locator("#wrong-ip").click();
+  assert.match(await xp.locator("#windows-console").innerText(),/192\.168\.22\.30/);
+  await xp.locator("#console-pc").selectOption("pc-01");
+  await xp.locator("#ipconfig").click();
+  assert.match(await xp.locator("#windows-console").innerText(),/192\.168\.10\.20/);
+  console.log("PASS EXP-7 : ipconfig suit les changements et le poste choisi");passed++;
+
+  await xp.locator("#ping").click();
+  assert.doesNotMatch(await xp.locator("#terminal").innerText(),/Simulation d'une commande ping Windows/);
+  console.log("PASS EXP-8 : mention de simulation retirée du ping");passed++;
+
   await xp.reload({waitUntil:"networkidle"});
   await xp.locator("#feedback").getByText("Scénario chargé.").waitFor();
   assert.equal(await xp.locator("#ip-pc2").innerText(),"192.168.10.30/24");
   await xp.locator("#source").selectOption("pc-02");
   assert.match(await xp.locator("#connectivity").innerText(),/Communication possible/);
   assert.deepEqual(xerrors,[]);
-  console.log("PASS EXP-6 : rechargement restaure toutes les configurations");passed++;
+  console.log("PASS EXP-9 : rechargement restaure toutes les configurations");passed++;
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
   await browser.close();
