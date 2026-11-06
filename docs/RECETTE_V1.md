@@ -63,3 +63,20 @@ Une suite GitHub Actions a été créée dans `.github/workflows/test.yml` et ex
 - Journal officiel : https://github.com/chaoli22000bzh/R2D3/actions/runs/42177764780
 
 La réserve précédente relative à l'absence d'exécution Node.js est ainsi levée. Les essais graphiques détaillés (notamment rechargement et absence de stockage persistant) restent à confirmer.
+
+
+## Recette Chromium du 6 novembre 2026
+
+Workflow : `.github/workflows/browser.yml`. Script : `tests/browser-smoke.mjs`.
+
+- Test automatisé dans Chromium avec Playwright et les fichiers du dépôt C2-Lab récupérés sur GitHub.
+- Contrôle de l'identité du moteur et du scénario avec les fichiers de R2D3.
+- Scénario simulé sur serveur HTTP local sans dépendance de services externes.
+- Résultat du second lancement, après correction d'incompatibilité du système du runner : **8 tests réussis / 8, aucune erreur JavaScript signalée**.
+- Journal GitHub : https://github.com/chaoli22000bzh/R2D3/actions/runs/42178196199
+
+Les huit contrôles portent sur : chargement, ping initial, IP incorrecte, cumul des anomalies et réparation partielle, réparation complète, rechargement, absence de stockage navigateur, absence d'erreurs JavaScript et de requêtes externes.
+
+**Bilan des suites automatisées : 14/14 sous Node.js et 8/8 dans Chromium.**
+
+Réserve : la recette Chromium utilise une copie fraîche du dépôt C2-Lab servie localement. Elle démontre le fonctionnement autonome des fichiers testés, mais ne mesure pas les performances ni la disponibilité de GitHub Pages sur Internet. L'URL publique a fait l'objet d'un retour positif du professeur.
