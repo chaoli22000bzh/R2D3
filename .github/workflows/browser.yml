@@ -1,0 +1,44 @@
+name: Recette navigateur R2D3 V1
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "scenarios/**"
+      - "tests/browser-smoke.mjs"
+      - ".github/workflows/browser.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  browser-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le moteur R2D3
+        uses: actions/checkout@v4
+      - name: Récupérer la démonstration C2-Lab
+        uses: actions/checkout@v4
+        with:
+          repository: chaoli22000bzh/C2-Lab
+          path: c2-lab
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Installer le navigateur de test
+        run: |
+          npm install --no-save --package-lock=false playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Démarrer le serveur statique local
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory c2-lab > /tmp/r2d3-http.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8765/r2d3-v1/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Exécuter la recette dans Chromium
+        run: node tests/browser-smoke.mjs
