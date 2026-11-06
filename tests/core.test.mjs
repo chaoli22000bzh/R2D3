@@ -85,3 +85,30 @@ test("restauration sans nouvelle mutation",()=>{
  assert.equal(restored.getSnapshot().revision,1);
  assert.deepEqual(restored.exportState(),saved);
 });
+
+
+const options=(id,targetId,gateway,dns,rev)=>c(id,"network.setNetworkOptions",targetId,{gateway,dns},rev);
+test("Options réseau : passerelle et deux DNS configurables",()=>{
+ const e=createEngine(scenario);
+ assert.equal(e.dispatch(options("opt1","pc-01","192.168.10.1",["192.168.10.10","1.1.1.1"])).status,"applied");
+ assert.deepEqual(e.getSnapshot().objectsById["pc-01"].config.networkOptions,{gateway:"192.168.10.1",dns:["192.168.10.10","1.1.1.1"]});
+ assert.equal(ping(e).success,true,"Ajouter les DNS ne modifie pas un ping IPv4 direct");
+ e.dispatch(ip("opt2","192.168.22.20"));
+ assert.deepEqual(e.getSnapshot().objectsById["pc-01"].config.networkOptions.dns,["192.168.10.10","1.1.1.1"],"Conserver les DNS quand on modifie l'IP");
+ const saved=e.exportState();
+ assert.deepEqual(restoreEngine(scenario,saved).exportState(),saved,"Restaurer les options réseau");
+});
+test("Options réseau : refuser DNS ou passerelle impossible sans mutation",()=>{
+ const e=createEngine(scenario);
+ const before=e.exportState();
+ for(const [gateway,dns] of [["999.1.2.3",[]],[null,["8.8.8.8","1.1.1.1","9.9.9.9"]],[null,["8.8.8.8","8.8.8.8"]],[null,["pas une IP"]]]){
+  assert.equal(e.dispatch(options("bad-"+JSON.stringify([gateway,dns]),"pc-01",gateway,dns)).status,"rejected");
+ }
+ assert.deepEqual(e.exportState(),before);
+ assert.equal(e.dispatch(options("good","pc-01",null,[])).status,"applied","La passerelle et les DNS sont facultatifs");
+});
+test("Options réseau : une mauvaise passerelle n'invente pas de routage",()=>{
+ const e=createEngine(scenario);
+ e.dispatch(options("bad-router","pc-01","192.168.22.1",["9.9.9.9"]));
+ assert.equal(ping(e).success,true,"Le ping LAN direct reste indépendant de la passerelle et des DNS");
+});
