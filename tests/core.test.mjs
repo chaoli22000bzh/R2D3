@@ -54,3 +54,34 @@ test("rechargement logique = état initial",()=>{
  const next=createEngine(scenario);assert.equal(next.getSnapshot().revision,0);
  assert.equal(ping(next).success,true);
 });
+
+
+test("commande dupliquée refusée et non rejouée",()=>{
+ const e=createEngine(scenario),command=wire("unique-id",false);
+ assert.equal(e.dispatch(command).status,"applied");
+ assert.equal(e.dispatch(command).status,"rejected");
+ assert.equal(e.getSnapshot().revision,1);
+});
+test("lecture de ping sans mutation",()=>{
+ const e=createEngine(scenario),before=e.exportState();
+ for(let i=0;i<4;i++)ping(e);
+ assert.deepEqual(e.exportState(),before);
+});
+test("IPv4 hors plage refusée sans mutation",()=>{
+ const e=createEngine(scenario),before=e.exportState();
+ assert.equal(e.dispatch(ip("incorrect","999.11.4.3")).status,"rejected");
+ assert.deepEqual(e.exportState(),before);
+});
+test("scénario avec un port inexistant rejeté",()=>{
+ const invalid=structuredClone(scenario);
+ invalid.links[0].endpoints[0].portId="port-inexistant";
+ assert.throws(()=>createEngine(invalid));
+});
+test("restauration sans nouvelle mutation",()=>{
+ const e=createEngine(scenario);
+ e.dispatch(wire("a",false));
+ const saved=e.exportState();
+ const restored=restoreEngine(scenario,saved);
+ assert.equal(restored.getSnapshot().revision,1);
+ assert.deepEqual(restored.exportState(),saved);
+});
