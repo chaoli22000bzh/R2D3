@@ -170,8 +170,8 @@ try {
   const dhcpText=await mobile.locator("#dhcp-example").innerText();
   assert.match(dhcpText,/Users\\technicien>ipconfig \/all/);
   assert.match(dhcpText,/DHCP activé.*Oui/);
-  assert.match(dhcpText,/Passerelle par défaut.*192\\.168\\.1\\.1/);
-  assert.match(dhcpText,/Serveur DHCP.*192\\.168\\.1\\.1/);
+  assert.match(dhcpText,/Passerelle par défaut\s*:\s*192\.168\.1\.1/);
+  assert.match(dhcpText,/Serveur DHCP\s*\.+\s*:\s*192\.168\.1\.1/);
   assert.match(dhcpText,/192\\.168\\.1\\.10/);
   assert.match(dhcpText,/1\\.1\\.1\\.1/);
   assert.match(dhcpText,/Bail obtenu/);
