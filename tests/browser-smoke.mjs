@@ -165,6 +165,21 @@ try {
   assert.ok(measures.pageWidth<=measures.viewportWidth+1,"Débordement horizontal de la page sur mobile");
   assert.ok(measures.consoleWidth<=measures.consoleVisible+1,"Débordement horizontal de ipconfig sur mobile");
   console.log("PASS EXP-10 : ipconfig /all mobile compact sans défilement horizontal");passed++;
+
+  // La maquette DHCP est distincte des machines en statique.
+  await mobile.locator("#dhcp-preview").click();
+  const dhcpText=await mobile.locator("#dhcp-example").innerText();
+  assert.match(dhcpText,/Users\\technicien>ipconfig \/all/);
+  assert.match(dhcpText,/DHCP activé.*Oui/);
+  assert.match(dhcpText,/Passerelle par défaut.*192\\.168\\.1\\.1/);
+  assert.match(dhcpText,/Serveur DHCP.*192\\.168\\.1\\.1/);
+  assert.match(dhcpText,/192\\.168\\.1\\.10/);
+  assert.match(dhcpText,/1\\.1\\.1\\.1/);
+  assert.match(dhcpText,/Bail obtenu/);
+  assert.match(dhcpText,/Bail expirant/);
+  for(const discarded of ["Type de nœud","Routage IP","Proxy WINS","Carte Ethernet Ethernet"])assert.ok(!dhcpText.includes(discarded),discarded+" indésirable");
+  assert.equal(await mobile.locator("#dhcp-preview").getAttribute("aria-expanded"),"true");
+  console.log("PASS EXP-11 : maquette DHCP conforme au modèle validé");passed++;
   await mobile.close();
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
