@@ -51,3 +51,15 @@ Cinq contrôles supplémentaires du moteur ont été exécutés dans un banc Jav
 **Bilan des essais manuels JavaScript sur le moteur : 14 réussites sur 14 contrôles exécutés.**
 
 L'exécution de la suite `npm test` sous Node.js et la vérification manuelle détaillée des différents navigateurs restent à confirmer. Ces contrôles ne sont pas présentés comme exécutés.
+
+
+## Exécution réelle Node.js du 6 novembre 2026
+
+Une suite GitHub Actions a été créée dans `.github/workflows/test.yml` et exécutée sur le commit `93fb9342e2456a88543f253b76aec75b7a324ee2`.
+
+- Environnement : GitHub Actions Ubuntu, Node.js 22.23.4.
+- Commande : `npm test`, exécutant `node --test tests/*.test.mjs`.
+- Résultat : **14 tests réussis / 14**, **0 échec**, **0 test ignoré**.
+- Journal officiel : https://github.com/chaoli22000bzh/R2D3/actions/runs/42177764780
+
+La réserve précédente relative à l'absence d'exécution Node.js est ainsi levée. Les essais graphiques détaillés (notamment rechargement et absence de stockage persistant) restent à confirmer.
