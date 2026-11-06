@@ -206,3 +206,13 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - Rapport GitHub Actions : https://github.com/chaoli22000bzh/R2D3/actions/runs/42203579319
 - Les adresses MAC présentes dans `ipconfig /all` sont des valeurs de banc d'essai et non une simulation des mécanismes MAC du Core.
 - La validation de pertinence pédagogique et du rendu sur l'appareil du professeur reste à faire. C² et la V1 classique ne sont pas modifiés.
+
+
+### 6 novembre 2026 - Correction de la lisibilité ipconfig sur smartphone
+
+- Le professeur a fourni deux captures Android : `ipconfig` et `ipconfig /all` coupaient les longues lignes de points et les valeurs dans la console, rendant la lecture pénible.
+- Modification isolée des fichiers `C2-Lab/main/r2d3-v1/experiment.js` et `experiment.html`.
+- Sur écran de largeur inférieure ou égale à 600 px : libellés compacts, suppression des alignements à points répétés, police monospace 12 px et espacements adaptés. L'affichage Windows classique avec ses points reste préservé au-delà du seuil.
+- Contenu toujours issu de l'état courant de R2D3 (adresse, masque, statut du câble). Le format est recalculé en cas de changement de largeur.
+- Ajout d'un essai Chromium mobile de 360 px pour vérifier les libellés et l'absence de débordement horizontal, dans `tests/browser-smoke.mjs`.
+- La V1 de référence et le Core R2D3 ne sont pas modifiés. L'appréciation visuelle sur le smartphone réel reste à recueillir.
