@@ -185,3 +185,14 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - Une mention explicite « Simulation » différencie cet affichage d'un véritable outil réseau. Les durées `<1ms` et le TTL 128 sont des valeurs **représentatives fixes**, non mesurées. Le moteur de ping n'a pas changé.
 - Dans `R2D3/main/tests/browser-smoke.mjs`, des assertions contrôlent les quatre réponses en succès, les quatre expirations en échec et leurs bilans.
 - Le démonstrateur V1 classique (`index.html`, `app.js`) reste inchangé, de même que C² et `integration-c2`.
+
+
+### 6 novembre 2026 - Console ipconfig et ipconfig /all du scénario expérimental
+
+- Retour utilisateur : le ping à quatre réponses est nettement meilleur. Demande de retirer la ligne annonçant la simulation dans l'affichage du ping, puis de pouvoir évaluer l'ergonomie de deux commandes Windows `ipconfig` et `ipconfig /all`.
+- `C2-Lab/main/r2d3-v1/experiment.js` : ligne d'annonce de simulation retirée de la console ping ; les quatre réponses et leur bilan restent présents.
+- `C2-Lab/main/r2d3-v1/experiment.html` et `experiment.js` : ajout d'une console Windows pour PC 1 ou PC 2, avec `ipconfig` simple et `ipconfig /all`. IPv4 et masque sont calculés à partir du moteur existant, le statut « média déconnecté » suit l'état du câble, et la vue se met à jour après modification.
+- Les adresses physiques `02-00-00-00-00-01` et `02-00-00-00-00-02` sont des **valeurs fictives d'affichage** ; le moteur V1 ne gère pas encore les MAC, DNS, passerelles ou DHCP. L'écran ne doit pas inventer un bail, une passerelle ou un serveur DNS.
+- Ajout de contrôles `ipconfig`, `ipconfig /all` et relecture de configuration dans `R2D3/main/tests/browser-smoke.mjs`.
+- La V1 historique, le Core, les TP C² et la branche `integration-c2` restent inchangés.
+- La validation manuelle pédagogique des deux commandes reste à réaliser par le professeur depuis GitHub Pages.
