@@ -88,7 +88,7 @@ try {
   assert.match(await xp.locator("#connectivity").innerText(),/Communication impossible/);
   await xp.locator("#ping").click();
   const failedPing=await xp.locator("#terminal").innerText();
-  assert.match(failedPing,/Échec/);
+  assert.match(failedPing,/Délai d.attente de la demande dépassé/);
   assert.equal((failedPing.match(/Délai d'attente de la demande dépassé/g)||[]).length,4);
   assert.match(failedPing,/envoyés = 4, reçus = 0, perdus = 4/);
   console.log("PASS EXP-2 : panne IP PC 2 et quatre échecs ping détectés");passed++;
