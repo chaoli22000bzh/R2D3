@@ -275,6 +275,50 @@ try {
   await dhcpPage.close();
 
 
+  // Laboratoire multi-clients : scénario nouveau, sans changement de l'atelier à un PC.
+  assert.deepEqual(
+    JSON.parse(readFileSync("c2-lab/r2d3-v1/dhcp-deux-pc-scenario.json","utf8")),
+    JSON.parse(readFileSync("scenarios/atelier-dhcp-deux-pc-v1.json","utf8")),
+    "Scénario DHCP deux PC synchronisé"
+  );
+  const multi=await browser.newPage({viewport:{width:390,height:844}});
+  const multiErrors=[];multi.on("pageerror",e=>multiErrors.push(e.message));
+  const multiRes=await multi.goto("http://127.0.0.1:8765/r2d3-v1/dhcp-deux-pc.html",{waitUntil:"networkidle"});
+  assert.equal(multiRes.status(),200);
+  await multi.locator("#feedback").getByText("Scénario chargé.").waitFor();
+  await multi.locator("#renew-pc-dhcp-01").click();
+  await multi.locator("#renew-pc-dhcp-02").click();
+  assert.match(await multi.locator("#ip-pc-dhcp-01").innerText(),/192\.168\.10\.100/);
+  assert.match(await multi.locator("#ip-pc-dhcp-02").innerText(),/192\.168\.10\.101/);
+  await multi.locator("#console-pc").selectOption("pc-dhcp-02");
+  await multi.locator("#ipconfig-all").click();
+  const multiConfig=await multi.locator("#console").innerText();
+  assert.match(multiConfig,/REN-PC-02/);
+  assert.match(multiConfig,/192\.168\.10\.101/);
+  assert.match(multiConfig,/192\.168\.10\.10/);
+  await multi.locator("#ping").click();
+  assert.match(await multi.locator("#ping-console").innerText(),/reçus = 4/);
+  console.log("PASS MULTI-01 : deux baux distincts, paramètres et ping du PC 2");passed++;
+
+  await multi.locator("#wire-pc-dhcp-02").click();
+  await multi.locator("#release-pc-dhcp-02").click();
+  await multi.locator("#renew-pc-dhcp-02").click();
+  assert.match(await multi.locator("#ip-pc-dhcp-02").innerText(),/169\.254\.10\.21/);
+  await multi.locator("#ipconfig-all").click();
+  assert.match(await multi.locator("#console").innerText(),/Adresse d'autoconfiguration IPv4.*169\.254\.10\.21/);
+  assert.match(await multi.locator("#ip-pc-dhcp-01").innerText(),/192\.168\.10\.100/);
+  await multi.locator("#console-pc").selectOption("pc-dhcp-01");
+  await multi.locator("#ping").click();
+  assert.match(await multi.locator("#ping-console").innerText(),/reçus = 4/);
+  console.log("PASS MULTI-02 : PC 2 isolé et APIPA, PC 1 inchangé");passed++;
+
+  await multi.locator("#wire-pc-dhcp-02").click();
+  await multi.locator("#renew-pc-dhcp-02").click();
+  assert.match(await multi.locator("#ip-pc-dhcp-02").innerText(),/192\.168\.10\.101/);
+  assert.deepEqual(multiErrors,[]);
+  console.log("PASS MULTI-03 : reconnexion, réattribution sans doublon, aucun problème JS");passed++;
+  await multi.close();
+
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
   await browser.close();
