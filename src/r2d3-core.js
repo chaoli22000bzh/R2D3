@@ -20,6 +20,22 @@ function validNetworkOptions(v) {
     v.dns.every(address=>ipv4ToInt(address)!==null) &&
     new Set(v.dns).size===v.dns.length;
 }
+function validDhcpPool(p) {
+  return isObj(p) && ipv4ToInt(p.start)!==null && ipv4ToInt(p.end)!==null &&
+    ipv4ToInt(p.start)<=ipv4ToInt(p.end) && (ipv4ToInt(p.end)-ipv4ToInt(p.start))<=254 &&
+    Number.isInteger(p.prefix) && p.prefix>=1 && p.prefix<=30 &&
+    sameSubnet(p.start,p.end,p.prefix) &&
+    validNetworkOptions({gateway:p.gateway,dns:p.dns}) &&
+    Number.isInteger(p.leaseSeconds) && p.leaseSeconds>=60 && p.leaseSeconds<=2592000;
+}
+function validIpv4(v){
+  return isObj(v) && (v.mode==="static"
+    ? ipv4ToInt(v.address)!==null && Number.isInteger(v.prefix) && v.prefix>=0 && v.prefix<=32
+    : v.mode==="dhcp" && (v.address===null || ipv4ToInt(v.address)!==null) &&
+      (v.prefix===null || Number.isInteger(v.prefix) && v.prefix>=0 && v.prefix<=32) &&
+      (v.lease===null || isObj(v.lease) && typeof v.lease.serverId==="string" &&
+       Number.isInteger(v.lease.start) && Number.isInteger(v.lease.expires) && v.lease.expires>v.lease.start));
+}
 function checkScenario(s) {
   if (!isObj(s) || s.format!=="r2d3-scenario" || s.schemaVersion!==1 ||
       typeof s.scenarioId!=="string" || !s.scenarioId ||
@@ -31,6 +47,9 @@ function checkScenario(s) {
     if (!o.id || ids.has(o.id) || !Array.isArray(o.ports) || !isObj(o.config)) throw new Error("Objet ou identifiant invalide");
     ids.add(o.id);
     if(o.config.networkOptions!==undefined && !validNetworkOptions(o.config.networkOptions)) throw new Error("Paramètres réseau invalides");
+    if(o.config.ipv4!==undefined && !validIpv4(o.config.ipv4))throw new Error("Configuration IPv4 invalide");
+    if(o.config.dhcpPool!==undefined && (!validDhcpPool(o.config.dhcpPool) || typeof o.config.dhcpEnabled!=="boolean"))
+      throw new Error("Serveur DHCP invalide");
     for (const p of o.ports) {
       const key=o.id+":"+p.id;
       if (!p.id || ports.has(key)) throw new Error("Port invalide");
@@ -74,7 +93,7 @@ function validateState(s, state) {
   for(const o of Object.values(state.objectsById)){
     if(o.config.ipv4){
       const v=o.config.ipv4;
-      if(v.mode!=="static" || ipv4ToInt(v.address)===null || !Number.isInteger(v.prefix) || v.prefix<0 || v.prefix>32)
+      if(!validIpv4(v))
         throw new Error("IPv4 restaurée invalide");
     }
   }
@@ -91,7 +110,7 @@ function makeEngine(scenario, existing) {
     if(!a || !b) return {status:"unknown",success:false,reason:"Objet inconnu"};
     if(!a.config.ipv4 || !b.config.ipv4) return {status:"unavailable",success:false,reason:"Interface IPv4 absente"};
     const av=a.config.ipv4, bv=b.config.ipv4;
-    if(av.mode!=="static" || bv.mode!=="static") return {status:"unavailable",success:false,reason:"Mode non pris en charge par la V1"};
+    if(!av.address || !bv.address || av.prefix===null || bv.prefix===null)return {status:"ok",success:false,reason:"Adresse IPv4 non attribuée"};
     const physical=physicalPath(sourceId,targetId);
     if(!physical) return {status:"ok",success:false,reason:"Liaison physique interrompue"};
     if(!sameSubnet(av.address,bv.address,av.prefix) || !sameSubnet(av.address,bv.address,bv.prefix))
@@ -137,6 +156,46 @@ function makeEngine(scenario, existing) {
          !Number.isInteger(p.prefix) || p.prefix<0 || p.prefix>32)
         return fail("invalid_ipv4","Adresse IPv4 ou préfixe impossible");
       o.config.ipv4={mode:"static",address:p.address,prefix:p.prefix,interfaceId:p.interfaceId};
+    }else if(c.type==="dhcp.setServerEnabled"){
+      const o=next.objectsById[c.targetId];
+      if(!o?.config.dhcpPool || typeof c.params.enabled!=="boolean")
+        return fail("invalid_dhcp_server","Serveur DHCP ou état invalide");
+      o.config.dhcpEnabled=c.params.enabled;
+    }else if(c.type==="dhcp.request"){
+      const client=next.objectsById[c.targetId], ip=client?.config.ipv4;
+      if(!ip || ip.mode!=="dhcp")return fail("not_dhcp_client","Client DHCP inexistant");
+      const prior=ip.lease!==null && ip.lease.expires>next.simulationClock;
+      const servers=Object.values(next.objectsById).filter(o=>o.config.dhcpPool && o.config.dhcpEnabled && physicalPath(c.targetId,o.id));
+      const server=servers[0];
+      if(server){
+        const pool=server.config.dhcpPool;
+        const reserved=new Set(Object.values(next.objectsById).filter(o=>o.id!==c.targetId && o.config.ipv4?.address).map(o=>o.config.ipv4.address));
+        let chosen=prior && ip.lease.serverId===server.id && sameSubnet(ip.address,pool.start,pool.prefix) ? ip.address:null;
+        if(!chosen){
+          for(let n=ipv4ToInt(pool.start);n<=ipv4ToInt(pool.end);n++){
+            const candidate=[24,16,8,0].map(k=>(n>>>k)&255).join(".");
+            if(!reserved.has(candidate)){chosen=candidate;break;}
+          }
+        }
+        if(chosen){
+          ip.address=chosen;ip.prefix=pool.prefix;
+          ip.lease={serverId:server.id,start:next.simulationClock,expires:next.simulationClock+pool.leaseSeconds};
+          client.config.networkOptions={gateway:pool.gateway,dns:[...pool.dns]};
+          next.runtime[c.targetId]={dhcpStatus:"lease"};
+        }else if(prior){
+          next.runtime[c.targetId]={dhcpStatus:"lease-retained",error:"Plage DHCP épuisée"};
+        }else{
+          ip.address="169.254.10.20";ip.prefix=16;ip.lease=null;
+          client.config.networkOptions={gateway:null,dns:[]};
+          next.runtime[c.targetId]={dhcpStatus:"apipa",error:"Plage DHCP épuisée"};
+        }
+      }else if(prior){
+        next.runtime[c.targetId]={dhcpStatus:"lease-retained",error:"Serveur DHCP inaccessible"};
+      }else{
+        ip.address="169.254.10.20";ip.prefix=16;ip.lease=null;
+        client.config.networkOptions={gateway:null,dns:[]};
+        next.runtime[c.targetId]={dhcpStatus:"apipa",error:"Serveur DHCP inaccessible"};
+      }
     }else if(c.type==="network.setNetworkOptions"){
       const o=next.objectsById[c.targetId], p=c.params;
       if(!o || !o.config.ipv4)return fail("unsupported_target","Équipement IPv4 inexistant");
