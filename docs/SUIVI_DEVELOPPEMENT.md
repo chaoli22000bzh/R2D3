@@ -165,3 +165,14 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - Création de `docs/PREPARATION_LOT_D.md` dans `R2D3/main` avec les points d'ancrage, risques, contraintes de transaction, isolation des copies et ordre recommandé pour une première tranche d'intégration.
 - **Aucun fichier du dépôt C² modifié, aucune migration SQL, aucun déploiement et aucun code d'intégration PHP créé.**
 - Prochaine décision technique : désigner/autoriser explicitement une branche C² d'intégration après validation du contrat d'architecture, sans modifier `main` ni les branches D3.
+
+
+### 6 novembre 2026 - Atelier expérimental GitHub Pages à trois terminaux (en attente de retour utilisateur)
+
+- Le professeur souhaite poursuivre les essais sur GitHub Pages pendant que l'intégration C² est reportée à mardi.
+- Création de `scenarios/atelier-2pc-imprimante-exp.json` dans R2D3 : PC 1, PC 2, switch trois ports, imprimante, trois liaisons RJ45, sans nouveau type de commande.
+- Dans `C2-Lab/main/r2d3-v1/`, ajout isolé de `experiment.html`, `experiment.js` et `experiment-scenario.json`. La page `index.html`, `app.js`, le scénario V1 et la copie du moteur ne sont pas modifiés.
+- Manipulations nouvelles proposées : choix du matériel, modification de son IPv4, débranchement individuel des câbles, ping depuis différentes sources, comparaison des conséquences d'une panne sur PC 2 et de la disponibilité de PC 1.
+- L'essai expérimental partage le moteur V1 mais ne remplace pas le démonstrateur V1 validé. Les données restent en mémoire ; aucune sauvegarde navigateur ni intégration C².
+- Six vérifications Chromium expérimentales ont été ajoutées au banc `tests/browser-smoke.mjs`, déclenchant un nouveau workflow ; le résultat est à compléter après exécution.
+- **Aucun fichier C² ou branche d'intégration C² modifié.**
