@@ -251,3 +251,13 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - Recette Chromium augmentée de trois tests, et l'ancien atelier IPv4 n'a pas été modifié. Aucune modification dans C².
 - Limites explicites : un seul serveur et un client pour le premier essai, allocation simplifiée, pas de DHCP broadcast détaillé, pas d'expiration de bail en temps réel, ni DNS/routage émulé.
 - Recette interactive à confirmer par le professeur avant extension du moteur.
+
+
+### 6 novembre 2026 - Commandes Windows DHCP explicites
+
+- Validation par le professeur : remplacer le bouton ambigu « Demander / renouveler » par les deux commandes exactes `ipconfig /release` et `ipconfig /renew`.
+- Nouvelle commande moteur `dhcp.release` : abandon de l'adresse IPv4, du préfixe, du bail, de la passerelle et des DNS, sans affecter le service DHCP.
+- `dhcp.request` reste la simulation de `ipconfig /renew` : avec un bail valide et un service arrêté, conserver l'adresse ; après `release`, si le service est arrêté, obtenir une APIPA, sinon un bail du serveur.
+- Dans `C2-Lab/main/r2d3-v1/dhcp.html` et `dhcp.js`, boutons portant les noms Windows et retours d'état propres aux deux commandes.
+- Ajout de tests Node sur l'abandon, la conservation du bail, l'APIPA, la nouvelle attribution et le refus sur équipement statique, plus recette Chromium sur les boutons.
+- Maintien de la sortie `ipconfig /all` APIPA basée sur le chapitre 7 du cours DHCP ; ancien laboratoire IPv4 et C² inchangés.
