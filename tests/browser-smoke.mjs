@@ -211,6 +211,48 @@ try {
   assert.equal(await mobile.locator("#dhcp-preview").getAttribute("aria-expanded"),"true");
   console.log("PASS EXP-11 : maquette DHCP conforme au modèle validé");passed++;
   await mobile.close();
+  // Nouvelle page DHCP : indépendante des ateliers IPv4 déjà validés.
+  assert.deepEqual(
+    JSON.parse(readFileSync("c2-lab/r2d3-v1/dhcp-scenario.json","utf8")),
+    JSON.parse(readFileSync("scenarios/atelier-dhcp-v1.json","utf8"))
+  );
+  const dhcpPage=await browser.newPage({viewport:{width:390,height:844}});
+  const dhcpErrors=[];
+  dhcpPage.on("pageerror",e=>dhcpErrors.push(e.message));
+  const dhcpResponse=await dhcpPage.goto("http://127.0.0.1:8765/r2d3-v1/dhcp.html",{waitUntil:"networkidle"});
+  assert.equal(dhcpResponse.status(),200);
+  await dhcpPage.locator("#feedback").getByText("Scénario chargé.").waitFor();
+  await dhcpPage.locator("#request").click();
+  assert.match(await dhcpPage.locator("#client-ip").innerText(),/192\.168\.10\.100/);
+  await dhcpPage.locator("#ipconfig-all").click();
+  const granted=await dhcpPage.locator("#console").innerText();
+  for(const value of ["192.168.10.100","192.168.10.1","192.168.10.10","1.1.1.1","Bail obtenu","Bail expirant"])assert.ok(granted.includes(value),value);
+  for(const unwanted of ["Type de nœud","Routage IP","Proxy WINS","Carte Ethernet Ethernet"])assert.ok(!granted.includes(unwanted),unwanted);
+  await dhcpPage.locator("#ping").click();
+  assert.match(await dhcpPage.locator("#ping-console").innerText(),/reçus = 4/);
+  console.log("PASS DHCP-1 : attribution automatique, DNS, bail et ping Windows");passed++;
+
+  await dhcpPage.locator("#toggle-server").click();
+  await dhcpPage.locator("#request").click();
+  assert.match(await dhcpPage.locator("#client-status").innerText(),/Bail valide conservé/);
+  assert.match(await dhcpPage.locator("#client-ip").innerText(),/192\.168\.10\.100/);
+  console.log("PASS DHCP-2 : conservation du bail après arrêt du serveur");passed++;
+
+  await dhcpPage.locator("#reset").click();
+  await dhcpPage.locator("#toggle-cable").click();
+  await dhcpPage.locator("#request").click();
+  assert.match(await dhcpPage.locator("#client-status").innerText(),/APIPA/);
+  assert.match(await dhcpPage.locator("#client-ip").innerText(),/169\.254\.10\.20/);
+  await dhcpPage.locator("#ping").click();
+  assert.match(await dhcpPage.locator("#ping-console").innerText(),/reçus = 0/);
+  await dhcpPage.locator("#toggle-cable").click();
+  await dhcpPage.locator("#request").click();
+  assert.match(await dhcpPage.locator("#client-ip").innerText(),/192\.168\.10\.100/);
+  assert.deepEqual(dhcpErrors,[]);
+  console.log("PASS DHCP-3 : panne physique, APIPA puis nouveau bail");passed++;
+  await dhcpPage.close();
+
+
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
   await browser.close();
