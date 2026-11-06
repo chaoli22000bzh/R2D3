@@ -124,7 +124,7 @@ try {
   assert.match(iptext,/ipconfig \/all/);
   assert.match(iptext,/192\.168\.10\.30/);
   assert.match(iptext,/255\.255\.255\.0/);
-  assert.match(iptext,/02-00-00-00-00-02/);
+  assert.doesNotMatch(iptext,/Type de nœud|Routage IP|Proxy WINS|Carte Ethernet Ethernet|Adresse physique/);
   assert.match(iptext,/DHCP activé.*Non/);
   console.log("PASS EXP-6 : ipconfig et ipconfig /all du PC 2 cohérents");passed++;
 
@@ -184,7 +184,8 @@ try {
   const mobileText=await mobile.locator("#windows-console").innerText();
   assert.match(mobileText,/Nom de l'hôte \.+ : PC Windows/);
   assert.match(mobileText,/Adresse IPv4 \.+ : 192\.168\.10\.20/);
-  assert.match(mobileText,/Masque \.+ : 255\.255\.255\.0/);
+  assert.match(mobileText,/Masque de sous-réseau\s+: 255\.255\.255\.0/);
+  for(const unwanted of ["Type de nœud","Routage IP","Proxy WINS","Carte Ethernet Ethernet","Adresse physique"]) assert.ok(!mobileText.includes(unwanted),"Champ non validé : "+unwanted);
   const measures=await mobile.evaluate(()=>{
     const consoleElement=document.querySelector("#windows-console");
     return {pageWidth:document.documentElement.scrollWidth,viewportWidth:innerWidth,
