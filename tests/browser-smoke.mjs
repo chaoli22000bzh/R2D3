@@ -147,6 +147,25 @@ try {
   assert.match(await xp.locator("#connectivity").innerText(),/Communication possible/);
   assert.deepEqual(xerrors,[]);
   console.log("PASS EXP-9 : rechargement restaure toutes les configurations");passed++;
+  // Contrôle complémentaire sur une largeur de téléphone Android.
+  const mobile=await browser.newPage({viewport:{width:360,height:740},deviceScaleFactor:2,isMobile:true,hasTouch:true});
+  await mobile.goto("http://127.0.0.1:8765/r2d3-v1/experiment.html",{waitUntil:"networkidle"});
+  await mobile.locator("#feedback").getByText("Scénario chargé.").waitFor();
+  await mobile.locator("#ipconfig-all").click();
+  const mobileText=await mobile.locator("#windows-console").innerText();
+  assert.match(mobileText,/Nom de l'hôte : PC 1/);
+  assert.match(mobileText,/Adresse IPv4 : 192\\.168\\.10\\.20/);
+  assert.match(mobileText,/Masque : 255\\.255\\.255\\.0/);
+  assert.doesNotMatch(mobileText,/Nom de l'hôte \\./);
+  const measures=await mobile.evaluate(()=>{
+    const consoleElement=document.querySelector("#windows-console");
+    return {pageWidth:document.documentElement.scrollWidth,viewportWidth:innerWidth,
+            consoleWidth:consoleElement.scrollWidth,consoleVisible:consoleElement.clientWidth};
+  });
+  assert.ok(measures.pageWidth<=measures.viewportWidth+1,"Débordement horizontal de la page sur mobile");
+  assert.ok(measures.consoleWidth<=measures.consoleVisible+1,"Débordement horizontal de ipconfig sur mobile");
+  console.log("PASS EXP-10 : ipconfig /all mobile compact sans défilement horizontal");passed++;
+  await mobile.close();
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
   await browser.close();
