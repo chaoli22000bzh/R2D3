@@ -131,3 +131,14 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - L'automatisation navigateur teste les fichiers du dépôt C2-Lab servis localement et non directement la disponibilité publique de GitHub Pages. Le professeur a confirmé séparément le fonctionnement général de l'URL publique.
 - **Bilan automatisé V1 : 14 tests Node.js et 8 tests Chromium réussis.**
 - Aucun fichier des dépôts C² ou C2-Lab n'a été modifié durant cette étape ; seuls les tests, le workflow et les documents du dépôt R2D3 ont été ajoutés/actualisés.
+
+
+### 6 novembre 2026 - Consolidation et clôture technique du prototype V1
+
+- Comparaison documentée des dix critères de réussite avec les éléments livrés et testés.
+- Création de `docs/BILAN_LIVRAISON_V1.md` : inventaire des livrables, preuves de recette, limites, tests hors périmètre et décision de gel fonctionnel V1.
+- **État courant à retenir : V1 livrée et vérifiée sur le périmètre approuvé**, avec 14/14 tests Node.js et 8/8 tests Chromium ; ouverture et fonctionnement général de l'URL publique confirmés par le professeur.
+- Les anciennes mentions du présent journal indiquant que l'exécution Node.js ou Chromium « reste à faire » correspondent à des étapes historiques désormais terminées, et ne reflètent plus l'état courant.
+- Pas de campagne multi-navigateurs, ni de couverture des fonctionnalités avancées reportées à d'autres lots.
+- Aucune modification du moteur, du démonstrateur, de C² ou des TP D3 lors de cette formalisation.
+- **Prochaine décision attendue : choix du périmètre de la V2 par le professeur. Ne pas démarrer l'intégration C².**
