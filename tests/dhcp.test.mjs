@@ -58,3 +58,47 @@ test("DHCP-07: fonctionnement du laboratoire IPv4 statique préservé",()=>{
  const e=createEngine(scenario);
  assert.equal(e.query({type:"network.ping",sourceId:"srv-dhcp",targetId:"printer-dhcp"}).success,true);
 });
+
+
+test("DHCP-08: release supprime IPv4, bail, passerelle et DNS",()=>{
+ const e=createEngine(scenario);
+ req(e,"init");
+ assert.equal(e.dispatch(command("release","dhcp.release","pc-dhcp")).status,"applied");
+ assert.equal(pc(e).config.ipv4.address,null);
+ assert.equal(pc(e).config.ipv4.prefix,null);
+ assert.equal(pc(e).config.ipv4.lease,null);
+ assert.deepEqual(pc(e).config.networkOptions,{gateway:null,dns:[]});
+ assert.equal(e.getSnapshot().runtime["pc-dhcp"].dhcpStatus,"released");
+ assert.equal(ping(e).success,false);
+ assert.deepEqual(restoreEngine(scenario,e.exportState()).exportState(),e.exportState());
+});
+test("DHCP-09: renew seul conserve bail valide si serveur éteint",()=>{
+ const e=createEngine(scenario);
+ req(e,"first");e.dispatch(command("stop","dhcp.setServerEnabled","srv-dhcp",{enabled:false}));
+ req(e,"renew");
+ assert.equal(pc(e).config.ipv4.address,"192.168.10.100");
+ assert.equal(e.getSnapshot().runtime["pc-dhcp"].dhcpStatus,"lease-retained");
+});
+test("DHCP-10: release puis renew sans serveur donne APIPA",()=>{
+ const e=createEngine(scenario);
+ req(e,"first");
+ e.dispatch(command("stop","dhcp.setServerEnabled","srv-dhcp",{enabled:false}));
+ e.dispatch(command("release","dhcp.release","pc-dhcp"));
+ req(e,"renew");
+ assert.equal(pc(e).config.ipv4.address,"169.254.10.20");
+ assert.equal(pc(e).config.ipv4.prefix,16);
+ assert.equal(pc(e).config.ipv4.lease,null);
+ assert.equal(ping(e).success,false);
+});
+test("DHCP-11: release puis renew avec serveur actif donne un nouveau bail",()=>{
+ const e=createEngine(scenario);req(e,"first");
+ e.dispatch(command("release","dhcp.release","pc-dhcp"));
+ req(e,"renew");
+ assert.equal(pc(e).config.ipv4.address,"192.168.10.100");
+ assert.ok(pc(e).config.ipv4.lease);
+});
+test("DHCP-12: release d'un équipement statique refusé sans effet",()=>{
+ const e=createEngine(scenario),before=e.exportState();
+ assert.equal(e.dispatch(command("bad-release","dhcp.release","printer-dhcp")).status,"rejected");
+ assert.deepEqual(e.exportState(),before);
+});
