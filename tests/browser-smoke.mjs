@@ -168,12 +168,12 @@ try {
   // La maquette DHCP est distincte des machines en statique.
   await mobile.locator("#dhcp-preview").click();
   const dhcpText=await mobile.locator("#dhcp-example").innerText();
-  assert.match(dhcpText,/Users\\technicien>ipconfig \/all/);
+  assert.ok(dhcpText.includes("C:\\Users\\technicien>ipconfig /all"));
   assert.match(dhcpText,/DHCP activé.*Oui/);
   assert.match(dhcpText,/Passerelle par défaut\s*:\s*192\.168\.1\.1/);
   assert.match(dhcpText,/Serveur DHCP\s*\.+\s*:\s*192\.168\.1\.1/);
-  assert.match(dhcpText,/192\\.168\\.1\\.10/);
-  assert.match(dhcpText,/1\\.1\\.1\\.1/);
+  assert.ok(dhcpText.includes("192.168.1.10"));
+  assert.ok(dhcpText.includes("1.1.1.1"));
   assert.match(dhcpText,/Bail obtenu/);
   assert.match(dhcpText,/Bail expirant/);
   for(const discarded of ["Type de nœud","Routage IP","Proxy WINS","Carte Ethernet Ethernet"])assert.ok(!dhcpText.includes(discarded),discarded+" indésirable");
