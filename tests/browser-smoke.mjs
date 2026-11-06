@@ -185,6 +185,7 @@ try {
   assert.match(mobileText,/Nom de l'hôte \.+ : PC Windows/);
   assert.match(mobileText,/Adresse IPv4 \.+ : 192\.168\.10\.20/);
   assert.match(mobileText,/Masque de sous-réseau\s+: 255\.255\.255\.0/);
+  assert.doesNotMatch(mobileText,/Masque de sous-réseau\s+\./,"Le libellé le plus long ne doit pas avoir de points");
   for(const unwanted of ["Type de nœud","Routage IP","Proxy WINS","Carte Ethernet Ethernet","Adresse physique"]) assert.ok(!mobileText.includes(unwanted),"Champ non validé : "+unwanted);
   const measures=await mobile.evaluate(()=>{
     const consoleElement=document.querySelector("#windows-console");
