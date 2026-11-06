@@ -176,3 +176,12 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - L'essai expérimental partage le moteur V1 mais ne remplace pas le démonstrateur V1 validé. Les données restent en mémoire ; aucune sauvegarde navigateur ni intégration C².
 - Six vérifications Chromium expérimentales ont été ajoutées au banc `tests/browser-smoke.mjs`, déclenchant un nouveau workflow ; le résultat est à compléter après exécution.
 - **Aucun fichier C² ou branche d'intégration C² modifié.**
+
+
+### 6 novembre 2026 - Présentation du ping Windows dans l'atelier expérimental
+
+- Retour du professeur : le scénario expérimental avec deux PC fonctionne ; la seule amélioration demandée porte sur le rendu trop sommaire du ping.
+- Dans `C2-Lab/main/r2d3-v1/experiment.js`, la console affiche désormais quatre réponses simulées ou quatre expirations de délai, puis le bilan envoyé/reçu/perdu (0 % ou 100 % pour ce moteur déterministe).
+- Une mention explicite « Simulation » différencie cet affichage d'un véritable outil réseau. Les durées `<1ms` et le TTL 128 sont des valeurs **représentatives fixes**, non mesurées. Le moteur de ping n'a pas changé.
+- Dans `R2D3/main/tests/browser-smoke.mjs`, des assertions contrôlent les quatre réponses en succès, les quatre expirations en échec et leurs bilans.
+- Le démonstrateur V1 classique (`index.html`, `app.js`) reste inchangé, de même que C² et `integration-c2`.
