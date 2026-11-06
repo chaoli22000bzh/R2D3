@@ -238,3 +238,16 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - Le scénario reste en mode statique. Aucun bail DHCP n'est simulé ; la fenêtre d'exemple DHCP demeure un aperçu distinct.
 - Aucun changement dans C², `integration-c2` ni le démonstrateur V1 d'origine (`index.html`/`app.js`).
 - **Réserve :** ce jalon ne constitue pas la simulation de services DNS ni de routage. Attendre la recette GitHub Actions et le retour navigateur du professeur.
+
+
+### 6 novembre 2026 - Laboratoire DHCP initial isolé
+
+- Après validation par le professeur du ping, des incidents multiples, de la passerelle, des deux DNS et de la fenêtre `ipconfig /all`, lancement du premier scénario DHCP.
+- Moteur `R2D3/main/src/r2d3-core.js` : mode IPv4 `dhcp` avec lease explicite, configuration de serveur `dhcpPool` (plage, préfixe, passerelle, deux DNS et durée), commandes `dhcp.request` et `dhcp.setServerEnabled`.
+- Le PC ne reçoit un bail qu'après la commande explicite. Si le serveur est joignable et actif, le premier IP libre de la plage est attribué avec un bail de 86400 secondes. Sans offre initiale, le PC adopte une APIPA de démonstration 169.254.10.20/16, sans passerelle ni DNS.
+- Si le serveur devient indisponible après l'obtention d'un bail toujours valide, le bail reste en place ; une demande de renouvellement infructueuse ne l'efface pas. Le temps simulé reste fixe (pas d'expiration automatique). Ces limites doivent évoluer lors d'un lot ultérieur.
+- Nouveaux fichiers `R2D3/scenarios/atelier-dhcp-v1.json`, `R2D3/tests/dhcp.test.mjs`. Sept tests unitaires dont APIPA, persistance du bail et export/restauration.
+- Nouveau laboratoire indépendant sur `C2-Lab/main/r2d3-v1/dhcp.html`, `dhcp.js`, `dhcp-scenario.json`, utilisant le même moteur. Fenêtre `ipconfig /all` volontairement épurée, fidèle à l'accord pédagogique ; bail montré à partir d'une horloge de démonstration fixée au 06/11/2026.
+- Recette Chromium augmentée de trois tests, et l'ancien atelier IPv4 n'a pas été modifié. Aucune modification dans C².
+- Limites explicites : un seul serveur et un client pour le premier essai, allocation simplifiée, pas de DHCP broadcast détaillé, pas d'expiration de bail en temps réel, ni DNS/routage émulé.
+- Recette interactive à confirmer par le professeur avant extension du moteur.
