@@ -21,6 +21,7 @@ for(const name of ["experiment","dhcp","dhcp-deux-pc","dhcp-admin","conflit-ipv4
   if(name!=="arp-windows"){
     assert.ok(script.includes('../shared-ui/v1/ipconfig-all.js'),"Composant ipconfig /all absent dans "+name);
     assert.ok(script.includes("formatIpconfigAll("),"Appel au composant ipconfig /all absent dans "+name);
+    assert.doesNotMatch(script,/const apipa=.*startsWith/,"Ancien rendu APIPA local restant dans "+name);
   }
 }
 
