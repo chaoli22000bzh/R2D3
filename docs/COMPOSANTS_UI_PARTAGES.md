@@ -74,6 +74,6 @@ const field=createWindowsFieldFormatter(["Adresse IPv4","Masque de sous-réseau"
 const lignes=[field("Adresse IPv4","192.168.10.20"),field("Masque de sous-réseau","255.255.255.0")];
 ```
 
-Utilisé à ce stade par les laboratoires 4 et 5. Les prochains laboratoires ne doivent pas recréer manuellement un formatage des points.
+Désormais utilisé par les laboratoires IPv4 expérimental, DHCP à un poste, DHCP à deux postes, administration DHCP, conflit IPv4 (laboratoire 4) et ARP (laboratoire 5). Les prochains laboratoires ne doivent pas recréer manuellement un formatage des points. Un changement de règle se fait uniquement dans ce composant versionné.
 
 Dans le laboratoire 5, les équipements portent les noms PC1 et PC2 afin d'éviter toute confusion du préfixe `REN` avec la commande Windows `ren`.
