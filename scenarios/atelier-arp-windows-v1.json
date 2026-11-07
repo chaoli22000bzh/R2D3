@@ -10,7 +10,7 @@
     {
       "id": "pc-dhcp-01",
       "kind": "pc-windows",
-      "name": "REN-PC-01",
+      "name": "PC1",
       "ports": [
         {
           "id": "eth0",
@@ -83,7 +83,7 @@
     {
       "id": "pc-dhcp-02",
       "kind": "pc-windows",
-      "name": "REN-PC-02",
+      "name": "PC2",
       "ports": [
         {
           "id": "eth0",
