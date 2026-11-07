@@ -567,6 +567,34 @@ try {
   console.log("PASS ARP-01 : apprentissage, cache propre à chaque PC, purge et ping animé");passed++;
   await arpPage.close();
 
+  // Le catalogue et la page d'essai utilisent les vrais composants partagés.
+  const cataloguePage=await browser.newPage({viewport:{width:390,height:844}});
+  const catalogueErrors=[];
+  cataloguePage.on("pageerror",error=>catalogueErrors.push(error.message));
+  const catalogueResponse=await cataloguePage.goto("http://127.0.0.1:8765/composants/",{waitUntil:"networkidle"});
+  assert.equal(catalogueResponse.status(),200);
+  await cataloguePage.locator("#results").getByText("6 composants trouvés").waitFor();
+  assert.match(await cataloguePage.locator("#ip-output").innerText(),/192\\.168\\.10\\.20/);
+  await cataloguePage.locator('#ip-modes button[data-mode="apipa"]').click();
+  assert.match(await cataloguePage.locator("#ip-output").innerText(),/169\\.254\\.10\\.20/);
+  await cataloguePage.locator('#all-modes button[data-mode="dhcp"]').click();
+  const allDemo=await cataloguePage.locator("#all-output").innerText();
+  assert.match(allDemo,/Serveur DHCP.*192\\.168\\.10\\.2/);
+  assert.match(allDemo,/Bail obtenu/);
+  await cataloguePage.locator("#arp-ping").click();
+  assert.match(await cataloguePage.locator("#arp-output").innerText(),/02-52-32-41-00-50/);
+  await cataloguePage.locator("#arp-d").click();
+  assert.doesNotMatch(await cataloguePage.locator("#arp-output").innerText(),/02-52-32-41-00-50|succès|vidé/);
+  await cataloguePage.locator("#arp-a").click();
+  assert.doesNotMatch(await cataloguePage.locator("#arp-output").innerText(),/02-52-32-41-00-50/);
+  await cataloguePage.locator("#search").fill("dhcp");
+  assert.match(await cataloguePage.locator("#results").innerText(),/composants? trouvés?/);
+  const found=await cataloguePage.locator("#catalogue article").allInnerTexts();
+  assert.ok(found.some(value=>value.includes("ipconfig /all")),"Recherche DHCP sans composant ipconfig /all");
+  assert.deepEqual(catalogueErrors,[]);
+  await cataloguePage.close();
+  console.log("PASS CATALOGUE : 3 composants exécutés en direct et recherche des modules partagés");passed++;
+
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
   await browser.close();
