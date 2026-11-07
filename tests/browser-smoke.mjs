@@ -446,6 +446,40 @@ try {
   console.log("PASS CONFLIT-01 : détection, correction manuelle et refus d'IPv4 invalide");passed++;
   await conflictPage.close();
 
+  // Laboratoire 5 : apprentissage ARP sur des postes Windows indépendants.
+  assert.deepEqual(
+    JSON.parse(readFileSync("c2-lab/r2d3-v1/arp-windows-scenario.json","utf8")),
+    JSON.parse(readFileSync("scenarios/atelier-arp-windows-v1.json","utf8"))
+  );
+  const arpPage=await browser.newPage({viewport:{width:390,height:844}});
+  const arpErrors=[];arpPage.on("pageerror",err=>arpErrors.push(err.message));
+  const arpResp=await arpPage.goto("http://127.0.0.1:8765/r2d3-v1/arp-windows.html",{waitUntil:"networkidle"});
+  assert.equal(arpResp.status(),200);
+  await arpPage.locator("#feedback").getByText("Scénario chargé.").waitFor();
+  await arpPage.locator("#arp-a").click();
+  assert.doesNotMatch(await arpPage.locator("#console").innerText(),/02-52-32-41-00-50/);
+  await arpPage.locator("#ping-printer").click();
+  assert.doesNotMatch(await arpPage.locator("#ping-console").innerText(),/Statistiques Ping/);
+  await arpPage.locator("#ping-console").getByText("Statistiques Ping",{exact:false}).waitFor();
+  await arpPage.locator("#arp-a").click();
+  assert.match(await arpPage.locator("#console").innerText(),/192\.168\.10\.50\s+02-52-32-41-00-50\s+dynamique/);
+  await arpPage.locator("#console-pc").selectOption("pc-dhcp-02");
+  await arpPage.locator("#arp-a").click();
+  assert.doesNotMatch(await arpPage.locator("#console").innerText(),/02-52-32-41-00-50/);
+  await arpPage.locator("#ping-peer").click();
+  await arpPage.locator("#ping-console").getByText("Statistiques Ping",{exact:false}).waitFor();
+  await arpPage.locator("#arp-a").click();
+  assert.match(await arpPage.locator("#console").innerText(),/192\.168\.10\.20\s+02-52-32-41-00-01\s+dynamique/);
+  await arpPage.locator("#arp-d").click();
+  await arpPage.locator("#arp-a").click();
+  assert.doesNotMatch(await arpPage.locator("#console").innerText(),/02-52-32-41-00-01/);
+  await arpPage.locator("#console-pc").selectOption("pc-dhcp-01");
+  await arpPage.locator("#arp-a").click();
+  assert.match(await arpPage.locator("#console").innerText(),/02-52-32-41-00-50/);
+  assert.deepEqual(arpErrors,[]);
+  console.log("PASS ARP-01 : apprentissage, cache propre à chaque PC, purge et ping animé");passed++;
+  await arpPage.close();
+
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
   await browser.close();
