@@ -319,6 +319,40 @@ try {
   console.log("PASS MULTI-03 : reconnexion, réattribution sans doublon, aucun problème JS");passed++;
   await multi.close();
 
+  // Laboratoire 3 : paramétrage du serveur DHCP, exclusions et réservation MAC.
+  assert.deepEqual(
+    JSON.parse(readFileSync("c2-lab/r2d3-v1/dhcp-admin-scenario.json","utf8")),
+    JSON.parse(readFileSync("scenarios/atelier-dhcp-admin-v1.json","utf8"))
+  );
+  const admin=await browser.newPage({viewport:{width:390,height:844}});
+  const adminErrors=[];admin.on("pageerror",e=>adminErrors.push(e.message));
+  const adminResp=await admin.goto("http://127.0.0.1:8765/r2d3-v1/dhcp-admin.html",{waitUntil:"networkidle"});
+  assert.equal(adminResp.status(),200);
+  await admin.locator("#feedback").getByText("Scénario chargé.").waitFor();
+  await admin.locator("#pool-start").fill("192.168.10.100");
+  await admin.locator("#pool-end").fill("192.168.10.110");
+  await admin.locator("#exclusions").fill("192.168.10.100, 192.168.10.102");
+  await admin.locator("#reservation").fill("192.168.10.105");
+  await admin.locator("#save-pool").click();
+  assert.match(await admin.locator("#pool-feedback").innerText(),/Configuration enregistrée/);
+  await admin.locator("#renew-pc-dhcp-01").click();
+  await admin.locator("#renew-pc-dhcp-02").click();
+  assert.match(await admin.locator("#ip-pc-dhcp-01").innerText(),/192\.168\.10\.101/);
+  assert.match(await admin.locator("#ip-pc-dhcp-02").innerText(),/192\.168\.10\.105/);
+  await admin.locator("#console-pc").selectOption("pc-dhcp-02");
+  await admin.locator("#ipconfig-all").click();
+  assert.match(await admin.locator("#console").innerText(),/192\.168\.10\.105/);
+  await admin.locator("#release-pc-dhcp-02").click();
+  await admin.locator("#renew-pc-dhcp-02").click();
+  assert.match(await admin.locator("#ip-pc-dhcp-02").innerText(),/192\.168\.10\.105/);
+  await admin.locator("#reservation").fill("192.168.10.102");
+  await admin.locator("#save-pool").click();
+  assert.match(await admin.locator("#pool-feedback").innerText(),/Configuration refusée/);
+  assert.match(await admin.locator("#ip-pc-dhcp-02").innerText(),/192\.168\.10\.105/);
+  assert.deepEqual(adminErrors,[]);
+  console.log("PASS ADMIN-01 : exclusions, réservation MAC, renouvellement et refus configuration invalide");passed++;
+  await admin.close();
+
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
   await browser.close();
