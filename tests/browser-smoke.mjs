@@ -322,7 +322,7 @@ try {
   assert.match(await multi.locator("#ping-console").innerText(),/REN-PC-01/);
   assert.doesNotMatch(await multi.locator("#ping-console").innerText(),/REN-PC-02/);
   await multi.locator("#ping-console").getByText("Statistiques Ping",{exact:false}).waitFor();
-  assert.equal((await multi.locator("#ping-console").innerText()).match(/Réponse de 192\\.168\\.10\\.50/g)?.length,4);
+  assert.equal((await multi.locator("#ping-console").innerText()).split("Réponse de 192.168.10.50").length-1,4);
   console.log("PASS PING-COMMUN : relance, source distincte et annulation du résultat antérieur");passed++;
   await multi.locator("#console-pc").selectOption("pc-dhcp-02");
 
