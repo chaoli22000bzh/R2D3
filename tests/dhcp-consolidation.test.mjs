@@ -57,3 +57,13 @@ test("CONSOL-DHCP-05 : configuration invalide et restauration sans mutation impl
  assert.deepEqual(e.exportState(),before);
  assert.deepEqual(restoreEngine(scenario,e.exportState()).exportState(),e.exportState());
 });
+
+test("CONSOL-DHCP-06 : renouvellement T1 refuse une IP devenue occupee par une configuration statique",()=>{
+ const e=createEngine(scenario);
+ request(e,"initial","pc-dhcp-01");
+ const change=issue(e,"collision","network.setIPv4","printer-dhcp",{mode:"static",interfaceId:"eth0",address:"192.168.10.100",prefix:24});
+ assert.equal(change.status,"applied");
+ advance(e,"t1",12);
+ assert.equal(e.getSnapshot().runtime["pc-dhcp-01"].dhcpLeasePhase,"t1-failed");
+ assert.equal(lease(e,"pc-dhcp-01").expires,86400);
+});
