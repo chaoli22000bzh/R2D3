@@ -19,8 +19,8 @@ for(const name of ["experiment","dhcp","dhcp-deux-pc","dhcp-admin","conflit-ipv4
   assert.match(script,/shared-ui\/v1\/ipconfig\.js/,"Composant ipconfig absent dans "+name);
   assert.match(script,/formatIpconfig\(/,"Appel au composant ipconfig absent dans "+name);
   if(name!=="arp-windows"){
-    assert.match(script,/shared-ui\\/v1\\/ipconfig-all\\.js/,"Composant ipconfig /all absent dans "+name);
-    assert.match(script,/formatIpconfigAll\\(/,"Appel au composant ipconfig /all absent dans "+name);
+    assert.ok(script.includes('../shared-ui/v1/ipconfig-all.js'),"Composant ipconfig /all absent dans "+name);
+    assert.ok(script.includes("formatIpconfigAll("),"Appel au composant ipconfig /all absent dans "+name);
   }
 }
 
