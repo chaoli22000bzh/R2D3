@@ -103,3 +103,33 @@ sortie.textContent=formatIpconfig({
 Dans C2-Lab, les laboratoires IPv4 expérimental, DHCP un poste, DHCP deux postes, administration DHCP, conflit d'IPv4 et ARP utilisent ce même module pour la **commande simple**. Leur logique spécifique `ipconfig /all` n'a pas été migrée : elle fera l'objet de l'étape suivante, distincte.
 
 Le composant est utilisable directement par URL dans un navigateur connecté, ou doit être intégré au déploiement hors ligne pour les TP en réseau isolé. Aucun changement n'a encore été apporté à C² ni aux portails pédagogiques.
+
+
+## Composant complet `ipconfig /all`
+
+Le module `shared-ui/v1/ipconfig-all.js` exporte `formatIpconfigAll(config)`. Il est indépendant du DOM, du moteur R2D3, des laboratoires, des pages GitHub et de tout accès réseau. Il reçoit les caractéristiques réelles du poste sélectionné.
+
+- Obligatoire : `ipv4: {address, prefix, lease?}`.
+- Paramètres facultatifs : `hostname`, `dhcp`, `autoconfiguration`, `connected`, `description`, `mac`, `gateway`, `dns`, `dhcpServer`, `leaseStart`, `leaseEnd`, `netbios`, `interfaceName`.
+- Les champs non fournis sont omis plutôt que remplacés par de fausses valeurs. Les dates de bail restent sous la responsabilité de l'appelant et doivent provenir du scénario.
+- Une IPv4 APIPA attribuée sans bail DHCP est rendue sous « Adresse d'autoconfiguration IPv4 ». Les informations de bail ne sont affichées que si un bail existe.
+- La sortie comporte l'invite Windows, l'en-tête, le nom du poste s'il est connu, la carte Ethernet et les valeurs utiles. Les lignes sont alignées via `windows-fields.js`. Pas de message d'aide ou d'indice de diagnostic ajouté.
+- Le poste déconnecté reçoit « Statut du média : Média déconnecté ».
+
+Exemple d'intégration :
+
+```javascript
+import {formatIpconfigAll} from "../shared-ui/v1/ipconfig-all.js";
+consoleElement.textContent = formatIpconfigAll({
+  hostname: poste.name,
+  ipv4: poste.config.ipv4,
+  dhcp: true,
+  mac: adresseMacReelle,
+  gateway: poste.config.networkOptions?.gateway,
+  dns: poste.config.networkOptions?.dns ?? []
+});
+```
+
+Les laboratoires `experiment`, `dhcp`, `dhcp-deux-pc`, `dhcp-admin` et `conflit-ipv4` consomment ce module commun pour `ipconfig /all`. Le laboratoire ARP utilise uniquement `ipconfig` simple, comme avant. Les deux commandes ont des modules séparés, partageant l'utilitaire de formatage.
+
+Pour le réseau isolé, les trois fichiers `ipconfig.js`, `ipconfig-all.js`, `windows-fields.js` doivent être déployés ensemble. C² et les portails pédagogiques n'ont pas été modifiés.
