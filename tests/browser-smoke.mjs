@@ -491,6 +491,30 @@ try {
   assert.match(await admin.locator("#ip-pc-dhcp-02").innerText(),/192\.168\.10\.105/);
   assert.deepEqual(adminErrors,[]);
   console.log("PASS ADMIN-01 : exclusions, réservation MAC, renouvellement et refus configuration invalide");passed++;
+  // Bail DHCP : horloge pédagogique, T1, T2 et expiration.
+  await admin.locator("#reset").click();
+  await admin.locator("#renew-pc-dhcp-01").click();
+  assert.match(await admin.locator("#lease-summary").innerText(),/T1 à 12 h 00/);
+  await admin.locator("#toggle-server").click();
+  await admin.locator("#advance-12").click();
+  assert.match(await admin.locator("#time-value").innerText(),/12 h 00/);
+  assert.match(await admin.locator("#lease-summary").innerText(),/échec T1/);
+  assert.match(await admin.locator("#ip-pc-dhcp-01").innerText(),/192\.168\.10\.100/);
+  await admin.locator("#advance-9").click();
+  assert.match(await admin.locator("#lease-summary").innerText(),/échec T2/);
+  await admin.locator("#advance-3").click();
+  assert.match(await admin.locator("#status-pc-dhcp-01").innerText(),/Bail expiré/);
+  assert.match(await admin.locator("#ip-pc-dhcp-01").innerText(),/Aucune adresse IPv4/);
+  await admin.locator("#toggle-server").click();
+  await admin.locator("#renew-pc-dhcp-01").click();
+  assert.match(await admin.locator("#ip-pc-dhcp-01").innerText(),/192\.168\.10\.100/);
+  await admin.locator("#reset").click();
+  await admin.locator("#renew-pc-dhcp-01").click();
+  await admin.locator("#advance-12").click();
+  assert.match(await admin.locator("#lease-summary").innerText(),/T1 à 24 h 00/);
+  assert.match(await admin.locator("#lease-summary").innerText(),/T1 renouvelé/);
+  assert.match(await admin.locator("#status-pc-dhcp-01").innerText(),/Bail DHCP attribué/);
+  console.log("PASS ADMIN-BAUX : T1 T2 expiration, remise en service et renouvellement automatique");passed++;
   await admin.close();
 
   // Quatrième laboratoire, conflit entre deux clients en configuration statique.
