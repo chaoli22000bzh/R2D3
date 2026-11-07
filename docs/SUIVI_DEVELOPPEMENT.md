@@ -315,3 +315,13 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - Sortie liée au poste source, et effacée en cas de changement de source ou de réinitialisation ; pour les scénarios de conflit, le caractère simulé du résultat est explicité sans inventer de certitude Windows.
 - Convention technique pérenne documentée dans `docs/CONVENTION_PING_R2D3.md`. Les prochains TP R2D3 devront réutiliser ce composant et la même recette.
 - Recette Chromium adaptée pour attendre les quatre lignes au lieu de vérifier un résultat figé, et pour contrôler l'annulation entre deux PC.
+
+
+### 7 novembre 2026 - Laboratoire 5 : ARP sous Windows
+
+- Nouveau scénario isolé `scenarios/atelier-arp-windows-v1.json` et page `C2-Lab/r2d3-v1/arp-windows.html`.
+- Outils visibles exclusivement Windows : `ipconfig`, `arp -a`, `arp -d *`, ping et modification manuelle de l'adresse IPv4 du PC 2. Aucun bouton de diagnostic magique.
+- Cache ARP distinct et mémorisé dans `domainState.arpCaches` pour chaque poste. Il est alimenté à la fin d'un ping réussi et peut être vidé pour un poste.
+- Nouvelles commandes du moteur : `network.arpLearn`, `network.arpClear` ; nouvelle requête `network.arpTable`. Le ping est toujours le composant partagé `shared-ui/v1/ping-animation.js`, ainsi que les boutons `shared-ui/v1/buttons.css`.
+- Limites délibérées : pas de temporisation des entrées ARP, pas d'ARP gratuit, pas de comportement ARP non déterministe en cas de conflit, pas d'émulation de protocoles au niveau paquet. `arp -a` est une vue simplifiée sur les entrées dynamiques issues de cette session, pas une reproduction de toutes les entrées multicast/statiques du système Windows.
+- Tests Node `tests/arp-windows.test.mjs` et recette Chromium ajoutés sans modifier les scénarios des quatre laboratoires validés.
