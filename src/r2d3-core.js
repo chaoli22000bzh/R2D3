@@ -162,6 +162,11 @@ function makeEngine(scenario, existing) {
   function query(q){
     if(!isObj(q))return {status:"unavailable",reason:"Requête non prise en charge"};
     if(s.capabilities.network!==true)return {status:"unavailable",reason:"Capacité réseau désactivée"};
+    if(q.type==="network.arpTable"){
+      const pc=state.objectsById[q.sourceId];
+      if(!pc?.config.ipv4)return {status:"unavailable",reason:"Poste IPv4 inexistant"};
+      return {status:"ok",entries:clone(state.domainState.arpCaches?.[q.sourceId]??[])};
+    }
     if(q.type==="network.ipv4Conflicts")return {status:"ok",conflicts:ipv4Conflicts()};
     if(q.type==="network.ping")return networkPing(q.sourceId,q.targetId);
     return {status:"unavailable",reason:"Requête non prise en charge"};
@@ -254,6 +259,21 @@ function makeEngine(scenario, existing) {
         client.config.networkOptions={gateway:null,dns:[]};
         next.runtime[c.targetId]={dhcpStatus:"apipa",error:"Serveur DHCP inaccessible"};
       }
+    }else if(c.type==="network.arpClear"){
+      if(!next.objectsById[c.targetId]?.config.ipv4)return fail("invalid_arp_client","Poste IPv4 inexistant");
+      if(!isObj(next.domainState.arpCaches))next.domainState.arpCaches={};
+      next.domainState.arpCaches[c.targetId]=[];
+    }else if(c.type==="network.arpLearn"){
+      const client=next.objectsById[c.targetId], peer=next.objectsById[c.params.peerId];
+      if(!client?.config.ipv4 || !peer?.config.ipv4 || !peer.config.ipv4.address ||
+         !/^([0-9a-f]{2}-){5}[0-9a-f]{2}$/i.test(peer.config.macAddress??""))
+        return fail("invalid_arp_peer","Équipement ou adresse MAC incompatible");
+      if(!networkPing(c.targetId,peer.id).success)
+        return fail("arp_unreachable","Résolution ARP non confirmée sur ce réseau");
+      if(!isObj(next.domainState.arpCaches))next.domainState.arpCaches={};
+      const entries=next.domainState.arpCaches[c.targetId]??[];
+      next.domainState.arpCaches[c.targetId]=[...entries.filter(e=>e.address!==peer.config.ipv4.address),
+        {address:peer.config.ipv4.address,mac:peer.config.macAddress.toLowerCase(),type:"dynamique"}];
     }else if(c.type==="network.setNetworkOptions"){
       const o=next.objectsById[c.targetId], p=c.params;
       if(!o || !o.config.ipv4)return fail("unsupported_target","Équipement IPv4 inexistant");
