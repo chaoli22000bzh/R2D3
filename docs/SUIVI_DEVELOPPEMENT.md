@@ -304,3 +304,14 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - En cas de conflit, les quatre requêtes sont représentées sans réponse dans ce scénario : choix de simulation, pas garantie du comportement réel de Windows.
 - Vérification Chromium adaptée : absence du bouton fictif, progression de la sortie, deux PC distincts, correction puis succès des pings.
 - Modifications limitées au laboratoire 4 et à sa recette, sans toucher aux trois laboratoires précédemment validés.
+
+
+### 7 novembre 2026 - Standard transverse Ping animé
+
+- Validation définitive par le professeur : dans **tous** les exercices R2D3, le ping doit être animé et ne jamais apparaître immédiatement comme un résultat figé.
+- Création dans C2-Lab de `r2d3-v1/ping-animation.js`, composant mutualisé qui affiche la source et la commande, quatre réponses successives (~230 ms chacune, ~330 ms dans le laboratoire conflit) puis les statistiques.
+- Chaque nouvelle demande remplace la sortie précédente dès le clic. Le composant annule les anciennes animations et les neutralise grâce à un numéro de génération.
+- Migration des six interfaces R2D3 publiées : démonstrateur IPv4 initial `app.js`, atelier `experiment.js`, `dhcp.js`, `dhcp-deux-pc.js`, `dhcp-admin.js`, `conflit-ipv4.js`.
+- Sortie liée au poste source, et effacée en cas de changement de source ou de réinitialisation ; pour les scénarios de conflit, le caractère simulé du résultat est explicité sans inventer de certitude Windows.
+- Convention technique pérenne documentée dans `docs/CONVENTION_PING_R2D3.md`. Les prochains TP R2D3 devront réutiliser ce composant et la même recette.
+- Recette Chromium adaptée pour attendre les quatre lignes au lieu de vérifier un résultat figé, et pour contrôler l'annulation entre deux PC.
