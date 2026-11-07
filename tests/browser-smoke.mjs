@@ -24,6 +24,19 @@ try {
   assert.equal(response.status(), 200);
   await page.locator("#connectivity").getByText("Connectivité disponible", {exact:false}).waitFor();
   console.log("PASS 1 : chargement sans erreur et ping initial possible");passed++;
+  // Ressources communes : bouton tactile réellement réactif, ping en import partagé.
+  assert.equal(await page.locator('link[href="../shared-ui/v1/buttons.css"]').count(),1);
+  assert.equal(await page.locator('script[src="../shared-ui/v1/button-feedback.js"]').count(),1);
+  const buttonBox=await page.locator("#ping").boundingBox();
+  assert.ok(buttonBox,"bouton Ping visible");
+  await page.mouse.move(buttonBox.x+buttonBox.width/2,buttonBox.y+buttonBox.height/2);
+  await page.mouse.down();
+  assert.equal(await page.locator("#ping").evaluate(el=>el.classList.contains("c2-pressed")),true);
+  await page.mouse.up();
+  await page.waitForTimeout(210);
+  assert.equal(await page.locator("#ping").evaluate(el=>el.classList.contains("c2-pressed")),false);
+  console.log("PASS UI-PARTAGEE : CSS et JS communs, appui puis relâchement visibles");passed++;
+
 
   await page.locator("#ping").click();
   await page.locator("#terminal").getByText("Statistiques Ping",{exact:false}).waitFor();
