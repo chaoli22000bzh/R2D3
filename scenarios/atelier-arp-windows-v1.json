@@ -1,0 +1,158 @@
+{
+  "format": "r2d3-scenario",
+  "schemaVersion": 1,
+  "scenarioId": "atelier-arp-windows-v1",
+  "scenarioVersion": "1.0.0-exp",
+  "capabilities": {
+    "network": true
+  },
+  "objects": [
+    {
+      "id": "pc-dhcp-01",
+      "kind": "pc-windows",
+      "name": "REN-PC-01",
+      "ports": [
+        {
+          "id": "eth0",
+          "type": "rj45"
+        }
+      ],
+      "config": {
+        "ipv4": {
+          "interfaceId": "eth0",
+          "mode": "static",
+          "address": "192.168.10.20",
+          "prefix": 24
+        },
+        "networkOptions": {
+          "gateway": "192.168.10.1",
+          "dns": [
+            "192.168.10.10"
+          ]
+        },
+        "macAddress": "02-52-32-41-00-01"
+      },
+      "runtime": {}
+    },
+    {
+      "id": "sw-dhcp",
+      "kind": "ethernet-switch",
+      "name": "Switch du laboratoire",
+      "ports": [
+        {
+          "id": "0",
+          "type": "rj45"
+        },
+        {
+          "id": "1",
+          "type": "rj45"
+        },
+        {
+          "id": "2",
+          "type": "rj45"
+        },
+        {
+          "id": "3",
+          "type": "rj45"
+        }
+      ],
+      "config": {},
+      "runtime": {}
+    },
+    {
+      "id": "printer-dhcp",
+      "kind": "network-printer",
+      "name": "Imprimante réseau",
+      "ports": [
+        {
+          "id": "eth0",
+          "type": "rj45"
+        }
+      ],
+      "config": {
+        "ipv4": {
+          "interfaceId": "eth0",
+          "mode": "static",
+          "address": "192.168.10.50",
+          "prefix": 24
+        },
+        "macAddress": "02-52-32-41-00-50"
+      },
+      "runtime": {}
+    },
+    {
+      "id": "pc-dhcp-02",
+      "kind": "pc-windows",
+      "name": "REN-PC-02",
+      "ports": [
+        {
+          "id": "eth0",
+          "type": "rj45"
+        }
+      ],
+      "config": {
+        "ipv4": {
+          "interfaceId": "eth0",
+          "mode": "static",
+          "address": "192.168.10.21",
+          "prefix": 24
+        },
+        "networkOptions": {
+          "gateway": "192.168.10.1",
+          "dns": [
+            "192.168.10.10"
+          ]
+        },
+        "macAddress": "02-52-32-41-00-02"
+      },
+      "runtime": {}
+    }
+  ],
+  "links": [
+    {
+      "id": "cable-dhcp-pc",
+      "kind": "ethernet-cable",
+      "endpoints": [
+        {
+          "objectId": "pc-dhcp-01",
+          "portId": "eth0"
+        },
+        {
+          "objectId": "sw-dhcp",
+          "portId": "0"
+        }
+      ],
+      "connected": true
+    },
+    {
+      "id": "cable-dhcp-printer",
+      "kind": "ethernet-cable",
+      "endpoints": [
+        {
+          "objectId": "printer-dhcp",
+          "portId": "eth0"
+        },
+        {
+          "objectId": "sw-dhcp",
+          "portId": "2"
+        }
+      ],
+      "connected": true
+    },
+    {
+      "id": "cable-dhcp-pc-02",
+      "kind": "ethernet-cable",
+      "endpoints": [
+        {
+          "objectId": "pc-dhcp-02",
+          "portId": "eth0"
+        },
+        {
+          "objectId": "sw-dhcp",
+          "portId": "3"
+        }
+      ],
+      "connected": true
+    }
+  ]
+}
