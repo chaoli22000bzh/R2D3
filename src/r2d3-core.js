@@ -172,6 +172,24 @@ function makeEngine(scenario, existing) {
   function query(q){
     if(!isObj(q))return {status:"unavailable",reason:"Requête non prise en charge"};
     if(s.capabilities.network!==true)return {status:"unavailable",reason:"Capacité réseau désactivée"};
+    if(q.type==="dhcp.pools" || q.type==="dhcp.leases"){
+      const server=state.objectsById[q.serverId];
+      if(!server || !dhcpPools(server.config).length)return {status:"unavailable",reason:"Serveur DHCP inconnu"};
+      const pools=dhcpPools(server.config);
+      if(q.poolId!==undefined && !pools.some(p=>p.id===q.poolId))return {status:"unavailable",reason:"Plage DHCP inconnue"};
+      if(q.type==="dhcp.pools")return {status:"ok",enabled:server.config.dhcpEnabled,pools:clone(q.poolId===undefined?pools:pools.filter(p=>p.id===q.poolId))};
+      const activeIds=new Set(pools.map(p=>p.id));
+      const leases=Object.values(state.objectsById).flatMap(client=>{
+        const ip=client.config.ipv4,lease=ip?.lease;
+        if(ip?.mode!=="dhcp" || !lease || lease.serverId!==server.id ||
+           lease.expires<=state.simulationClock)return [];
+        const poolId=lease.poolId??"default";
+        if(!activeIds.has(poolId) || q.poolId!==undefined && poolId!==q.poolId)return [];
+        return [{clientId:client.id,mac:client.config.macAddress??null,address:ip.address,poolId,
+          start:lease.start,expires:lease.expires}];
+      });
+      return {status:"ok",leases:clone(leases)};
+    }
     if(q.type==="network.arpTable"){
       const pc=state.objectsById[q.sourceId];
       if(!pc?.config.ipv4)return {status:"unavailable",reason:"Poste IPv4 inexistant"};
