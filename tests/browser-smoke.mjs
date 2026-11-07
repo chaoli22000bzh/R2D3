@@ -104,9 +104,11 @@ try {
   assert.ok(sharedDhcp.release.includes("0.0.0.0"));
   assert.ok(sharedDhcp.renew.includes("ipconfig /renew"));
   assert.ok(sharedDhcp.renew.includes("192.168.10.100"));
-  assert.ok(sharedDhcp.retained.includes("192.168.10.100"));
-  assert.ok(sharedDhcp.apipa.includes("169.254.10.20"));
-  assert.ok(sharedDhcp.apipa.includes("255.255.0.0"));
+  assert.match(sharedDhcp.retained,/aucune nouvelle configuration DHCP/);
+   assert.doesNotMatch(sharedDhcp.retained,/192\.168\.10\.100/);
+  assert.match(sharedDhcp.apipa,/aucune nouvelle configuration DHCP/);
+   assert.doesNotMatch(sharedDhcp.apipa,/169\.254\.10\.20/);
+  assert.doesNotMatch(sharedDhcp.apipa,/255\.255\.0\.0/);
   assert.ok(sharedDhcp.invalid);
   console.log("PASS DHCP-COMMANDES : composants release renew autonomes et états vérifiés");passed++;
 
