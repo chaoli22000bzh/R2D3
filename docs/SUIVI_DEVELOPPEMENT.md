@@ -273,3 +273,14 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - Le moteur reste commun aux deux laboratoires. Aucune modification de C² ni des laboratoires précédents.
 - Limitations : premiers baux simplifiés ; pas de réservation DHCP persistante par MAC après `release` ; horloge de simulation fixe et pas d'expiration réelle. 
 - **Validation finale attendue :** tests GitHub Actions et retour manuel du professeur.
+
+
+### 7 novembre 2026 - Laboratoire 3 : administration d'un serveur DHCP
+
+- Nouveau scénario autonome `scenarios/atelier-dhcp-admin-v1.json` et interface `C2-Lab/r2d3-v1/dhcp-admin.html` + `dhcp-admin.js`.
+- Paramètres du serveur modifiables : plage de début et fin, liste d'exclusions IPv4, réservation IPv4 associée à l'adresse MAC du PC 2.
+- Moteur commun : ajout de `dhcp.configurePool` avec validation atomique ; attribution respectant les exclusions, les réservations et les adresses déjà utilisées.
+- Les réservations priment sur l'attribution séquentielle. Un bail déjà obtenu n'est pas supprimé par un changement administratif ; `ipconfig /release` suivi de `ipconfig /renew` applique les nouveaux réglages.
+- Test Node `tests/dhcp-admin.test.mjs` : nouvelle plage, exclusions, réservation, refus configurations invalides, absence de doublon et comportement d'un bail existant. Test navigateur également ajouté.
+- Limites pédagogiques V1 : pas de base de baux serveur persistante, pas de chronologie automatique, pas de réservations multi-équipements administrables dans l'interface. Ne pas interpréter cette maquette comme une simulation complète du service Windows DHCP.
+- Les laboratoires 1 et 2 et C² restent inchangés.
