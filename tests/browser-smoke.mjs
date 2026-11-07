@@ -523,10 +523,10 @@ try {
       clear:formatArpClear(),
     };
   });
-  assert.match(sharedArp.empty,/Interface : 192\\.168\\.10\\.20/);
+  assert.ok(sharedArp.empty.includes("Interface : 192.168.10.20"));
   assert.doesNotMatch(sharedArp.empty,/0x2|02-52-32-41-00-50/);
-  assert.match(sharedArp.filled,/192\\.168\\.10\\.50\\s+02-52-32-41-00-50\\s+dynamique/);
-  assert.equal(sharedArp.clear,"C:\\\\Users\\\\technicien>arp -d *\\n\\nC:\\\\Users\\\\technicien>");
+  assert.match(sharedArp.filled,/192\.168\.10\.50\s+02-52-32-41-00-50\s+dynamique/);
+  assert.equal(sharedArp.clear,["C:\\Users\\technicien>arp -d *","","C:\\Users\\technicien>"].join("\n"));
   assert.doesNotMatch(sharedArp.clear,/succès|effacé|vidé|simulation/i);
   console.log("PASS ARP-PARTAGE : table vide/remplie et purge Windows sans message ajouté");passed++;
 
