@@ -25,6 +25,13 @@ for(const name of ["experiment","dhcp","dhcp-deux-pc","dhcp-admin","conflit-ipv4
   }
 }
 
+for(const name of ["dhcp","dhcp-deux-pc","dhcp-admin"]){
+  const lab=readFileSync("c2-lab/r2d3-v1/"+name+".js","utf8");
+  assert.ok(lab.includes("../shared-ui/v1/dhcp-commands.js"),"Import DHCP partagé absent dans "+name);
+  assert.ok(lab.includes("formatIpconfigRelease("),"Rendu release absent dans "+name);
+  assert.ok(lab.includes("formatIpconfigRenew("),"Rendu renew absent dans "+name);
+}
+
 const browser = await chromium.launch({headless:true});
 let passed = 0;
 try {
@@ -82,6 +89,26 @@ try {
   assert.doesNotMatch(sharedAll.staticIp,/Carte Ethernet Ethernet|Type de nœud|Routage IP|Proxy WINS/);
   console.log("PASS IPCONFIG-ALL-PARTAGE : fixe, DHCP, APIPA, bail libéré et média déconnecté");passed++;
 
+
+  const sharedDhcp=await page.evaluate(async()=>{
+    const {formatIpconfigRelease,formatIpconfigRenew}=await import("../shared-ui/v1/dhcp-commands.js");
+    return {
+      release:formatIpconfigRelease({ipv4:{address:null,prefix:null,lease:null}}),
+      renew:formatIpconfigRenew({status:"lease",ipv4:{address:"192.168.10.100",prefix:24,lease:{serverId:"srv"}},gateway:"192.168.10.1"}),
+      retained:formatIpconfigRenew({status:"lease-retained",ipv4:{address:"192.168.10.100",prefix:24},gateway:"192.168.10.1"}),
+      apipa:formatIpconfigRenew({status:"apipa",ipv4:{address:"169.254.10.20",prefix:16}}),
+      invalid:(()=>{try{formatIpconfigRenew({status:"bogus",ipv4:{address:null,prefix:null}});return false}catch{return true}})()
+    };
+  });
+  assert.ok(sharedDhcp.release.includes("ipconfig /release"));
+  assert.ok(sharedDhcp.release.includes("0.0.0.0"));
+  assert.ok(sharedDhcp.renew.includes("ipconfig /renew"));
+  assert.ok(sharedDhcp.renew.includes("192.168.10.100"));
+  assert.ok(sharedDhcp.retained.includes("192.168.10.100"));
+  assert.ok(sharedDhcp.apipa.includes("169.254.10.20"));
+  assert.ok(sharedDhcp.apipa.includes("255.255.0.0"));
+  assert.ok(sharedDhcp.invalid);
+  console.log("PASS DHCP-COMMANDES : composants release renew autonomes et états vérifiés");passed++;
 
   // Ressources communes : bouton tactile réellement réactif, ping en import partagé.
   assert.equal(await page.locator('link[href="../shared-ui/v1/buttons.css"]').count(),1);
@@ -321,6 +348,8 @@ try {
   console.log("PASS DHCP-2 : conservation du bail après arrêt du serveur");passed++;
 
   await dhcpPage.locator("#release").click();
+  assert.ok((await dhcpPage.locator("#console").innerText()).includes("ipconfig /release"));
+  assert.ok((await dhcpPage.locator("#console").innerText()).includes("0.0.0.0"));
   assert.match(await dhcpPage.locator("#client-status").innerText(),/Adresse DHCP libérée/);
   assert.match(await dhcpPage.locator("#client-ip").innerText(),/Aucune adresse IPv4/);
   await dhcpPage.locator("#ipconfig-all").click();
@@ -329,6 +358,7 @@ try {
   assert.doesNotMatch(releasedOutput,/Bail obtenu|Bail expirant|192\.168\.10\.100/);
   await dhcpPage.locator("#request").click();
   assert.match(await dhcpPage.locator("#client-status").innerText(),/APIPA/);
+  assert.ok((await dhcpPage.locator("#console").innerText()).includes("ipconfig /renew"));
   assert.match(await dhcpPage.locator("#client-ip").innerText(),/169\.254\.10\.20/);
   console.log("PASS DHCP-2B : release puis renew avec service arrêté donne APIPA");passed++;
 
