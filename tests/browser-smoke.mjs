@@ -574,12 +574,12 @@ try {
   const catalogueResponse=await cataloguePage.goto("http://127.0.0.1:8765/composants/",{waitUntil:"networkidle"});
   assert.equal(catalogueResponse.status(),200);
   await cataloguePage.locator("#results").getByText("6 composants trouvés").waitFor();
-  assert.match(await cataloguePage.locator("#ip-output").innerText(),/192\\.168\\.10\\.20/);
+  assert.match(await cataloguePage.locator("#ip-output").innerText(),/192\.168\.10\.20/);
   await cataloguePage.locator('#ip-modes button[data-mode="apipa"]').click();
-  assert.match(await cataloguePage.locator("#ip-output").innerText(),/169\\.254\\.10\\.20/);
+  assert.match(await cataloguePage.locator("#ip-output").innerText(),/169\.254\.10\.20/);
   await cataloguePage.locator('#all-modes button[data-mode="dhcp"]').click();
   const allDemo=await cataloguePage.locator("#all-output").innerText();
-  assert.match(allDemo,/Serveur DHCP.*192\\.168\\.10\\.2/);
+  assert.match(allDemo,/Serveur DHCP.*192\.168\.10\.2/);
   assert.match(allDemo,/Bail obtenu/);
   await cataloguePage.locator("#arp-ping").click();
   assert.match(await cataloguePage.locator("#arp-output").innerText(),/02-52-32-41-00-50/);
