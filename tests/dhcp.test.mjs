@@ -102,3 +102,62 @@ test("DHCP-12: release d'un équipement statique refusé sans effet",()=>{
  assert.equal(e.dispatch(command("bad-release","dhcp.release","printer-dhcp")).status,"rejected");
  assert.deepEqual(e.exportState(),before);
 });
+
+
+const advance=(e,id,seconds)=>e.dispatch(command(id,"dhcp.advanceTime","srv-dhcp",{seconds}));
+test("DHCP-TIME-01 : renouvellement automatique à T1, nouvelle échéance",()=>{
+ const e=createEngine(scenario);
+ req(e,"init");
+ assert.equal(advance(e,"t1",43200).status,"applied");
+ const snap=e.getSnapshot(),lease=pc(e).config.ipv4.lease;
+ assert.equal(snap.simulationClock,43200);
+ assert.equal(lease.start,43200);
+ assert.equal(lease.expires,129600);
+ assert.equal(snap.runtime["pc-dhcp"].dhcpLeasePhase,"renewed-t1");
+ assert.equal(pc(e).config.ipv4.address,"192.168.10.100");
+});
+test("DHCP-TIME-02 : T1 et T2 échouent sans serveur, bail conservé jusqu'à l'expiration",()=>{
+ const e=createEngine(scenario);
+ req(e,"init");
+ e.dispatch(command("off","dhcp.setServerEnabled","srv-dhcp",{enabled:false}));
+ advance(e,"t1",43200);
+ assert.equal(e.getSnapshot().runtime["pc-dhcp"].dhcpLeasePhase,"t1-failed");
+ assert.equal(pc(e).config.ipv4.address,"192.168.10.100");
+ advance(e,"t2",32400);
+ assert.equal(e.getSnapshot().runtime["pc-dhcp"].dhcpLeasePhase,"t2-failed");
+ assert.equal(pc(e).config.ipv4.address,"192.168.10.100");
+ advance(e,"preexpiry",10799);
+ assert.equal(pc(e).config.ipv4.address,"192.168.10.100");
+ advance(e,"expiry",1);
+ assert.equal(e.getSnapshot().runtime["pc-dhcp"].dhcpStatus,"expired");
+ assert.equal(pc(e).config.ipv4.address,null);
+ assert.equal(pc(e).config.ipv4.lease,null);
+ assert.deepEqual(pc(e).config.networkOptions,{gateway:null,dns:[]});
+ assert.equal(ping(e).success,false);
+ req(e,"retry");
+ assert.equal(pc(e).config.ipv4.address,"169.254.10.20");
+});
+test("DHCP-TIME-03 : reconnexion serveur avant T2 renouvelle le bail",()=>{
+ const e=createEngine(scenario);req(e,"init");
+ e.dispatch(command("off","dhcp.setServerEnabled","srv-dhcp",{enabled:false}));
+ advance(e,"t1",43200);
+ e.dispatch(command("on","dhcp.setServerEnabled","srv-dhcp",{enabled:true}));
+ advance(e,"t2",32400);
+ assert.equal(pc(e).config.ipv4.lease.start,75600);
+ assert.equal(e.getSnapshot().runtime["pc-dhcp"].dhcpLeasePhase,"renewed-t2");
+ assert.equal(pc(e).config.ipv4.address,"192.168.10.100");
+});
+test("DHCP-TIME-04 : avancement invalide rejeté sans mutation",()=>{
+ const e=createEngine(scenario),before=e.exportState();
+ assert.equal(advance(e,"zero",0).status,"rejected");
+ assert.equal(advance(e,"negative",-50).status,"rejected");
+ assert.equal(advance(e,"fraction",12.5).status,"rejected");
+ assert.equal(advance(e,"too-big",604801).status,"rejected");
+ assert.deepEqual(e.exportState(),before);
+});
+test("DHCP-TIME-05 : restauration du temps simulé et du bail",()=>{
+ const e=createEngine(scenario);req(e,"init");
+ advance(e,"t1",43200);
+ const saved=e.exportState();
+ assert.deepEqual(restoreEngine(scenario,saved).exportState(),saved);
+});
