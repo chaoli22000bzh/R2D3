@@ -157,3 +157,27 @@ consoleElement.textContent=formatArpClear();
 ```
 
 Le laboratoire ARP importe le module partagé et ne contient plus de construction locale des lignes de la table. C² et les portails pourront l'intégrer en copiant le module ou en le servant dans leur déploiement autonome ; ces projets n'ont pas été modifiés.
+
+
+## Composant ARP Windows partagé
+
+Le module `shared-ui/v1/arp.js` expose deux fonctions sans dépendance au DOM ou au moteur :
+
+- `formatArpTable({interfaceAddress, entries})` produit la sortie Windows de `arp -a` à partir de l'adresse IPv4 du poste et de sa table ARP, sous forme `[{address, mac, type}]`. Il affiche les correspondances et conserve les colonnes « Adresse Internet », « Adresse physique » et « Type ».
+- `formatArpClear()` retourne la sortie silencieuse de `arp -d *`, sans confirmation inventée.
+
+Le composant ne manipule aucun cache : l'apprentissage et la purge relèvent du moteur réseau de l'application. Le laboratoire ARP le consomme directement, sans formatage local. L'identifiant d'interface `0x2` est volontairement omis, conformément à la simplification pédagogique validée.
+
+Exemple :
+
+```javascript
+import {formatArpTable,formatArpClear} from "../shared-ui/v1/arp.js";
+consoleElement.textContent = formatArpTable({
+  interfaceAddress: poste.config.ipv4.address,
+  entries: moteur.query({type:"network.arpTable",sourceId:poste.id}).entries
+});
+// Après purge confirmée par le moteur :
+// consoleElement.textContent = formatArpClear();
+```
+
+Le module est réutilisable dans R2D3, C² et les portails pédagogiques, y compris hors ligne si le fichier est distribué avec l'application. La présente intégration ne modifie ni C² ni les portails.
