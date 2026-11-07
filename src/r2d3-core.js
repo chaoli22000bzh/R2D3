@@ -26,7 +26,15 @@ function validDhcpPool(p) {
     Number.isInteger(p.prefix) && p.prefix>=1 && p.prefix<=30 &&
     sameSubnet(p.start,p.end,p.prefix) &&
     validNetworkOptions({gateway:p.gateway,dns:p.dns}) &&
-    Number.isInteger(p.leaseSeconds) && p.leaseSeconds>=60 && p.leaseSeconds<=2592000;
+    Number.isInteger(p.leaseSeconds) && p.leaseSeconds>=60 && p.leaseSeconds<=2592000 &&
+    (p.exclusions===undefined || Array.isArray(p.exclusions) && new Set(p.exclusions).size===p.exclusions.length &&
+      p.exclusions.every(ip=>ipv4ToInt(ip)!==null && ipv4ToInt(ip)>=ipv4ToInt(p.start) && ipv4ToInt(ip)<=ipv4ToInt(p.end))) &&
+    (p.reservations===undefined || Array.isArray(p.reservations) &&
+      p.reservations.every(r=>isObj(r) && typeof r.mac==="string" && /^([0-9A-F]{2}-){5}[0-9A-F]{2}$/i.test(r.mac) &&
+        ipv4ToInt(r.address)!==null && ipv4ToInt(r.address)>=ipv4ToInt(p.start) && ipv4ToInt(r.address)<=ipv4ToInt(p.end) &&
+        !(p.exclusions??[]).includes(r.address)) &&
+      new Set(p.reservations.map(r=>r.mac.toUpperCase())).size===p.reservations.length &&
+      new Set(p.reservations.map(r=>r.address)).size===p.reservations.length);
 }
 function validIpv4(v){
   return isObj(v) && (v.mode==="static"
@@ -166,6 +174,12 @@ function makeEngine(scenario, existing) {
       if(!o?.config.dhcpPool || typeof c.params.enabled!=="boolean")
         return fail("invalid_dhcp_server","Serveur DHCP ou état invalide");
       o.config.dhcpEnabled=c.params.enabled;
+    }else if(c.type==="dhcp.configurePool"){
+      const o=next.objectsById[c.targetId];
+      if(!o?.config.dhcpPool)return fail("invalid_dhcp_server","Serveur DHCP inexistant");
+      const pool={...o.config.dhcpPool,...c.params};
+      if(!validDhcpPool(pool))return fail("invalid_dhcp_pool","Plage, exclusions ou réservations invalides");
+      o.config.dhcpPool=pool;
     }else if(c.type==="dhcp.release"){
       const client=next.objectsById[c.targetId], ip=client?.config.ipv4;
       if(!ip || ip.mode!=="dhcp")return fail("not_dhcp_client","Client DHCP inexistant");
@@ -182,12 +196,24 @@ function makeEngine(scenario, existing) {
       const server=servers[0];
       if(server){
         const pool=server.config.dhcpPool;
-        const reserved=new Set(Object.values(next.objectsById).filter(o=>o.id!==c.targetId && o.config.ipv4?.address).map(o=>o.config.ipv4.address));
-        let chosen=prior && ip.lease.serverId===server.id && sameSubnet(ip.address,pool.start,pool.prefix) ? ip.address:null;
-        if(!chosen){
-          for(let n=ipv4ToInt(pool.start);n<=ipv4ToInt(pool.end);n++){
-            const candidate=[24,16,8,0].map(k=>(n>>>k)&255).join(".");
-            if(!reserved.has(candidate)){chosen=candidate;break;}
+        const occupied=new Set(Object.values(next.objectsById).filter(o=>o.id!==c.targetId && o.config.ipv4?.address).map(o=>o.config.ipv4.address));
+        const excluded=new Set(pool.exclusions??[]);
+        const reservations=pool.reservations??[];
+        const ownReservation=reservations.find(r=>r.mac.toUpperCase()===client.config.macAddress?.toUpperCase());
+        const otherReservations=new Set(reservations.filter(r=>r!==ownReservation).map(r=>r.address));
+        const freeForClient=address=>ipv4ToInt(address)!==null &&
+          ipv4ToInt(address)>=ipv4ToInt(pool.start) && ipv4ToInt(address)<=ipv4ToInt(pool.end) &&
+          !excluded.has(address) && !otherReservations.has(address) && !occupied.has(address);
+        let chosen=null;
+        if(ownReservation){
+          if(freeForClient(ownReservation.address))chosen=ownReservation.address;
+        }else{
+          if(prior && ip.lease.serverId===server.id && freeForClient(ip.address))chosen=ip.address;
+          if(!chosen){
+            for(let n=ipv4ToInt(pool.start);n<=ipv4ToInt(pool.end);n++){
+              const candidate=[24,16,8,0].map(k=>(n>>>k)&255).join(".");
+              if(freeForClient(candidate)){chosen=candidate;break;}
+            }
           }
         }
         if(chosen){
