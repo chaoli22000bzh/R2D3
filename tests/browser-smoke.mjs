@@ -58,6 +58,30 @@ try {
   assert.doesNotMatch(sharedIpconfig.standard,/DHCP activé|Bail obtenu|Nom de l'hôte/);
   console.log("PASS IPCONFIG-PARTAGE : même sortie Windows, IP fixe, APIPA, sans bail et câble débranché");passed++;
 
+  const sharedAll=await page.evaluate(async()=>{
+    const {formatIpconfigAll}=await import("../shared-ui/v1/ipconfig-all.js");
+    const base={ipv4:{address:"192.168.10.20",prefix:24},hostname:"PC1",gateway:"192.168.10.1",dns:["192.168.10.10","1.1.1.1"]};
+    return {
+      staticIp:formatIpconfigAll(base),
+      dhcp:formatIpconfigAll({...base,dhcp:true,ipv4:{...base.ipv4,lease:{serverId:"server-1"}},dhcpServer:"192.168.10.2",leaseStart:"06/11/2026 09:15",leaseEnd:"07/11/2026 09:15"}),
+      apipa:formatIpconfigAll({...base,dhcp:true,ipv4:{address:"169.254.10.20",prefix:16}}),
+      released:formatIpconfigAll({...base,dhcp:true,ipv4:{address:null,prefix:null}}),
+      disconnected:formatIpconfigAll({...base,connected:false})
+    };
+  });
+  assert.match(sharedAll.staticIp,/DHCP activé\.+ : Non/);
+  assert.match(sharedAll.staticIp,/Adresse IPv4\.+ : 192\.168\.10\.20/);
+  assert.doesNotMatch(sharedAll.staticIp,/Bail obtenu|Serveur DHCP/);
+  assert.match(sharedAll.dhcp,/Serveur DHCP\.+ : 192\.168\.10\.2/);
+  assert.match(sharedAll.dhcp,/Bail obtenu\.+ : 06\/11\/2026/);
+  assert.match(sharedAll.apipa,/Adresse d'autoconfiguration IPv4 : 169\.254\.10\.20/);
+  assert.doesNotMatch(sharedAll.apipa,/Bail obtenu|Serveur DHCP/);
+  assert.match(sharedAll.released,/Non attribuée/);
+  assert.match(sharedAll.disconnected,/Média déconnecté/);
+  assert.doesNotMatch(sharedAll.staticIp,/Carte Ethernet Ethernet|Type de nœud|Routage IP|Proxy WINS/);
+  console.log("PASS IPCONFIG-ALL-PARTAGE : fixe, DHCP, APIPA, bail libéré et média déconnecté");passed++;
+
+
   // Ressources communes : bouton tactile réellement réactif, ping en import partagé.
   assert.equal(await page.locator('link[href="../shared-ui/v1/buttons.css"]').count(),1);
   assert.equal(await page.locator('script[src="../shared-ui/v1/button-feedback.js"]').count(),1);
