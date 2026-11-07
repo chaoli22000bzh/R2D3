@@ -42,7 +42,7 @@ try {
       cable:formatIpconfig({ipv4:{address:"192.168.10.20",prefix:24},connected:false})
     };
   });
-  assert.match(sharedIpconfig.standard,/C:\\\\Users\\\\technicien>ipconfig/);
+  assert.ok(sharedIpconfig.standard.startsWith("C:\\Users\\technicien>ipconfig"));
   assert.match(sharedIpconfig.standard,/Adresse IPv4\\.+ : 192\\.168\\.10\\.20/);
   assert.match(sharedIpconfig.standard,/Masque de sous-réseau : 255\\.255\\.255\\.0/);
   assert.doesNotMatch(sharedIpconfig.standard,/Masque de sous-réseau\\.+/);
