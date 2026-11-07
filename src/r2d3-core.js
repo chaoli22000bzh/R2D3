@@ -121,6 +121,8 @@ function makeEngine(scenario, existing) {
     if(!av.address || !bv.address || av.prefix===null || bv.prefix===null)return {status:"ok",success:false,reason:"Adresse IPv4 non attribuée"};
     const physical=physicalPath(sourceId,targetId);
     if(!physical) return {status:"ok",success:false,reason:"Liaison physique interrompue"};
+    const duplicates=ipv4Conflicts().filter(x=>x.ids.includes(sourceId)||x.ids.includes(targetId));
+    if(duplicates.length)return {status:"ok",success:false,reason:"Conflit d'adresse IPv4 détecté, communication non fiable dans cette simulation",conflict:true};
     if(!sameSubnet(av.address,bv.address,av.prefix) || !sameSubnet(av.address,bv.address,bv.prefix))
       return {status:"ok",success:false,reason:"Adressage IPv4 incompatible sans routeur"};
     if(av.address===bv.address) return {status:"ok",success:false,reason:"Conflit d'adresse IPv4"};
@@ -142,10 +144,27 @@ function makeEngine(scenario, existing) {
     }
     return false;
   }
+  function ipv4Conflicts() {
+    const groups=new Map();
+    for(const o of Object.values(state.objectsById)){
+      const address=o.config.ipv4?.address;
+      if(!address || address.startsWith("169.254."))continue;
+      if(!groups.has(address))groups.set(address,[]);
+      groups.get(address).push(o.id);
+    }
+    return [...groups.entries()].flatMap(([address,ids])=>{
+      if(ids.length<2)return [];
+      // Un doublon sur un segment isolé ne constitue pas un conflit visible.
+      const connected=ids.filter(id=>ids.some(other=>other!==id&&physicalPath(id,other)));
+      return connected.length>=2?[{address,ids:connected}]:[];
+    });
+  }
   function query(q){
-    if(!isObj(q) || q.type!=="network.ping")return {status:"unavailable",reason:"Requête non prise en charge"};
+    if(!isObj(q))return {status:"unavailable",reason:"Requête non prise en charge"};
     if(s.capabilities.network!==true)return {status:"unavailable",reason:"Capacité réseau désactivée"};
-    return networkPing(q.sourceId,q.targetId);
+    if(q.type==="network.ipv4Conflicts")return {status:"ok",conflicts:ipv4Conflicts()};
+    if(q.type==="network.ping")return networkPing(q.sourceId,q.targetId);
+    return {status:"unavailable",reason:"Requête non prise en charge"};
   }
   function apipaAddress(clientId, current) {
     const clients=Object.values(current.objectsById).filter(o=>o.config.ipv4?.mode==="dhcp").map(o=>o.id).sort();
