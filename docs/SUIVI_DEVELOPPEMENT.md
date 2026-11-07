@@ -294,3 +294,13 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - Important : en présence d'un doublon, les réactions d'un vrai réseau et de Windows peuvent varier suivant ARP, défense d'adresse et cartes réseau. Le laboratoire **ne fabrique pas** une sortie Windows prétendument exacte ; son constat « non fiable » est explicitement une interprétation de R2D3.
 - Tests unitaires `tests/ipv4-conflict.test.mjs` : conflit initial, changement correct, doublon avec l'imprimante, câble isolé, refus d'IP invalide. Tests Chromium dans `tests/browser-smoke.mjs`.
 - Aucun changement aux fichiers scénarios et interfaces des trois laboratoires précédents. Moteur partagé synchronisé dans C2-Lab.
+
+
+### 7 novembre 2026 - Ajustements pédagogiques du laboratoire 4
+
+- Suppression du bouton « Contrôler les doublons IPv4 » et de son panneau de réponse : il n'existe pas dans Windows et donnait directement la résolution de la panne. La capacité de diagnostic interne R2D3 reste disponible pour les calculs de simulation.
+- Animation des quatre réponses successives aux commandes ping, à environ 330 ms entre lignes, avec statistiques finales. Le poste source est visible et chaque nouveau ping remplace immédiatement le précédent.
+- Protection contre les sorties mélangées : les résultats anciens sont annulés lors d'un nouveau ping, d'un changement de poste, d'une modification d'adresse IP ou d'une réinitialisation.
+- En cas de conflit, les quatre requêtes sont représentées sans réponse dans ce scénario : choix de simulation, pas garantie du comportement réel de Windows.
+- Vérification Chromium adaptée : absence du bouton fictif, progression de la sortie, deux PC distincts, correction puis succès des pings.
+- Modifications limitées au laboratoire 4 et à sa recette, sans toucher aux trois laboratoires précédemment validés.
