@@ -43,12 +43,12 @@ try {
     };
   });
   assert.ok(sharedIpconfig.standard.startsWith("C:\\Users\\technicien>ipconfig"));
-  assert.match(sharedIpconfig.standard,/Adresse IPv4\\.+ : 192\\.168\\.10\\.20/);
-  assert.match(sharedIpconfig.standard,/Masque de sous-réseau : 255\\.255\\.255\\.0/);
-  assert.doesNotMatch(sharedIpconfig.standard,/Masque de sous-réseau\\.+/);
-  assert.match(sharedIpconfig.standard,/Passerelle par défaut : 192\\.168\\.10\\.1/);
-  assert.match(sharedIpconfig.apipa,/169\\.254\\.10\\.20/);
-  assert.match(sharedIpconfig.apipa,/255\\.255\\.0\\.0/);
+  assert.match(sharedIpconfig.standard,/Adresse IPv4\.+ : 192\.168\.10\.20/);
+  assert.match(sharedIpconfig.standard,/Masque de sous-réseau : 255\.255\.255\.0/);
+  assert.doesNotMatch(sharedIpconfig.standard,/Masque de sous-réseau\.+/);
+  assert.match(sharedIpconfig.standard,/Passerelle par défaut : 192\.168\.10\.1/);
+  assert.match(sharedIpconfig.apipa,/169\.254\.10\.20/);
+  assert.match(sharedIpconfig.apipa,/255\.255\.0\.0/);
   assert.doesNotMatch(sharedIpconfig.absent,/null|undefined/);
   assert.match(sharedIpconfig.cable,/Média déconnecté/);
   assert.doesNotMatch(sharedIpconfig.standard,/DHCP activé|Bail obtenu|Nom de l'hôte/);
