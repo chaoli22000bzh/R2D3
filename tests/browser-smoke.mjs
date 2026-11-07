@@ -515,6 +515,28 @@ try {
   assert.match(await admin.locator("#lease-summary").innerText(),/T1 renouvelé/);
   assert.match(await admin.locator("#status-pc-dhcp-01").innerText(),/Bail DHCP attribué/);
   console.log("PASS ADMIN-BAUX : T1 T2 expiration, remise en service et renouvellement automatique");passed++;
+  // Durée configurable : le bail existant conserve son échéance ; le prochain bail adopte le réglage.
+  await admin.locator("#reset").click();
+  assert.equal(await admin.locator("#lease-hours").inputValue(),"24");
+  await admin.locator("#renew-pc-dhcp-01").click();
+  await admin.locator("#lease-hours").fill("8");
+  await admin.locator("#save-pool").click();
+  assert.match(await admin.locator("#pool-feedback").innerText(),/Configuration enregistrée/);
+  assert.match(await admin.locator("#pool-summary").innerText(),/Durée des nouveaux baux : 8 h/);
+  const beforeRenew=await admin.locator("#lease-summary").innerText();
+  assert.match(beforeRenew,/PC 1 : T1 à 12 h 00, T2 à 21 h 00, expiration à 24 h 00/);
+  await admin.locator("#renew-pc-dhcp-02").click();
+  assert.match(await admin.locator("#lease-summary").innerText(),/PC 2 : T1 à 4 h 00, T2 à 7 h 00, expiration à 8 h 00/);
+  await admin.locator("#renew-pc-dhcp-01").click();
+  assert.match(await admin.locator("#lease-summary").innerText(),/PC 1 : T1 à 4 h 00, T2 à 7 h 00, expiration à 8 h 00/);
+  await admin.locator("#lease-hours").fill("0");
+  await admin.locator("#lease-hours").evaluate(input=>input.setAttribute("min","0"));
+  await admin.locator("#save-pool").click();
+  assert.match(await admin.locator("#pool-feedback").innerText(),/Durée invalide/);
+  assert.match(await admin.locator("#pool-summary").innerText(),/Durée des nouveaux baux : 8 h/);
+  await admin.locator("#reset").click();
+  assert.equal(await admin.locator("#lease-hours").inputValue(),"24");
+  console.log("PASS ADMIN-DUREE : réglage du bail, anciens baux inchangés, renouvellement et réinitialisation");passed++;
   await admin.close();
 
   // Quatrième laboratoire, conflit entre deux clients en configuration statique.
