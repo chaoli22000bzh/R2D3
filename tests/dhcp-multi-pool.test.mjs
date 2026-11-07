@@ -62,3 +62,16 @@ test("MULTIPOOL-06 : reservations par pool et export restauration",()=>{
  const saved=e.exportState();
  assert.deepEqual(restoreEngine(scenario,saved).exportState(),saved);
 });
+
+test("MULTIPOOL-07 : registre serveur en lecture, uniquement les baux de plages gerees",()=>{
+ const e=createEngine(scenario);
+ request(e,"pc1","pc-dhcp-01","reseau-a");request(e,"pc2","pc-dhcp-02","reseau-b");
+ const before=e.exportState();
+ assert.equal(e.query({type:"dhcp.pools",serverId:"srv-dhcp"}).pools.length,2);
+ assert.equal(e.query({type:"dhcp.leases",serverId:"srv-dhcp"}).leases.length,2);
+ assert.equal(e.query({type:"dhcp.leases",serverId:"srv-dhcp",poolId:"reseau-b"}).leases[0].clientId,"pc-dhcp-02");
+ assert.deepEqual(e.exportState(),before);
+ issue(e,"remove","dhcp.removePool","srv-dhcp",{poolId:"reseau-b"});
+ assert.equal(e.query({type:"dhcp.leases",serverId:"srv-dhcp"}).leases.length,1);
+ assert.ok(pc(e,"pc-dhcp-02").lease);
+});
