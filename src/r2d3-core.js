@@ -36,13 +36,23 @@ function validDhcpPool(p) {
       new Set(p.reservations.map(r=>r.mac.toUpperCase())).size===p.reservations.length &&
       new Set(p.reservations.map(r=>r.address)).size===p.reservations.length);
 }
+function dhcpPools(config){return Array.isArray(config.dhcpPools)?config.dhcpPools:(config.dhcpPool?[{id:"default",...config.dhcpPool}]:[]);}
+function selectedPool(config,id){const ps=dhcpPools(config);return id===undefined?(ps.length===1?ps[0]:null):ps.find(p=>p.id===id)??null;}
+function validPools(config){
+ if(config.dhcpPools===undefined)return config.dhcpPool===undefined||validDhcpPool(config.dhcpPool);
+ if(config.dhcpPool!==undefined||!Array.isArray(config.dhcpPools)||!config.dhcpPools.length)return false;
+ const ids=new Set();
+ for(const p of config.dhcpPools){if(typeof p.id!=="string"||!/^[a-zA-Z0-9_-]+$/.test(p.id)||ids.has(p.id)||!validDhcpPool(p))return false;ids.add(p.id);}
+ for(let i=0;i<config.dhcpPools.length;i++)for(let j=i+1;j<config.dhcpPools.length;j++){const a=config.dhcpPools[i],b=config.dhcpPools[j];if(ipv4ToInt(a.start)<=ipv4ToInt(b.end)&&ipv4ToInt(b.start)<=ipv4ToInt(a.end))return false;}
+ return true;
+}
 function validIpv4(v){
   return isObj(v) && (v.mode==="static"
     ? ipv4ToInt(v.address)!==null && Number.isInteger(v.prefix) && v.prefix>=0 && v.prefix<=32
     : v.mode==="dhcp" && (v.address===null || ipv4ToInt(v.address)!==null) &&
       (v.prefix===null || Number.isInteger(v.prefix) && v.prefix>=0 && v.prefix<=32) &&
       (v.lease===null || isObj(v.lease) && typeof v.lease.serverId==="string" &&
-       Number.isInteger(v.lease.start) && Number.isInteger(v.lease.expires) && v.lease.expires>v.lease.start));
+       Number.isInteger(v.lease.start) && Number.isInteger(v.lease.expires) && v.lease.expires>v.lease.start && (v.lease.poolId===undefined || typeof v.lease.poolId==="string" && v.lease.poolId.length>0)));
 }
 function checkScenario(s) {
   if (!isObj(s) || s.format!=="r2d3-scenario" || s.schemaVersion!==1 ||
@@ -56,7 +66,7 @@ function checkScenario(s) {
     ids.add(o.id);
     if(o.config.networkOptions!==undefined && !validNetworkOptions(o.config.networkOptions)) throw new Error("Paramètres réseau invalides");
     if(o.config.ipv4!==undefined && !validIpv4(o.config.ipv4))throw new Error("Configuration IPv4 invalide");
-    if(o.config.dhcpPool!==undefined && (!validDhcpPool(o.config.dhcpPool) || typeof o.config.dhcpEnabled!=="boolean"))
+    if((o.config.dhcpPool!==undefined || o.config.dhcpPools!==undefined) && (!validPools(o.config) || typeof o.config.dhcpEnabled!=="boolean"))
       throw new Error("Serveur DHCP invalide");
     for (const p of o.ports) {
       const key=o.id+":"+p.id;
@@ -195,7 +205,7 @@ function makeEngine(scenario, existing) {
       o.config.ipv4={mode:"static",address:p.address,prefix:p.prefix,interfaceId:p.interfaceId};
     }else if(c.type==="dhcp.setServerEnabled"){
       const o=next.objectsById[c.targetId];
-      if(!o?.config.dhcpPool || typeof c.params.enabled!=="boolean")
+      if(!o || !dhcpPools(o.config).length || typeof c.params.enabled!=="boolean")
         return fail("invalid_dhcp_server","Serveur DHCP ou état invalide");
       o.config.dhcpEnabled=c.params.enabled;
     }else if(c.type==="dhcp.configurePool"){
@@ -204,10 +214,29 @@ function makeEngine(scenario, existing) {
       const pool={...o.config.dhcpPool,...c.params};
       if(!validDhcpPool(pool))return fail("invalid_dhcp_pool","Plage, exclusions ou réservations invalides");
       o.config.dhcpPool=pool;
+    }else if(["dhcp.addPool","dhcp.updatePool","dhcp.removePool"].includes(c.type)){
+      const server=next.objectsById[c.targetId],p=c.params;
+      if(!server || !Array.isArray(server.config.dhcpPools))return fail("invalid_dhcp_server","Serveur multi-plage inexistant");
+      const pools=server.config.dhcpPools;
+      if(c.type==="dhcp.addPool"){
+        if(!isObj(p.pool)||typeof p.pool.id!=="string")return fail("invalid_dhcp_pool","Nouvelle plage invalide");
+        pools.push(clone(p.pool));
+      }else{
+        const index=pools.findIndex(pool=>pool.id===p.poolId);
+        if(index<0)return fail("invalid_dhcp_pool","Plage inconnue");
+        if(c.type==="dhcp.removePool"){
+          if(pools.length===1)return fail("invalid_dhcp_pool","Derniere plage non supprimable");
+          pools.splice(index,1);
+        }else{
+          if(!isObj(p.changes)||p.changes.id!==undefined)return fail("invalid_dhcp_pool","Modification invalide");
+          pools[index]={...pools[index],...p.changes};
+        }
+      }
+      if(!validPools(server.config))return fail("invalid_dhcp_pool","Plages DHCP invalides");
     }else if(c.type==="dhcp.advanceTime"){
       // Horloge de scénario uniquement : aucun minuteur réel ou appel réseau.
       const seconds=c.params.seconds;
-      if(!next.objectsById[c.targetId]?.config.dhcpPool || !Number.isSafeInteger(seconds) || seconds<1 || seconds>604800)
+      if(!dhcpPools(next.objectsById[c.targetId]?.config??{}).length || !Number.isSafeInteger(seconds) || seconds<1 || seconds>604800)
         return fail("invalid_time_step","Serveur DHCP ou progression temporelle invalide");
       const until=next.simulationClock+seconds;
       for(const client of Object.values(next.objectsById)){
@@ -244,18 +273,18 @@ function makeEngine(scenario, existing) {
           }
           const server=next.objectsById[currentLease.serverId];
           if(server?.config.dhcpEnabled && physicalPath(client.id,server.id)){
-            const pool=server.config.dhcpPool;
+            const pool=selectedPool(server.config,currentLease.poolId);
             // Renouveler l'adresse actuelle seulement si elle reste attribuable.
-            const excluded=(pool.exclusions??[]).includes(ip.address);
-            const reservations=pool.reservations??[];
+            const excluded=(pool?.exclusions??[]).includes(ip.address);
+            const reservations=pool?.reservations??[];
             const mac=client.config.macAddress?.toUpperCase();
             const ownReservation=reservations.find(r=>r.mac.toUpperCase()===mac);
             const reservedOther=reservations.some(r=>r.address===ip.address&&r.mac.toUpperCase()!==mac);
             const occupiedOther=Object.values(next.objectsById).some(o=>o.id!==client.id&&o.config.ipv4?.address===ip.address);
             const reservationMatches=!ownReservation || ownReservation.address===ip.address;
-            const address=ipv4ToInt(ip.address),lo=ipv4ToInt(pool.start),hi=ipv4ToInt(pool.end);
-            if(address!==null && address>=lo && address<=hi && !excluded && !reservedOther && !occupiedOther && reservationMatches){
-              ip.lease={serverId:server.id,start:previous,expires:previous+pool.leaseSeconds};
+            const address=ipv4ToInt(ip.address),lo=pool?ipv4ToInt(pool.start):null,hi=pool?ipv4ToInt(pool.end):null;
+            if(pool && address!==null && address>=lo && address<=hi && !excluded && !reservedOther && !occupiedOther && reservationMatches){
+              ip.lease={...currentLease,serverId:server.id,start:previous,expires:previous+pool.leaseSeconds};
               client.config.networkOptions={gateway:pool.gateway,dns:[...pool.dns]};
               next.runtime[client.id]={dhcpStatus:"lease",dhcpLeasePhase:"renewed-"+event.phase,dhcpEventAt:previous};
               continue;
@@ -277,10 +306,13 @@ function makeEngine(scenario, existing) {
       const client=next.objectsById[c.targetId], ip=client?.config.ipv4;
       if(!ip || ip.mode!=="dhcp")return fail("not_dhcp_client","Client DHCP inexistant");
       const prior=ip.lease!==null && ip.lease.expires>next.simulationClock;
-      const servers=Object.values(next.objectsById).filter(o=>o.config.dhcpPool && o.config.dhcpEnabled && physicalPath(c.targetId,o.id));
-      const server=servers[0];
+      const servers=Object.values(next.objectsById).filter(o=>dhcpPools(o.config).length && o.config.dhcpEnabled && physicalPath(c.targetId,o.id));
+      const server=c.params.serverId?servers.find(o=>o.id===c.params.serverId):servers[0];
+      if(server && c.params.poolId===undefined && dhcpPools(server.config).length>1)
+        return fail("dhcp_pool_required","Choisir la plage explicitement avant simulation VLAN");
       if(server){
-        const pool=server.config.dhcpPool;
+        const pool=selectedPool(server.config,c.params.poolId);
+        if(!pool)return fail("invalid_dhcp_pool","Plage DHCP inconnue");
         const occupied=new Set(Object.values(next.objectsById).filter(o=>o.id!==c.targetId && o.config.ipv4?.address).map(o=>o.config.ipv4.address));
         const excluded=new Set(pool.exclusions??[]);
         const reservations=pool.reservations??[];
@@ -293,7 +325,7 @@ function makeEngine(scenario, existing) {
         if(ownReservation){
           if(freeForClient(ownReservation.address))chosen=ownReservation.address;
         }else{
-          if(prior && ip.lease.serverId===server.id && freeForClient(ip.address))chosen=ip.address;
+          if(prior && ip.lease.serverId===server.id && (ip.lease.poolId===undefined || ip.lease.poolId===pool.id) && freeForClient(ip.address))chosen=ip.address;
           if(!chosen){
             for(let n=ipv4ToInt(pool.start);n<=ipv4ToInt(pool.end);n++){
               const candidate=[24,16,8,0].map(k=>(n>>>k)&255).join(".");
@@ -303,7 +335,7 @@ function makeEngine(scenario, existing) {
         }
         if(chosen){
           ip.address=chosen;ip.prefix=pool.prefix;
-          ip.lease={serverId:server.id,start:next.simulationClock,expires:next.simulationClock+pool.leaseSeconds};
+          ip.lease={serverId:server.id,...(server.config.dhcpPools?{poolId:pool.id}:{}),start:next.simulationClock,expires:next.simulationClock+pool.leaseSeconds};
           client.config.networkOptions={gateway:pool.gateway,dns:[...pool.dns]};
           next.runtime[c.targetId]={dhcpStatus:"lease"};
         }else if(prior){
