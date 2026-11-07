@@ -16,6 +16,8 @@ for(const name of ["experiment","dhcp","dhcp-deux-pc","dhcp-admin","conflit-ipv4
   const script=readFileSync("c2-lab/r2d3-v1/"+name+".js","utf8");
   assert.match(script,/createWindowsFieldFormatter/,"Formateur absent dans "+name);
   assert.match(script,/shared-ui\/v1\/windows-fields\.js/,"Import partagé absent dans "+name);
+  assert.match(script,/shared-ui\/v1\/ipconfig\.js/,"Composant ipconfig absent dans "+name);
+  assert.match(script,/formatIpconfig\(/,"Appel au composant ipconfig absent dans "+name);
 }
 
 const browser = await chromium.launch({headless:true});
@@ -31,6 +33,27 @@ try {
   assert.equal(response.status(), 200);
   await page.locator("#connectivity").getByText("Connectivité disponible", {exact:false}).waitFor();
   console.log("PASS 1 : chargement sans erreur et ping initial possible");passed++;
+  const sharedIpconfig=await page.evaluate(async()=>{
+    const {formatIpconfig}=await import("../shared-ui/v1/ipconfig.js");
+    return {
+      standard:formatIpconfig({ipv4:{address:"192.168.10.20",prefix:24},gateway:"192.168.10.1"}),
+      apipa:formatIpconfig({ipv4:{address:"169.254.10.20",prefix:16}}),
+      absent:formatIpconfig({ipv4:{address:null,prefix:null}}),
+      cable:formatIpconfig({ipv4:{address:"192.168.10.20",prefix:24},connected:false})
+    };
+  });
+  assert.match(sharedIpconfig.standard,/C:\\\\Users\\\\technicien>ipconfig/);
+  assert.match(sharedIpconfig.standard,/Adresse IPv4\\.+ : 192\\.168\\.10\\.20/);
+  assert.match(sharedIpconfig.standard,/Masque de sous-réseau : 255\\.255\\.255\\.0/);
+  assert.doesNotMatch(sharedIpconfig.standard,/Masque de sous-réseau\\.+/);
+  assert.match(sharedIpconfig.standard,/Passerelle par défaut : 192\\.168\\.10\\.1/);
+  assert.match(sharedIpconfig.apipa,/169\\.254\\.10\\.20/);
+  assert.match(sharedIpconfig.apipa,/255\\.255\\.0\\.0/);
+  assert.doesNotMatch(sharedIpconfig.absent,/null|undefined/);
+  assert.match(sharedIpconfig.cable,/Média déconnecté/);
+  assert.doesNotMatch(sharedIpconfig.standard,/DHCP activé|Bail obtenu|Nom de l'hôte/);
+  console.log("PASS IPCONFIG-PARTAGE : même sortie Windows, IP fixe, APIPA, sans bail et câble débranché");passed++;
+
   // Ressources communes : bouton tactile réellement réactif, ping en import partagé.
   assert.equal(await page.locator('link[href="../shared-ui/v1/buttons.css"]').count(),1);
   assert.equal(await page.locator('script[src="../shared-ui/v1/button-feedback.js"]').count(),1);
