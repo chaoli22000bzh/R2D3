@@ -77,3 +77,29 @@ const lignes=[field("Adresse IPv4","192.168.10.20"),field("Masque de sous-résea
 Désormais utilisé par les laboratoires IPv4 expérimental, DHCP à un poste, DHCP à deux postes, administration DHCP, conflit IPv4 (laboratoire 4) et ARP (laboratoire 5). Les prochains laboratoires ne doivent pas recréer manuellement un formatage des points. Un changement de règle se fait uniquement dans ce composant versionné.
 
 Dans le laboratoire 5, les équipements portent les noms PC1 et PC2 afin d'éviter toute confusion du préfixe `REN` avec la commande Windows `ren`.
+
+## Composant complet `ipconfig` (sans `/all`)
+
+Le module unique `shared-ui/v1/ipconfig.js` exporte `formatIpconfig({ipv4, connected, gateway, interfaceName})`.
+
+- `ipv4` : objet avec `address` et `prefix` issus du moteur réseau.
+- `connected` : état de la liaison (défaut : `true`).
+- `gateway` : adresse de la passerelle, facultative.
+- `interfaceName` : libellé de l'interface (défaut : `Ethernet`).
+
+Il renvoie une chaîne complète au format invite Windows : commande, en-tête, carte, adresse IPv4, masque calculé depuis le préfixe, passerelle et retour à l'invite. Si le câble est débranché, il affiche l'état du média. Le formatage des points passe lui-même par `windows-fields.js`. Le composant **ne fournit aucun diagnostic**, ne manipule pas le moteur et ne modifie pas le DOM.
+
+Exemple d'appel identique dans R2D3, C² ou un cours :
+
+```javascript
+import {formatIpconfig} from "https://chaoli22000bzh.github.io/C2-Lab/shared-ui/v1/ipconfig.js";
+sortie.textContent=formatIpconfig({
+  ipv4: {address:"192.168.10.20",prefix:24},
+  gateway:"192.168.10.1",
+  connected:true
+});
+```
+
+Dans C2-Lab, les laboratoires IPv4 expérimental, DHCP un poste, DHCP deux postes, administration DHCP, conflit d'IPv4 et ARP utilisent ce même module pour la **commande simple**. Leur logique spécifique `ipconfig /all` n'a pas été migrée : elle fera l'objet de l'étape suivante, distincte.
+
+Le composant est utilisable directement par URL dans un navigateur connecté, ou doit être intégré au déploiement hors ligne pour les TP en réseau isolé. Aucun changement n'a encore été apporté à C² ni aux portails pédagogiques.
