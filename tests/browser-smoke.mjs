@@ -353,6 +353,42 @@ try {
   console.log("PASS ADMIN-01 : exclusions, réservation MAC, renouvellement et refus configuration invalide");passed++;
   await admin.close();
 
+  // Quatrième laboratoire, conflit entre deux clients en configuration statique.
+  assert.deepEqual(
+    JSON.parse(readFileSync("c2-lab/r2d3-v1/conflit-ipv4-scenario.json","utf8")),
+    JSON.parse(readFileSync("scenarios/atelier-conflit-ipv4-v1.json","utf8"))
+  );
+  const conflictPage=await browser.newPage({viewport:{width:390,height:844}});
+  const conflictErrors=[];
+  conflictPage.on("pageerror",e=>conflictErrors.push(e.message));
+  const conflictResp=await conflictPage.goto("http://127.0.0.1:8765/r2d3-v1/conflit-ipv4.html",{waitUntil:"networkidle"});
+  assert.equal(conflictResp.status(),200);
+  await conflictPage.locator("#feedback").getByText("Scénario chargé.").waitFor();
+  await conflictPage.locator("#diagnose").click();
+  assert.match(await conflictPage.locator("#diagnosis").innerText(),/192\.168\.10\.20 utilisée par REN-PC-01 et REN-PC-02/);
+  await conflictPage.locator("#ping").click();
+  assert.match(await conflictPage.locator("#ping-console").innerText(),/communication non fiable/);
+  await conflictPage.locator("#console-pc").selectOption("pc-dhcp-02");
+  await conflictPage.locator("#ipconfig-all").click();
+  const conflictConfig=await conflictPage.locator("#console").innerText();
+  assert.match(conflictConfig,/DHCP activé.*Non/);
+  assert.match(conflictConfig,/192\.168\.10\.20/);
+  await conflictPage.locator("#new-address").fill("192.168.10.21");
+  await conflictPage.locator("#save-address").click();
+  await conflictPage.locator("#diagnose").click();
+  assert.match(await conflictPage.locator("#diagnosis").innerText(),/Aucune adresse IPv4 en double/);
+  await conflictPage.locator("#ping").click();
+  assert.match(await conflictPage.locator("#ping-console").innerText(),/reçus = 4/);
+  await conflictPage.locator("#ping-peer").click();
+  assert.match(await conflictPage.locator("#ping-console").innerText(),/reçus = 4/);
+  await conflictPage.locator("#new-address").fill("192.168.10.999");
+  await conflictPage.locator("#save-address").click();
+  assert.match(await conflictPage.locator("#feedback").innerText(),/Adresse refusée/);
+  assert.match(await conflictPage.locator("#ip-pc-dhcp-02").innerText(),/192\.168\.10\.21/);
+  assert.deepEqual(conflictErrors,[]);
+  console.log("PASS CONFLIT-01 : détection, correction manuelle et refus d'IPv4 invalide");passed++;
+  await conflictPage.close();
+
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
   await browser.close();
