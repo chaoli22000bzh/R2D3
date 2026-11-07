@@ -616,6 +616,11 @@ try {
   assert.doesNotMatch(await cataloguePage.locator("#arp-output").innerText(),/02-52-32-41-00-50|succès|vidé/);
   await cataloguePage.locator("#arp-a").click();
   assert.doesNotMatch(await cataloguePage.locator("#arp-output").innerText(),/02-52-32-41-00-50/);
+  assert.ok((await cataloguePage.locator("#dhcp-output").innerText()).includes("ipconfig /release"));
+  await cataloguePage.locator('#dhcp-modes button[data-mode="lease"]').click();
+  assert.ok((await cataloguePage.locator("#dhcp-output").innerText()).includes("192.168.10.100"));
+  await cataloguePage.locator('#dhcp-modes button[data-mode="apipa"]').click();
+  assert.ok((await cataloguePage.locator("#dhcp-output").innerText()).includes("169.254.10.20"));
   assert.equal(await cataloguePage.locator("#documentation-heading").count(),1);
   assert.deepEqual(catalogueErrors,[]);
   await cataloguePage.close();
