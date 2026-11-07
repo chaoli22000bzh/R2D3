@@ -456,6 +456,14 @@ try {
   const arpResp=await arpPage.goto("http://127.0.0.1:8765/r2d3-v1/arp-windows.html",{waitUntil:"networkidle"});
   assert.equal(arpResp.status(),200);
   await arpPage.locator("#feedback").getByText("Scénario chargé.").waitFor();
+  assert.match(await arpPage.locator("body").innerText(),/PC1/);
+  assert.match(await arpPage.locator("body").innerText(),/PC2/);
+  assert.doesNotMatch(await arpPage.locator("body").innerText(),/REN-PC-0[12]/);
+  await arpPage.locator("#ipconfig").click();
+  const ipconfigOutput=await arpPage.locator("#console").innerText();
+  assert.match(ipconfigOutput,/Masque de sous-réseau : 255\.255\.255\.0/);
+  assert.doesNotMatch(ipconfigOutput,/Masque de sous-réseau\.+/);
+  assert.match(ipconfigOutput,/Adresse IPv4\.+ : 192\.168\.10\.20/);
   await arpPage.locator("#arp-a").click();
   assert.doesNotMatch(await arpPage.locator("#console").innerText(),/02-52-32-41-00-50/);
   await arpPage.locator("#ping-printer").click();
