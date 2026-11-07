@@ -135,3 +135,25 @@ Les laboratoires `experiment`, `dhcp`, `dhcp-deux-pc`, `dhcp-admin` et `conflit-
 Pour le réseau isolé, les trois fichiers `ipconfig.js`, `ipconfig-all.js`, `windows-fields.js` doivent être déployés ensemble. C² et les portails pédagogiques n'ont pas été modifiés.
 
 Précision de compatibilité : le paramètre `connected` sert à afficher explicitement un média déconnecté. Dans les scénarios DHCP qui attribuent une APIPA lors d'une indisponibilité réseau, l'état IPv4 calculé par le moteur reste prioritaire pour le rendu pédagogique de la commande et l'appelant n'impose pas `connected:false`.
+
+
+## Composant ARP partagé
+
+`shared-ui/v1/arp.js` fournit deux fonctions sans DOM et sans dépendance au moteur :
+
+- `formatArpTable({interfaceAddress,entries})` produit la sortie Windows de `arp -a` avec les colonnes « Adresse Internet », « Adresse physique », « Type » et les entrées fournies pour **le PC courant**. L'identifiant d'interface hexadécimal non pédagogique (`0x2`) est omis.
+- `formatArpClear()` produit la sortie silencieuse de `arp -d *`, sans confirmer artificiellement la purge.
+
+Le moteur ou l'application appelante reste responsable de l'apprentissage ARP, de la consultation du cache par poste et de sa suppression réelle. Le composant n'enregistre aucun état, n'invente aucune MAC et ne produit aucun indice de diagnostic.
+
+```javascript
+import {formatArpTable,formatArpClear} from "../shared-ui/v1/arp.js";
+consoleElement.textContent=formatArpTable({
+  interfaceAddress:poste.config.ipv4.address,
+  entries:cacheArpDuPoste
+});
+// Après confirmation de la purge par le moteur :
+consoleElement.textContent=formatArpClear();
+```
+
+Le laboratoire ARP importe le module partagé et ne contient plus de construction locale des lignes de la table. C² et les portails pourront l'intégrer en copiant le module ou en le servant dans leur déploiement autonome ; ces projets n'ont pas été modifiés.
