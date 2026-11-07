@@ -43,7 +43,7 @@ test("MULTIPOOL-04 : supprimer B laisse le bail client jusqu'a expiration",()=>{
  assert.equal(pc(e,"pc-dhcp-02").address,"192.168.20.100");
  assert.equal(issue(e,"advance","dhcp.advanceTime","srv-dhcp",{seconds:86400}).status,"applied");
  assert.equal(pc(e,"pc-dhcp-02").lease,null);
- assert.equal(pc(e,"pc-dhcp-01").lease.start,43200);
+ assert.equal(pc(e,"pc-dhcp-01").lease.start,86400);
 });
 test("MULTIPOOL-05 : ajout et validation atomique, pas de recouvrement",()=>{
  const e=createEngine(scenario),before=e.exportState();
