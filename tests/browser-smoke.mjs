@@ -11,6 +11,13 @@ assert.deepEqual(
   "Scénario du laboratoire différent"
 );
 
+// Tous les laboratoires affichant ipconfig réutilisent le même formateur Windows.
+for(const name of ["experiment","dhcp","dhcp-deux-pc","dhcp-admin","conflit-ipv4","arp-windows"]){
+  const script=readFileSync("c2-lab/r2d3-v1/"+name+".js","utf8");
+  assert.match(script,/createWindowsFieldFormatter/,"Formateur absent dans "+name);
+  assert.match(script,/shared-ui\/v1\/windows-fields\.js/,"Import partagé absent dans "+name);
+}
+
 const browser = await chromium.launch({headless:true});
 let passed = 0;
 try {
