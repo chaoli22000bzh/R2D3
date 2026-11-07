@@ -247,9 +247,14 @@ function makeEngine(scenario, existing) {
             const pool=server.config.dhcpPool;
             // Renouveler l'adresse actuelle seulement si elle reste attribuable.
             const excluded=(pool.exclusions??[]).includes(ip.address);
-            const reservedOther=(pool.reservations??[]).some(r=>r.address===ip.address&&r.mac.toUpperCase()!==client.config.macAddress?.toUpperCase());
+            const reservations=pool.reservations??[];
+            const mac=client.config.macAddress?.toUpperCase();
+            const ownReservation=reservations.find(r=>r.mac.toUpperCase()===mac);
+            const reservedOther=reservations.some(r=>r.address===ip.address&&r.mac.toUpperCase()!==mac);
+            const occupiedOther=Object.values(next.objectsById).some(o=>o.id!==client.id&&o.config.ipv4?.address===ip.address);
+            const reservationMatches=!ownReservation || ownReservation.address===ip.address;
             const address=ipv4ToInt(ip.address),lo=ipv4ToInt(pool.start),hi=ipv4ToInt(pool.end);
-            if(address!==null && address>=lo && address<=hi && !excluded && !reservedOther){
+            if(address!==null && address>=lo && address<=hi && !excluded && !reservedOther && !occupiedOther && reservationMatches){
               ip.lease={serverId:server.id,start:previous,expires:previous+pool.leaseSeconds};
               client.config.networkOptions={gateway:pool.gateway,dns:[...pool.dns]};
               next.runtime[client.id]={dhcpStatus:"lease",dhcpLeasePhase:"renewed-"+event.phase,dhcpEventAt:previous};
