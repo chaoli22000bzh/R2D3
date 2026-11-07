@@ -314,12 +314,13 @@ try {
   console.log("PASS MULTI-01 : deux baux distincts, paramètres et ping du PC 2");passed++;
   // Règle partagée : nouveau ping = nouvelle sortie, et interruption si autre PC.
   await multi.locator("#ping").click();
-  assert.match(await multi.locator("#ping-console").innerText(),/REN-PC-02/);
+  assert.match(await multi.locator("#ping-console").innerText(),/ping 192\.168\.10\.50/);
+  assert.doesNotMatch(await multi.locator("#ping-console").innerText(),/Ping depuis|Simulation R2D3|Diagnostic :|REN-PC-02/);
   assert.doesNotMatch(await multi.locator("#ping-console").innerText(),/Statistiques Ping/);
   await multi.locator("#console-pc").selectOption("pc-dhcp-01");
-  assert.match(await multi.locator("#ping-console").innerText(),/Aucun ping effectué depuis ce poste/);
+  assert.equal((await multi.locator("#ping-console").innerText()).trim(),"");
   await multi.locator("#ping").click();
-  assert.match(await multi.locator("#ping-console").innerText(),/REN-PC-01/);
+  assert.match(await multi.locator("#ping-console").innerText(),/ping 192\.168\.10\.50/);
   assert.doesNotMatch(await multi.locator("#ping-console").innerText(),/REN-PC-02/);
   await multi.locator("#ping-console").getByText("Statistiques Ping",{exact:false}).waitFor();
   assert.equal((await multi.locator("#ping-console").innerText()).split("Réponse de 192.168.10.50").length-1,4);
@@ -334,7 +335,7 @@ try {
   assert.match(await multi.locator("#console").innerText(),/Adresse d'autoconfiguration IPv4.*169\.254\.10\.21/);
   assert.match(await multi.locator("#ip-pc-dhcp-01").innerText(),/192\.168\.10\.100/);
   await multi.locator("#console-pc").selectOption("pc-dhcp-01");
-  assert.match(await multi.locator("#ping-console").innerText(),/Aucun ping effectué depuis ce poste/);
+  assert.equal((await multi.locator("#ping-console").innerText()).trim(),"");
   await multi.locator("#ping").click();
   assert.doesNotMatch(await multi.locator("#ping-console").innerText(),/Statistiques Ping/);
   await multi.locator("#ping-console").getByText("Statistiques Ping",{exact:false}).waitFor();
@@ -342,7 +343,8 @@ try {
   // Nouvelle demande depuis PC 2 : une ancienne animation ne doit jamais continuer.
   await multi.locator("#console-pc").selectOption("pc-dhcp-02");
   await multi.locator("#ping").click();
-  assert.match(await multi.locator("#ping-console").innerText(),/REN-PC-02/);
+  assert.match(await multi.locator("#ping-console").innerText(),/ping 192\.168\.10\.50/);
+  assert.doesNotMatch(await multi.locator("#ping-console").innerText(),/Ping depuis|Simulation R2D3|Diagnostic :|REN-PC-02/);
   assert.doesNotMatch(await multi.locator("#ping-console").innerText(),/Statistiques Ping/);
   await multi.locator("#ping-console").getByText("Statistiques Ping",{exact:false}).waitFor();
   console.log("PASS MULTI-02 : PC 2 isolé et APIPA, PC 1 inchangé");passed++;
@@ -401,10 +403,11 @@ try {
   await conflictPage.locator("#feedback").getByText("Scénario chargé.").waitFor();
   assert.equal(await conflictPage.locator("#diagnose").count(),0);
   await conflictPage.locator("#ping").click();
-  assert.match(await conflictPage.locator("#ping-console").innerText(),/REN-PC-01/);
+  assert.match(await conflictPage.locator("#ping-console").innerText(),/ping 192\.168\.10\.50/);
   assert.doesNotMatch(await conflictPage.locator("#ping-console").innerText(),/Statistiques Ping/);
   await conflictPage.locator("#ping-console").getByText("Statistiques Ping",{exact:false}).waitFor();
   assert.match(await conflictPage.locator("#ping-console").innerText(),/envoyés = 4, reçus = 0/);
+  assert.doesNotMatch(await conflictPage.locator("#ping-console").innerText(),/Ping depuis|Simulation R2D3|Diagnostic :|REN-PC-01/);
   await conflictPage.locator("#console-pc").selectOption("pc-dhcp-02");
   await conflictPage.locator("#ipconfig-all").click();
   const conflictConfig=await conflictPage.locator("#console").innerText();
@@ -413,10 +416,11 @@ try {
   await conflictPage.locator("#new-address").fill("192.168.10.21");
   await conflictPage.locator("#save-address").click();
   await conflictPage.locator("#ping").click();
-  assert.match(await conflictPage.locator("#ping-console").innerText(),/REN-PC-02/);
+  assert.match(await conflictPage.locator("#ping-console").innerText(),/ping 192\.168\.10\.50/);
   assert.doesNotMatch(await conflictPage.locator("#ping-console").innerText(),/Statistiques Ping/);
   await conflictPage.locator("#ping-console").getByText("Statistiques Ping",{exact:false}).waitFor();
   assert.match(await conflictPage.locator("#ping-console").innerText(),/reçus = 4/);
+  assert.doesNotMatch(await conflictPage.locator("#ping-console").innerText(),/Ping depuis|Simulation R2D3|Diagnostic :|REN-PC-02/);
   await conflictPage.locator("#ping-peer").click();
   await conflictPage.locator("#ping-console").getByText("Statistiques Ping",{exact:false}).waitFor();
   assert.match(await conflictPage.locator("#ping-console").innerText(),/reçus = 4/);
