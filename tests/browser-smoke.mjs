@@ -101,7 +101,8 @@ try {
   await xp.locator("#source").selectOption("pc-01");
   assert.match(await xp.locator("#connectivity").innerText(),/Communication possible/);
   await xp.locator("#ping").click();
-  assert.match(await xp.locator("#terminal").innerText(),/PC 1/);
+  assert.match(await xp.locator("#terminal").innerText(),/ping 192\.168\.10\.50/);
+  assert.doesNotMatch(await xp.locator("#terminal").innerText(),/Ping depuis|Simulation R2D3|Diagnostic :/);
   await xp.locator("#terminal").getByText("Statistiques Ping",{exact:false}).waitFor();
   const successfulPing=await xp.locator("#terminal").innerText();
   assert.equal((successfulPing.match(/Réponse de 192\.168\.10\.50/g)||[]).length,4);
