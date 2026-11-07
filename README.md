@@ -1,4 +1,7 @@
 # R2D3
+
+**Documentation officielle et inventaire des composants :** [C² / main / docs](https://github.com/chaoli22000bzh/C2/tree/main/docs) (dépôt privé). Le dépôt R2D3 ne contient plus de documentation de référence ; ses sources et ses tests restent ici.
+
 Moteur pédagogique de simulation technique
 
 
