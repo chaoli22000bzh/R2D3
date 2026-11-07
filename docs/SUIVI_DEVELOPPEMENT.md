@@ -284,3 +284,13 @@ Ne pas déclarer terminé ou testé un travail qui n'a pas été exécuté. Pré
 - Test Node `tests/dhcp-admin.test.mjs` : nouvelle plage, exclusions, réservation, refus configurations invalides, absence de doublon et comportement d'un bail existant. Test navigateur également ajouté.
 - Limites pédagogiques V1 : pas de base de baux serveur persistante, pas de chronologie automatique, pas de réservations multi-équipements administrables dans l'interface. Ne pas interpréter cette maquette comme une simulation complète du service Windows DHCP.
 - Les laboratoires 1 et 2 et C² restent inchangés.
+
+
+### 7 novembre 2026 - Laboratoire 4 : conflit d'adresses IPv4
+
+- Scénario autonome `scenarios/atelier-conflit-ipv4-v1.json`, avec deux PC Windows configurés manuellement à la même adresse `192.168.10.20/24` et une imprimante `192.168.10.50/24`.
+- Interface `C2-Lab/r2d3-v1/conflit-ipv4.html` et `conflit-ipv4.js` : `ipconfig`, `ipconfig /all`, ping, vérification des doublons du moteur et correction manuelle de l'adresse du PC 2.
+- Requête moteur `network.ipv4Conflicts` détectant les adresses IPv4 en doublon parmi les équipements connectés sur le même segment. `network.ping` signale un conflit impliquant le poste source ou cible comme communication non fiable.
+- Important : en présence d'un doublon, les réactions d'un vrai réseau et de Windows peuvent varier suivant ARP, défense d'adresse et cartes réseau. Le laboratoire **ne fabrique pas** une sortie Windows prétendument exacte ; son constat « non fiable » est explicitement une interprétation de R2D3.
+- Tests unitaires `tests/ipv4-conflict.test.mjs` : conflit initial, changement correct, doublon avec l'imprimante, câble isolé, refus d'IP invalide. Tests Chromium dans `tests/browser-smoke.mjs`.
+- Aucun changement aux fichiers scénarios et interfaces des trois laboratoires précédents. Moteur partagé synchronisé dans C2-Lab.
