@@ -510,6 +510,26 @@ try {
     JSON.parse(readFileSync("c2-lab/r2d3-v1/arp-windows-scenario.json","utf8")),
     JSON.parse(readFileSync("scenarios/atelier-arp-windows-v1.json","utf8"))
   );
+  // Les commandes ARP ne doivent pas reconstruire leur sortie dans un laboratoire.
+  const arpScript=readFileSync("c2-lab/r2d3-v1/arp-windows.js","utf8");
+  assert.ok(arpScript.includes('../shared-ui/v1/arp.js'));
+  assert.ok(arpScript.includes("formatArpTable("));
+  assert.ok(arpScript.includes("formatArpClear("));
+  const sharedArp=await page.evaluate(async()=>{
+    const {formatArpTable,formatArpClear}=await import("../shared-ui/v1/arp.js");
+    return {
+      empty:formatArpTable({interfaceAddress:"192.168.10.20",entries:[]}),
+      filled:formatArpTable({interfaceAddress:"192.168.10.20",entries:[{address:"192.168.10.50",mac:"02-52-32-41-00-50",type:"dynamique"}]}),
+      clear:formatArpClear(),
+    };
+  });
+  assert.match(sharedArp.empty,/Interface : 192\\.168\\.10\\.20/);
+  assert.doesNotMatch(sharedArp.empty,/0x2|02-52-32-41-00-50/);
+  assert.match(sharedArp.filled,/192\\.168\\.10\\.50\\s+02-52-32-41-00-50\\s+dynamique/);
+  assert.equal(sharedArp.clear,"C:\\\\Users\\\\technicien>arp -d *\\n\\nC:\\\\Users\\\\technicien>");
+  assert.doesNotMatch(sharedArp.clear,/succès|effacé|vidé|simulation/i);
+  console.log("PASS ARP-PARTAGE : table vide/remplie et purge Windows sans message ajouté");passed++;
+
   const arpPage=await browser.newPage({viewport:{width:390,height:844}});
   const arpErrors=[];arpPage.on("pageerror",err=>arpErrors.push(err.message));
   const arpResp=await arpPage.goto("http://127.0.0.1:8765/r2d3-v1/arp-windows.html",{waitUntil:"networkidle"});
