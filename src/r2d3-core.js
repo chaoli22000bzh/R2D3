@@ -204,6 +204,62 @@ function makeEngine(scenario, existing) {
       const pool={...o.config.dhcpPool,...c.params};
       if(!validDhcpPool(pool))return fail("invalid_dhcp_pool","Plage, exclusions ou réservations invalides");
       o.config.dhcpPool=pool;
+    }else if(c.type==="dhcp.advanceTime"){
+      // Horloge de scénario uniquement : aucun minuteur réel ou appel réseau.
+      const seconds=c.params.seconds;
+      if(!next.objectsById[c.targetId]?.config.dhcpPool || !Number.isSafeInteger(seconds) || seconds<1 || seconds>604800)
+        return fail("invalid_time_step","Serveur DHCP ou progression temporelle invalide");
+      const until=next.simulationClock+seconds;
+      for(const client of Object.values(next.objectsById)){
+        const ip=client.config.ipv4;
+        if(ip?.mode!=="dhcp" || !ip.lease)continue;
+        const lease=ip.lease;
+        const originalDuration=lease.expires-lease.start;
+        const checkpoints=[
+          {at:lease.start+Math.floor(originalDuration/2),phase:"t1"},
+          {at:lease.start+Math.floor(originalDuration*0.875),phase:"t2"},
+          {at:lease.expires,phase:"expiry"}
+        ];
+        // Rejouer les échéances entre l'ancienne et la nouvelle heure.
+        // Une réussite à T1/T2 produit un nouveau bail et une nouvelle période.
+        let previous=next.simulationClock,cycles=0,working=true;
+        while(working){
+          if(++cycles>30000)return fail("time_step_too_large","Progression trop importante pour ces baux");
+          const currentLease=ip.lease;
+          if(!currentLease)break;
+          const duration=currentLease.expires-currentLease.start;
+          const stages=[
+            {at:currentLease.start+Math.floor(duration/2),phase:"t1"},
+            {at:currentLease.start+Math.floor(duration*0.875),phase:"t2"},
+            {at:currentLease.expires,phase:"expiry"}
+          ];
+          const event=stages.find(entry=>entry.at>previous && entry.at<=until);
+          if(!event)break;
+          previous=event.at;
+          if(event.phase==="expiry"){
+            ip.address=null;ip.prefix=null;ip.lease=null;
+            client.config.networkOptions={gateway:null,dns:[]};
+            next.runtime[client.id]={dhcpStatus:"expired",dhcpLeasePhase:"expired",dhcpEventAt:previous};
+            break;
+          }
+          const server=next.objectsById[currentLease.serverId];
+          if(server?.config.dhcpEnabled && physicalPath(client.id,server.id)){
+            const pool=server.config.dhcpPool;
+            // Renouveler l'adresse actuelle seulement si elle reste attribuable.
+            const excluded=(pool.exclusions??[]).includes(ip.address);
+            const reservedOther=(pool.reservations??[]).some(r=>r.address===ip.address&&r.mac.toUpperCase()!==client.config.macAddress?.toUpperCase());
+            const address=ipv4ToInt(ip.address),lo=ipv4ToInt(pool.start),hi=ipv4ToInt(pool.end);
+            if(address!==null && address>=lo && address<=hi && !excluded && !reservedOther){
+              ip.lease={serverId:server.id,start:previous,expires:previous+pool.leaseSeconds};
+              client.config.networkOptions={gateway:pool.gateway,dns:[...pool.dns]};
+              next.runtime[client.id]={dhcpStatus:"lease",dhcpLeasePhase:"renewed-"+event.phase,dhcpEventAt:previous};
+              continue;
+            }
+          }
+          next.runtime[client.id]={dhcpStatus:"lease-retained",dhcpLeasePhase:event.phase+"-failed",dhcpEventAt:previous};
+        }
+      }
+      next.simulationClock=until;
     }else if(c.type==="dhcp.release"){
       const client=next.objectsById[c.targetId], ip=client?.config.ipv4;
       if(!ip || ip.mode!=="dhcp")return fail("not_dhcp_client","Client DHCP inexistant");
