@@ -312,6 +312,19 @@ try {
   await multi.locator("#ping-console").getByText("Statistiques Ping",{exact:false}).waitFor();
   assert.match(await multi.locator("#ping-console").innerText(),/reçus = 4/);
   console.log("PASS MULTI-01 : deux baux distincts, paramètres et ping du PC 2");passed++;
+  // Règle partagée : nouveau ping = nouvelle sortie, et interruption si autre PC.
+  await multi.locator("#ping").click();
+  assert.match(await multi.locator("#ping-console").innerText(),/REN-PC-02/);
+  assert.doesNotMatch(await multi.locator("#ping-console").innerText(),/Statistiques Ping/);
+  await multi.locator("#console-pc").selectOption("pc-dhcp-01");
+  assert.match(await multi.locator("#ping-console").innerText(),/Aucun ping effectué depuis ce poste/);
+  await multi.locator("#ping").click();
+  assert.match(await multi.locator("#ping-console").innerText(),/REN-PC-01/);
+  assert.doesNotMatch(await multi.locator("#ping-console").innerText(),/REN-PC-02/);
+  await multi.locator("#ping-console").getByText("Statistiques Ping",{exact:false}).waitFor();
+  assert.equal((await multi.locator("#ping-console").innerText()).match(/Réponse de 192\\.168\\.10\\.50/g)?.length,4);
+  console.log("PASS PING-COMMUN : relance, source distincte et annulation du résultat antérieur");passed++;
+  await multi.locator("#console-pc").selectOption("pc-dhcp-02");
 
   await multi.locator("#wire-pc-dhcp-02").click();
   await multi.locator("#release-pc-dhcp-02").click();
