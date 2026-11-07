@@ -26,14 +26,16 @@ try {
   console.log("PASS 1 : chargement sans erreur et ping initial possible");passed++;
 
   await page.locator("#ping").click();
-  assert.match(await page.locator("#terminal").innerText(), /simulation réussie/);
+  await page.locator("#terminal").getByText("Statistiques Ping",{exact:false}).waitFor();
+  assert.match(await page.locator("#terminal").innerText(), /envoyés = 4, reçus = 4/);
   console.log("PASS 2 : ping initial réussi");passed++;
 
   await page.locator("#wrong-ip").click();
   assert.equal(await page.locator("#address").inputValue(), "192.168.22.20");
   assert.match(await page.locator("#connectivity").innerText(), /Adressage IPv4 incompatible/);
   await page.locator("#ping").click();
-  assert.match(await page.locator("#terminal").innerText(), /Échec/);
+  await page.locator("#terminal").getByText("Statistiques Ping",{exact:false}).waitFor();
+  assert.match(await page.locator("#terminal").innerText(), /envoyés = 4, reçus = 0/);
   console.log("PASS 3 : mauvaise IP et ping échoué");passed++;
 
   await page.locator("#toggle-wire").click();
@@ -45,7 +47,8 @@ try {
   await page.locator("#toggle-wire").click();
   assert.match(await page.locator("#connectivity").innerText(), /Connectivité disponible/);
   await page.locator("#ping").click();
-  assert.match(await page.locator("#terminal").innerText(), /simulation réussie/);
+  await page.locator("#terminal").getByText("Statistiques Ping",{exact:false}).waitFor();
+  assert.match(await page.locator("#terminal").innerText(), /envoyés = 4, reçus = 4/);
   console.log("PASS 5 : réparation physique indépendante et ping rétabli");passed++;
 
   await page.locator("#wrong-ip").click();
@@ -87,6 +90,8 @@ try {
   await xp.locator("#target").selectOption("printer-01");
   assert.match(await xp.locator("#connectivity").innerText(),/Communication impossible/);
   await xp.locator("#ping").click();
+  assert.doesNotMatch(await xp.locator("#terminal").innerText(),/Statistiques Ping/);
+  await xp.locator("#terminal").getByText("Statistiques Ping",{exact:false}).waitFor();
   const failedPing=await xp.locator("#terminal").innerText();
   assert.match(failedPing,/Délai d.attente de la demande dépassé/);
   assert.equal((failedPing.match(/Délai d'attente de la demande dépassé/g)||[]).length,4);
@@ -96,6 +101,8 @@ try {
   await xp.locator("#source").selectOption("pc-01");
   assert.match(await xp.locator("#connectivity").innerText(),/Communication possible/);
   await xp.locator("#ping").click();
+  assert.match(await xp.locator("#terminal").innerText(),/PC 1/);
+  await xp.locator("#terminal").getByText("Statistiques Ping",{exact:false}).waitFor();
   const successfulPing=await xp.locator("#terminal").innerText();
   assert.equal((successfulPing.match(/Réponse de 192\.168\.10\.50/g)||[]).length,4);
   assert.match(successfulPing,/envoyés = 4, reçus = 4, perdus = 0/);
@@ -229,6 +236,8 @@ try {
   for(const value of ["192.168.10.100","192.168.10.1","192.168.10.10","1.1.1.1","Bail obtenu","Bail expirant"])assert.ok(granted.includes(value),value);
   for(const unwanted of ["Type de nœud","Routage IP","Proxy WINS","Carte Ethernet Ethernet"])assert.ok(!granted.includes(unwanted),unwanted);
   await dhcpPage.locator("#ping").click();
+  assert.doesNotMatch(await dhcpPage.locator("#ping-console").innerText(),/Statistiques Ping/);
+  await dhcpPage.locator("#ping-console").getByText("Statistiques Ping",{exact:false}).waitFor();
   assert.match(await dhcpPage.locator("#ping-console").innerText(),/reçus = 4/);
   console.log("PASS DHCP-1 : attribution automatique, DNS, bail et ping Windows");passed++;
 
@@ -266,6 +275,8 @@ try {
 
   assert.match(await dhcpPage.locator("#feedback").innerText(),/adresse APIPA attribuée/);
   await dhcpPage.locator("#ping").click();
+  assert.doesNotMatch(await dhcpPage.locator("#ping-console").innerText(),/Statistiques Ping/);
+  await dhcpPage.locator("#ping-console").getByText("Statistiques Ping",{exact:false}).waitFor();
   assert.match(await dhcpPage.locator("#ping-console").innerText(),/reçus = 0/);
   await dhcpPage.locator("#toggle-cable").click();
   await dhcpPage.locator("#request").click();
@@ -297,6 +308,8 @@ try {
   assert.match(multiConfig,/192\.168\.10\.101/);
   assert.match(multiConfig,/192\.168\.10\.10/);
   await multi.locator("#ping").click();
+  assert.doesNotMatch(await multi.locator("#ping-console").innerText(),/Statistiques Ping/);
+  await multi.locator("#ping-console").getByText("Statistiques Ping",{exact:false}).waitFor();
   assert.match(await multi.locator("#ping-console").innerText(),/reçus = 4/);
   console.log("PASS MULTI-01 : deux baux distincts, paramètres et ping du PC 2");passed++;
 
@@ -308,8 +321,17 @@ try {
   assert.match(await multi.locator("#console").innerText(),/Adresse d'autoconfiguration IPv4.*169\.254\.10\.21/);
   assert.match(await multi.locator("#ip-pc-dhcp-01").innerText(),/192\.168\.10\.100/);
   await multi.locator("#console-pc").selectOption("pc-dhcp-01");
+  assert.match(await multi.locator("#ping-console").innerText(),/Aucun ping effectué depuis ce poste/);
   await multi.locator("#ping").click();
+  assert.doesNotMatch(await multi.locator("#ping-console").innerText(),/Statistiques Ping/);
+  await multi.locator("#ping-console").getByText("Statistiques Ping",{exact:false}).waitFor();
   assert.match(await multi.locator("#ping-console").innerText(),/reçus = 4/);
+  // Nouvelle demande depuis PC 2 : une ancienne animation ne doit jamais continuer.
+  await multi.locator("#console-pc").selectOption("pc-dhcp-02");
+  await multi.locator("#ping").click();
+  assert.match(await multi.locator("#ping-console").innerText(),/REN-PC-02/);
+  assert.doesNotMatch(await multi.locator("#ping-console").innerText(),/Statistiques Ping/);
+  await multi.locator("#ping-console").getByText("Statistiques Ping",{exact:false}).waitFor();
   console.log("PASS MULTI-02 : PC 2 isolé et APIPA, PC 1 inchangé");passed++;
 
   await multi.locator("#wire-pc-dhcp-02").click();
