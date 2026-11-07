@@ -61,3 +61,19 @@ L'utilisation de modules JavaScript hébergés sur un autre domaine implique que
 - Ping : lignes successives, quatre réponses, statistiques finales, aucune phrase fictive.
 - Nouveau ping : annulation du précédent, aucune sortie mélangée.
 - Le rendu des six laboratoires et les tests réseau existants restent fonctionnels.
+
+## Champs `ipconfig` alignés
+
+Un utilitaire central `shared-ui/v1/windows-fields.js` expose `createWindowsFieldFormatter(labels,{indent})`. Il calcule la largeur du plus long libellé et n'ajoute des points que sur les libellés plus courts, jusqu'à l'alignement du caractère `:`.
+
+Exemple :
+
+```javascript
+import {createWindowsFieldFormatter} from "../shared-ui/v1/windows-fields.js";
+const field=createWindowsFieldFormatter(["Adresse IPv4","Masque de sous-réseau","Passerelle par défaut"]);
+const lignes=[field("Adresse IPv4","192.168.10.20"),field("Masque de sous-réseau","255.255.255.0")];
+```
+
+Utilisé à ce stade par les laboratoires 4 et 5. Les prochains laboratoires ne doivent pas recréer manuellement un formatage des points.
+
+Dans le laboratoire 5, les équipements portent les noms PC1 et PC2 afin d'éviter toute confusion du préfixe `REN` avec la commande Windows `ren`.
