@@ -74,7 +74,7 @@ try {
   assert.doesNotMatch(sharedAll.staticIp,/Bail obtenu|Serveur DHCP/);
   assert.match(sharedAll.dhcp,/Serveur DHCP\.+ : 192\.168\.10\.2/);
   assert.match(sharedAll.dhcp,/Bail obtenu\.+ : 06\/11\/2026/);
-  assert.match(sharedAll.apipa,/Adresse d'autoconfiguration IPv4 : 169\.254\.10\.20/);
+  assert.match(sharedAll.apipa,/Adresse d'autoconfiguration IPv4\.* : 169\.254\.10\.20/);
   assert.doesNotMatch(sharedAll.apipa,/Bail obtenu|Serveur DHCP/);
   assert.match(sharedAll.released,/Non attribuée/);
   assert.match(sharedAll.disconnected,/Média déconnecté/);
