@@ -4,7 +4,7 @@ Statut : règle transversale validée par le professeur le 7 novembre 2026.
 
 ## Portée
 
-Tout TP ou laboratoire R2D3 qui propose un ping utilise le composant d'animation partagé `r2d3-v1/ping-animation.js` hébergé dans C2-Lab, ou son équivalent déployé avec le moteur R2D3. Cette obligation s'applique aussi aux nouveaux exercices destinés à C². Un TP ne réimplémente pas librement son propre affichage figé de ping.
+Tout TP ou laboratoire R2D3 qui propose un ping utilise le composant d'animation partagé `shared-ui/v1/ping-animation.js` hébergé dans C2-Lab, ou son équivalent déployé avec le moteur R2D3. Cette obligation s'applique aussi aux nouveaux exercices destinés à C². Un TP ne réimplémente pas librement son propre affichage figé de ping.
 
 ## Comportement attendu
 
@@ -20,7 +20,7 @@ Tout TP ou laboratoire R2D3 qui propose un ping utilise le composant d'animation
 ## API
 
 ```javascript
-import {createPingAnimator} from "./ping-animation.js";
+import {createPingAnimator} from "../shared-ui/v1/ping-animation.js";
 const pingView=createPingAnimator(document.getElementById("ping-console"));
 pingView.run({
   sourceName:"REN-PC-02",
@@ -47,3 +47,11 @@ Tester au minimum : animation progressive des quatre lignes, bilan absent avant 
 - `r2d3-v1/conflit-ipv4.js` : conflit IPv4.
 
 Tous ces fichiers sont dans `chaoli22000bzh/C2-Lab/main`. Les fonctionnalités de calcul réseau restent dans `chaoli22000bzh/R2D3`.
+
+## Mutualisation interprojets (novembre 2026)
+
+Le ping animé v1 est désormais hébergé à l'adresse stable `https://chaoli22000bzh.github.io/C2-Lab/shared-ui/v1/ping-animation.js`. Les six ateliers R2D3 importent **le même fichier** depuis `../shared-ui/v1/ping-animation.js`, sans dupliquer le code dans leurs dossiers.
+
+Dans C² et les portails pédagogiques, le composant peut être importé par URL complète après intégration à chaque projet. Il n'a pas encore été raccordé à ces applications. Une intégration directe à distance nécessite une connexion réseau et une vérification CORS pour les modules JavaScript ; une application devant fonctionner intégralement hors ligne aura besoin d'une stratégie de mise en cache ou d'un paquetage explicite. Les modifications incompatibles devront être proposées sous `v2`, sans casser `v1`.
+
+Les boutons tactiles et souris sont fournis au même emplacement versionné via `buttons.css` et `button-feedback.js` ; détails : `docs/COMPOSANTS_UI_PARTAGES.md`.
