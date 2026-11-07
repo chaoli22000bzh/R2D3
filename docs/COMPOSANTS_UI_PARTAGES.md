@@ -133,3 +133,5 @@ consoleElement.textContent = formatIpconfigAll({
 Les laboratoires `experiment`, `dhcp`, `dhcp-deux-pc`, `dhcp-admin` et `conflit-ipv4` consomment ce module commun pour `ipconfig /all`. Le laboratoire ARP utilise uniquement `ipconfig` simple, comme avant. Les deux commandes ont des modules séparés, partageant l'utilitaire de formatage.
 
 Pour le réseau isolé, les trois fichiers `ipconfig.js`, `ipconfig-all.js`, `windows-fields.js` doivent être déployés ensemble. C² et les portails pédagogiques n'ont pas été modifiés.
+
+Précision de compatibilité : le paramètre `connected` sert à afficher explicitement un média déconnecté. Dans les scénarios DHCP qui attribuent une APIPA lors d'une indisponibilité réseau, l'état IPv4 calculé par le moteur reste prioritaire pour le rendu pédagogique de la commande et l'appelant n'impose pas `connected:false`.
