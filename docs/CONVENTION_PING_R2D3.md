@@ -9,12 +9,12 @@ Tout TP ou laboratoire R2D3 qui propose un ping utilise le composant d'animation
 ## Comportement attendu
 
 1. Au clic, effacer immédiatement toute sortie du ping précédent.
-2. Afficher clairement le poste source avec son nom, si possible son IPv4, puis la commande `ping` et l'adresse cible.
+2. Afficher uniquement une sortie conforme à une invite de commandes Windows : ligne `C:\\Users\\technicien>ping <adresse cible>`, en-tête Windows, quatre réponses puis statistiques. Le poste source se déduit du sélecteur de PC dans l’interface, sans rajouter son nom ni une ligne fictive à la sortie.
 3. Afficher les quatre lignes de réponse ou d'échec successivement, avec une temporisation courte (réglage de référence : 230 ms par réponse, soit environ une seconde par ping).
 4. Ne présenter le bilan (`Statistiques Ping`, reçus/perdus) qu'après la quatrième réponse.
 5. En cas de nouvelle demande, abandonner l'animation précédente et redémarrer au début, sans mélanger les sorties.
-6. Lors d'un changement de poste ou de cible, d'une réinitialisation ou d'un changement de configuration rendant le résultat obsolète, annuler l'animation précédente et retirer son ancien résultat.
-7. Distinguer la simulation technique du comportement exact de Windows : un conflit IPv4 peut donner des réponses réelles variables, donc ne pas afficher une certitude trompeuse.
+6. Lors d'un changement de poste ou de cible, d'une réinitialisation ou d'un changement de configuration rendant le résultat obsolète, annuler l'animation précédente et retirer son ancien résultat. Laisser alors la sortie vide, sans « Aucun ping effectué depuis ce poste ».
+7. Ne jamais ajouter de diagnostic explicite, mention « Simulation R2D3 », « Ping depuis » ou explication de la panne dans la sortie console. Le moteur peut représenter un conflit par des délais d’attente sans garantir une reproduction exacte de tous les comportements de Windows.
 8. Le rendu n'altère ni le moteur de diagnostic ni le scénario : il consomme le résultat instantané de `network.ping`.
 
 ## API
@@ -28,14 +28,14 @@ pingView.run({
   targetAddress:"192.168.10.50",
   outcome:engine.query({type:"network.ping",sourceId:"pc-02",targetId:"printer"})
 });
-pingView.cancel("Aucun ping effectué depuis ce poste.");
+pingView.cancel();
 ```
 
 Le module utilise `setTimeout` et un numéro de génération pour ignorer les sorties périmées, sans dépendance supplémentaire. Les composants utilisent `textContent`, sans injection HTML.
 
 ## Recette obligatoire
 
-Tester au minimum : animation progressive des quatre lignes, bilan absent avant la quatrième, nom du poste source, changement de source, relance rapide d'un ping, ping échoué, réinitialisation avant la fin et résultat non périmé après changement de configuration.
+Tester au minimum : animation progressive des quatre lignes, bilan absent avant la quatrième, absence de nom source ajouté dans la console, changement de source, relance rapide d'un ping, ping échoué, réinitialisation avant la fin et résultat non périmé après changement de configuration.
 
 ## Périmètre effectivement migré en novembre 2026
 
