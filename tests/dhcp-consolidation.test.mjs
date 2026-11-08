@@ -37,8 +37,10 @@ test("CONSOL-DHCP-03 : changement de plage ne supprime pas le bail ancien, mais 
  assert.equal(address(e,"pc-dhcp-01"),"192.168.10.100");
  advance(e,"t1",12);
  assert.equal(address(e,"pc-dhcp-01"),"192.168.10.100");
- assert.equal(e.getSnapshot().runtime["pc-dhcp-01"].dhcpLeasePhase,"t1-failed");
- assert.equal(lease(e,"pc-dhcp-01").expires,86400);
+ assert.equal(e.getSnapshot().runtime["pc-dhcp-01"].dhcpLeasePhase,"renewed-t1");
+ assert.equal(lease(e,"pc-dhcp-01").expires,129600);
+ assert.equal(e.query({type:"network.ipv4Conflicts"}).conflicts.length,1);
+ assert.equal(e.query({type:"network.ping",sourceId:"pc-dhcp-01",targetId:"printer-dhcp"}).success,false);
 });
 test("CONSOL-DHCP-04 : reservation differente empeche le renouvellement T1 de l'ancienne IP",()=>{
  const e=createEngine(scenario);
@@ -58,7 +60,7 @@ test("CONSOL-DHCP-05 : configuration invalide et restauration sans mutation impl
  assert.deepEqual(restoreEngine(scenario,e.exportState()).exportState(),e.exportState());
 });
 
-test("CONSOL-DHCP-06 : renouvellement T1 refuse une IP devenue occupee par une configuration statique",()=>{
+test("CONSOL-DHCP-06 : T1 conserve le bail DHCP meme en presence d'une IP statique conflictuelle",()=>{
  const e=createEngine(scenario);
  request(e,"initial","pc-dhcp-01");
  const change=issue(e,"collision","network.setIPv4","printer-dhcp",{mode:"static",interfaceId:"eth0",address:"192.168.10.100",prefix:24});
