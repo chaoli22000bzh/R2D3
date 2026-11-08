@@ -204,6 +204,17 @@ function makeEngine(scenario, existing) {
     // Adresse stable par client pour cette première simulation, sans conflit entre clients.
     return "169.254.10."+(20+clients.indexOf(clientId));
   }
+  // Seules les attributions DHCP encore valides sont connues du serveur.
+  // Une IPv4 statique d'un autre equipement n'est pas une exclusion implicite.
+  function leasedToOther(current, clientId, serverId, poolId, address) {
+    return Object.values(current.objectsById).some(o=>{
+      if(o.id===clientId || o.config.ipv4?.mode!=="dhcp")return false;
+      const lease=o.config.ipv4.lease;
+      return o.config.ipv4.address===address && lease &&
+        lease.expires>current.simulationClock && lease.serverId===serverId &&
+        (lease.poolId??"default")===(poolId??"default");
+    });
+  }
   function dispatch(c) {
     if(!isObj(c) || c.commandVersion!==1 || typeof c.id!=="string" || !c.id ||
        typeof c.type!=="string" || typeof c.targetId!=="string" || !isObj(c.params))
@@ -298,7 +309,7 @@ function makeEngine(scenario, existing) {
             const mac=client.config.macAddress?.toUpperCase();
             const ownReservation=reservations.find(r=>r.mac.toUpperCase()===mac);
             const reservedOther=reservations.some(r=>r.address===ip.address&&r.mac.toUpperCase()!==mac);
-            const occupiedOther=Object.values(next.objectsById).some(o=>o.id!==client.id&&o.config.ipv4?.address===ip.address);
+            const occupiedOther=leasedToOther(next,client.id,server.id,currentLease.poolId,ip.address);
             const reservationMatches=!ownReservation || ownReservation.address===ip.address;
             const address=ipv4ToInt(ip.address),lo=pool?ipv4ToInt(pool.start):null,hi=pool?ipv4ToInt(pool.end):null;
             if(pool && address!==null && address>=lo && address<=hi && !excluded && !reservedOther && !occupiedOther && reservationMatches){
@@ -331,14 +342,15 @@ function makeEngine(scenario, existing) {
       if(server){
         const pool=selectedPool(server.config,c.params.poolId);
         if(!pool)return fail("invalid_dhcp_pool","Plage DHCP inconnue");
-        const occupied=new Set(Object.values(next.objectsById).filter(o=>o.id!==c.targetId && o.config.ipv4?.address).map(o=>o.config.ipv4.address));
+        // Ne pas confondre occupation par un bail DHCP et adresse statique inconnue du serveur.
         const excluded=new Set(pool.exclusions??[]);
         const reservations=pool.reservations??[];
         const ownReservation=reservations.find(r=>r.mac.toUpperCase()===client.config.macAddress?.toUpperCase());
         const otherReservations=new Set(reservations.filter(r=>r!==ownReservation).map(r=>r.address));
         const freeForClient=address=>ipv4ToInt(address)!==null &&
           ipv4ToInt(address)>=ipv4ToInt(pool.start) && ipv4ToInt(address)<=ipv4ToInt(pool.end) &&
-          !excluded.has(address) && !otherReservations.has(address) && !occupied.has(address);
+          !excluded.has(address) && !otherReservations.has(address) &&
+          !leasedToOther(next,c.targetId,server.id,server.config.dhcpPools?pool.id:undefined,address);
         let chosen=null;
         if(ownReservation){
           if(freeForClient(ownReservation.address))chosen=ownReservation.address;
