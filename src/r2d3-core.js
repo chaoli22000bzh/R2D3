@@ -471,6 +471,11 @@ function makeEngine(scenario, existing) {
         client.config.networkOptions={gateway:null,dns:[]};
         next.runtime[c.targetId]={dhcpStatus:"apipa",error:"Serveur DHCP inaccessible"};
       }
+    }else if(c.type==="dns.setNegativeTtl"){
+      const server=next.objectsById[c.targetId],ttl=c.params.negativeTtl;
+      if(!server?.config.dnsZone || !Number.isInteger(ttl) || ttl<1 || ttl>86400)
+        return fail("invalid_dns_ttl","TTL négatif invalide");
+      server.config.dnsZone.negativeTtl=ttl;
     }else if(c.type==="dns.setServerEnabled"){
       const server=next.objectsById[c.targetId];
       if(!server || server.config.dnsZone===undefined || typeof c.params.enabled!=="boolean")
