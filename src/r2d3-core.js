@@ -57,7 +57,7 @@ function validIpv4(v){
 
 function validDnsName(value) {
   return typeof value==="string" && value.length<=253 &&
-    /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/i.test(value);
+    /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/i.test(value);
 }
 function validDnsConfig(c) {
   if(c.dnsZone===undefined && c.dnsEnabled===undefined)return true;
