@@ -54,6 +54,27 @@ function validIpv4(v){
       (v.lease===null || isObj(v.lease) && typeof v.lease.serverId==="string" &&
        Number.isInteger(v.lease.start) && Number.isInteger(v.lease.expires) && v.lease.expires>v.lease.start && (v.lease.poolId===undefined || typeof v.lease.poolId==="string" && v.lease.poolId.length>0)));
 }
+
+function validDnsName(value) {
+  return typeof value==="string" && value.length<=253 &&
+    /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/i.test(value);
+}
+function validDnsConfig(c) {
+  if(c.dnsZone===undefined && c.dnsEnabled===undefined)return true;
+  if(typeof c.dnsEnabled!=="boolean" || !isObj(c.dnsZone) ||
+     !validDnsName(c.dnsZone.domain) || !Array.isArray(c.dnsZone.records))return false;
+  const domain=c.dnsZone.domain.toLowerCase(),names=new Set();
+  return c.dnsZone.records.every(record=>{
+    if(!isObj(record) || !validDnsName(record.name) ||
+       !["A","CNAME"].includes(record.type) || typeof record.value!=="string")return false;
+    const name=record.name.toLowerCase();
+    if(name!==domain && !name.endsWith("."+domain) || names.has(name))return false;
+    names.add(name);
+    return record.type==="A" ? ipv4ToInt(record.value)!==null :
+      validDnsName(record.value) && (record.value.toLowerCase()===domain ||
+        record.value.toLowerCase().endsWith("."+domain));
+  });
+}
 function checkScenario(s) {
   if (!isObj(s) || s.format!=="r2d3-scenario" || s.schemaVersion!==1 ||
       typeof s.scenarioId!=="string" || !s.scenarioId ||
@@ -66,6 +87,7 @@ function checkScenario(s) {
     ids.add(o.id);
     if(o.config.networkOptions!==undefined && !validNetworkOptions(o.config.networkOptions)) throw new Error("Paramètres réseau invalides");
     if(o.config.ipv4!==undefined && !validIpv4(o.config.ipv4))throw new Error("Configuration IPv4 invalide");
+    if(!validDnsConfig(o.config))throw new Error("Configuration DNS invalide");
     if((o.config.dhcpPool!==undefined || o.config.dhcpPools!==undefined) && (!validPools(o.config) || typeof o.config.dhcpEnabled!=="boolean"))
       throw new Error("Serveur DHCP invalide");
     for (const p of o.ports) {
@@ -189,6 +211,28 @@ function makeEngine(scenario, existing) {
           start:lease.start,expires:lease.expires}];
       });
       return {status:"ok",leases:clone(leases)};
+    }
+    if(q.type==="dns.resolve"){
+      const client=state.objectsById[q.sourceId],name=typeof q.name==="string"?q.name.trim().toLowerCase().replace(/\\.$/,""):null;
+      if(!client?.config.ipv4 || !validDnsName(name))return {status:"unavailable",reason:"Client ou nom DNS invalide"};
+      const configured=client.config.networkOptions?.dns??[];
+      const serverIp=q.serverAddress??configured[0];
+      if(!serverIp || !configured.includes(serverIp))return {status:"unavailable",reason:"Serveur DNS non configure sur le poste"};
+      const server=Object.values(state.objectsById).find(o=>o.config.dnsEnabled!==undefined && o.config.ipv4?.address===serverIp);
+      if(!server || !server.config.dnsEnabled)return {status:"unavailable",reason:"Serveur DNS indisponible"};
+      if(!networkPing(client.id,server.id).success)return {status:"unavailable",reason:"Serveur DNS inaccessible"};
+      const zone=server.config.dnsZone,domain=zone.domain.toLowerCase();
+      if(name!==domain && !name.endsWith("."+domain))return {status:"ok",found:false,reason:"name_outside_zone",serverId:server.id,serverAddress:serverIp,chain:[]};
+      let current=name;const visited=new Set(),chain=[];
+      while(true){
+        if(visited.has(current))return {status:"ok",found:false,reason:"alias_loop",serverId:server.id,serverAddress:serverIp,chain};
+        visited.add(current);
+        const record=zone.records.find(r=>r.name.toLowerCase()===current);
+        if(!record)return {status:"ok",found:false,reason:"name_not_found",serverId:server.id,serverAddress:serverIp,chain};
+        chain.push({name:record.name,type:record.type,value:record.value});
+        if(record.type==="A")return {status:"ok",found:true,address:record.value,serverId:server.id,serverAddress:serverIp,chain};
+        current=record.value.toLowerCase();
+      }
     }
     if(q.type==="network.arpTable"){
       const pc=state.objectsById[q.sourceId];
@@ -382,6 +426,27 @@ function makeEngine(scenario, existing) {
         client.config.networkOptions={gateway:null,dns:[]};
         next.runtime[c.targetId]={dhcpStatus:"apipa",error:"Serveur DHCP inaccessible"};
       }
+    }else if(c.type==="dns.setServerEnabled"){
+      const server=next.objectsById[c.targetId];
+      if(!server || server.config.dnsZone===undefined || typeof c.params.enabled!=="boolean")
+        return fail("invalid_dns_server","Serveur DNS ou etat invalide");
+      server.config.dnsEnabled=c.params.enabled;
+    }else if(c.type==="dns.upsertRecord"){
+      const server=next.objectsById[c.targetId],record=c.params.record;
+      if(!server || server.config.dnsZone===undefined || !isObj(record))
+        return fail("invalid_dns_record","Enregistrement DNS invalide");
+      const records=server.config.dnsZone.records;
+      const index=records.findIndex(r=>r.name.toLowerCase()===String(record.name).toLowerCase());
+      if(index<0)records.push(clone(record));else records[index]=clone(record);
+      if(!validDnsConfig(server.config))return fail("invalid_dns_record","Enregistrement DNS invalide");
+    }else if(c.type==="dns.removeRecord"){
+      const server=next.objectsById[c.targetId];
+      if(!server || server.config.dnsZone===undefined || !validDnsName(c.params.name))
+        return fail("invalid_dns_record","Enregistrement DNS invalide");
+      const records=server.config.dnsZone.records;
+      const index=records.findIndex(r=>r.name.toLowerCase()===c.params.name.toLowerCase());
+      if(index<0)return fail("dns_record_not_found","Enregistrement DNS inconnu");
+      records.splice(index,1);
     }else if(c.type==="network.arpClear"){
       if(!next.objectsById[c.targetId]?.config.ipv4)return fail("invalid_arp_client","Poste IPv4 inexistant");
       if(!isObj(next.domainState.arpCaches))next.domainState.arpCaches={};
