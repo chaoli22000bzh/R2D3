@@ -59,14 +59,22 @@ function validDnsName(value) {
   return typeof value==="string" && value.length<=253 &&
     /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/i.test(value);
 }
+function dnsTtl(value,defaultValue=300) {return value===undefined?defaultValue:value;}
+function validDnsTtl(value) {return value===undefined || Number.isInteger(value) && value>=1 && value<=86400;}
+function dnsCacheEntries(current,clientId) {
+  const cache=current.domainState.dnsCaches?.[clientId]??{};
+  return Object.values(cache).filter(entry=>entry.expires>current.simulationClock)
+    .map(entry=>({...clone(entry),remainingTtl:entry.expires-current.simulationClock}));
+}
+function dnsCacheKey(name){return name.trim().toLowerCase().replace(/\\.$/,"");}
 function validDnsConfig(c) {
   if(c.dnsZone===undefined && c.dnsEnabled===undefined)return true;
   if(typeof c.dnsEnabled!=="boolean" || !isObj(c.dnsZone) ||
-     !validDnsName(c.dnsZone.domain) || !Array.isArray(c.dnsZone.records))return false;
+     !validDnsName(c.dnsZone.domain) || !Array.isArray(c.dnsZone.records) || !validDnsTtl(c.dnsZone.negativeTtl))return false;
   const domain=c.dnsZone.domain.toLowerCase(),names=new Set();
   return c.dnsZone.records.every(record=>{
     if(!isObj(record) || !validDnsName(record.name) ||
-       !["A","CNAME"].includes(record.type) || typeof record.value!=="string")return false;
+       !["A","CNAME"].includes(record.type) || typeof record.value!=="string" || !validDnsTtl(record.ttl))return false;
     const name=record.name.toLowerCase();
     if(name!==domain && !name.endsWith("."+domain) || names.has(name))return false;
     names.add(name);
@@ -212,6 +220,15 @@ function makeEngine(scenario, existing) {
       });
       return {status:"ok",leases:clone(leases)};
     }
+    if(q.type==="dns.cache"){
+      const client=state.objectsById[q.sourceId];
+      if(!client?.config.ipv4)return {status:"unavailable",reason:"Poste DNS inexistant"};
+      return {status:"ok",entries:dnsCacheEntries(state,q.sourceId)};
+    }
+    if(q.type==="dns.lastResult"){
+      if(!state.objectsById[q.sourceId]?.config.ipv4)return {status:"unavailable",reason:"Poste DNS inexistant"};
+      return {status:"ok",result:clone(state.domainState.dnsLastResults?.[q.sourceId]??null)};
+    }
     if(q.type==="dns.resolve"){
       const client=state.objectsById[q.sourceId],name=typeof q.name==="string"?q.name.trim().toLowerCase().replace(/\\.$/,""):null;
       if(!client?.config.ipv4 || !validDnsName(name))return {status:"unavailable",reason:"Client ou nom DNS invalide"};
@@ -222,15 +239,16 @@ function makeEngine(scenario, existing) {
       if(!server || !server.config.dnsEnabled)return {status:"unavailable",reason:"Serveur DNS indisponible"};
       if(!networkPing(client.id,server.id).success)return {status:"unavailable",reason:"Serveur DNS inaccessible"};
       const zone=server.config.dnsZone,domain=zone.domain.toLowerCase();
-      if(name!==domain && !name.endsWith("."+domain))return {status:"ok",found:false,reason:"name_outside_zone",serverId:server.id,serverAddress:serverIp,chain:[]};
+      if(name!==domain && !name.endsWith("."+domain))return {status:"ok",found:false,reason:"name_outside_zone",serverId:server.id,serverAddress:serverIp,chain:[],ttl:dnsTtl(zone.negativeTtl,60)};
       let current=name;const visited=new Set(),chain=[];
       while(true){
         if(visited.has(current))return {status:"ok",found:false,reason:"alias_loop",serverId:server.id,serverAddress:serverIp,chain};
         visited.add(current);
         const record=zone.records.find(r=>r.name.toLowerCase()===current);
-        if(!record)return {status:"ok",found:false,reason:"name_not_found",serverId:server.id,serverAddress:serverIp,chain};
-        chain.push({name:record.name,type:record.type,value:record.value});
-        if(record.type==="A")return {status:"ok",found:true,address:record.value,serverId:server.id,serverAddress:serverIp,chain};
+        if(!record)return {status:"ok",found:false,reason:"name_not_found",serverId:server.id,serverAddress:serverIp,chain,ttl:dnsTtl(zone.negativeTtl,60)};
+        chain.push({name:record.name,type:record.type,value:record.value,ttl:dnsTtl(record.ttl)});
+        if(record.type==="A")return {status:"ok",found:true,address:record.value,serverId:server.id,serverAddress:serverIp,chain,
+          ttl:Math.min(...chain.map(item=>dnsTtl(item.ttl))) };
         current=record.value.toLowerCase();
       }
     }
@@ -268,7 +286,34 @@ function makeEngine(scenario, existing) {
       return fail("revision_conflict","Révision obsolète");
     if(s.capabilities.network!==true)return fail("capability_unavailable","Réseau désactivé");
     const next=clone(state);
-    if(c.type==="network.setIPv4"){
+    if(c.type==="dns.clientResolve"){
+      const client=next.objectsById[c.targetId],name=typeof c.params.name==="string"?dnsCacheKey(c.params.name):null;
+      if(!client?.config.ipv4 || !validDnsName(name))return fail("invalid_dns_request","Poste ou nom DNS invalide");
+      if(!isObj(next.domainState.dnsCaches))next.domainState.dnsCaches={};
+      if(!isObj(next.domainState.dnsCaches[c.targetId]))next.domainState.dnsCaches[c.targetId]={};
+      if(!isObj(next.domainState.dnsLastResults))next.domainState.dnsLastResults={};
+      const cache=next.domainState.dnsCaches[c.targetId];
+      const saved=cache[name],valid=saved && saved.expires>next.simulationClock;
+      if(saved && !valid)delete cache[name];
+      let outcome;
+      if(valid){
+        outcome={status:"ok",found:saved.found,address:saved.address??undefined,reason:saved.reason??undefined,
+          chain:clone(saved.chain),serverAddress:saved.serverAddress,ttl:saved.expires-next.simulationClock,fromCache:true};
+      }else{
+        const raw=query({type:"dns.resolve",sourceId:c.targetId,name});
+        outcome={...raw,fromCache:false};
+        if(raw.status==="ok" && (raw.found || ["name_not_found","name_outside_zone"].includes(raw.reason))){
+          const ttl=raw.ttl;
+          cache[name]={name,found:raw.found,address:raw.address??null,reason:raw.reason??null,
+            chain:clone(raw.chain),serverAddress:raw.serverAddress,expires:next.simulationClock+ttl,ttl};
+        }
+      }
+      next.domainState.dnsLastResults[c.targetId]=outcome;
+    }else if(c.type==="dns.flushCache"){
+      if(!next.objectsById[c.targetId]?.config.ipv4)return fail("invalid_dns_client","Poste DNS inexistant");
+      if(!isObj(next.domainState.dnsCaches))next.domainState.dnsCaches={};
+      next.domainState.dnsCaches[c.targetId]={};
+    }else if(c.type==="network.setIPv4"){
       const o=next.objectsById[c.targetId], p=c.params;
       if(!o || !o.config.ipv4 || !o.ports.some(port=>port.id===p.interfaceId))
         return fail("unsupported_target","Interface inexistante");
@@ -476,7 +521,8 @@ function makeEngine(scenario, existing) {
     next.revision++;
     state=next; seenIds.add(c.id);
     for(const listener of [...listeners]){try{listener(state.revision);}catch(_){/* Une vue défaillante n'interrompt pas le moteur. */}}
-    return {status:"applied",revision:state.revision,changes:[c.targetId],effects:["network-recomputed"]};
+    return {status:"applied",revision:state.revision,changes:[c.targetId],effects:["network-recomputed"],
+      ...(c.type==="dns.clientResolve"?{dnsResult:clone(state.domainState.dnsLastResults[c.targetId])}:{})};
   }
   function subscribe(listener){
     if(typeof listener!=="function")throw new TypeError("Abonné invalide");
