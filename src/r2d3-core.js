@@ -429,9 +429,11 @@ function makeEngine(scenario, existing) {
           if(!event)break;
           previous=event.at;
           if(event.phase==="expiry"){
-            ip.address=null;ip.prefix=null;ip.lease=null;
+            // Le bail n'est plus utilisable. Sans reponse DHCP, le poste
+            // bascule en adressage automatique APIPA dans ce simulateur.
+            ip.address=apipaAddress(client.id,next);ip.prefix=16;ip.lease=null;
             client.config.networkOptions={gateway:null,dns:[]};
-            next.runtime[client.id]={dhcpStatus:"expired",dhcpLeasePhase:"expired",dhcpEventAt:previous};
+            next.runtime[client.id]={dhcpStatus:"apipa",dhcpLeasePhase:"expired-apipa",dhcpEventAt:previous};
             break;
           }
           const server=next.objectsById[currentLease.serverId];
