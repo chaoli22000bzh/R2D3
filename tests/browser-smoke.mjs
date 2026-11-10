@@ -668,7 +668,7 @@ try {
   await cataloguePage.locator('#dhcp-modes button[data-mode="lease"]').click();
   assert.ok((await cataloguePage.locator("#dhcp-output").innerText()).includes("192.168.10.100"));
   await cataloguePage.locator('#dhcp-modes button[data-mode="apipa"]').click();
-  assert.ok((await cataloguePage.locator("#dhcp-output").innerText()).includes("169.254.10.20"));
+  assert.match(await cataloguePage.locator("#dhcp-output").innerText(),/aucune nouvelle configuration DHCP n.a été obtenue/);
   assert.equal(await cataloguePage.locator("#documentation-heading").count(),1);
   assert.deepEqual(catalogueErrors,[]);
   await cataloguePage.close();
