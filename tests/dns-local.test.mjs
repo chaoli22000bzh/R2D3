@@ -55,7 +55,7 @@ test("DNS-07 : administration invalide refusee sans mutation",()=>{
  const e=ready(),before=e.exportState();
  for(const [id,record] of [
   ["bad-ip",{name:"atelier.test",type:"A",value:"999.2.3.4"}],
-  ["bad-type",{name:"atelier.test",type:"MX",value:"mail.atelier.test"}],
+  ["bad-type",{name:"atelier.test",type:"SRV",value:"mail.atelier.test"}],
   ["bad-zone",{name:"www.example.org",type:"A",value:"192.168.10.20"}],
   ["bad-alias",{name:"www.atelier.test",type:"CNAME",value:"example.org"}]
  ]){assert.equal(command(e,id,"dns.upsertRecord","srv-dns",{record}).status,"rejected");assert.deepEqual(e.exportState(),before);}
