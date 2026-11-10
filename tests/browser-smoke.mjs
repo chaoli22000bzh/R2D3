@@ -505,8 +505,8 @@ try {
   await admin.locator("#advance-9").click();
   assert.match(await admin.locator("#lease-summary").innerText(),/échec T2/);
   await admin.locator("#advance-3").click();
-  assert.match(await admin.locator("#status-pc-dhcp-01").innerText(),/Bail expiré/);
-  assert.match(await admin.locator("#ip-pc-dhcp-01").innerText(),/Aucune adresse IPv4/);
+  assert.match(await admin.locator("#status-pc-dhcp-01").innerText(),/Adresse APIPA obtenue/);
+  assert.match(await admin.locator("#ip-pc-dhcp-01").innerText(),/169\\.254\\.10\\.20/);
   await admin.locator("#toggle-server").click();
   await admin.locator("#renew-pc-dhcp-01").click();
   assert.match(await admin.locator("#ip-pc-dhcp-01").innerText(),/192\.168\.10\.100/);
