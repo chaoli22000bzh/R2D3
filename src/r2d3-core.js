@@ -126,6 +126,45 @@ function initialState(s) {
     runtime:{}, domainState:{}, simulationClock:0, technicalEvidence:[]
   };
 }
+function validRestoredDnsState(state) {
+  const domain=state.domainState;
+  if(domain.dnsCaches!==undefined){
+    if(!isObj(domain.dnsCaches))return false;
+    for(const [clientId,cache] of Object.entries(domain.dnsCaches)){
+      if(!state.objectsById[clientId]?.config.ipv4 || !isObj(cache))return false;
+      for(const [key,entry] of Object.entries(cache)){
+        if(!validDnsName(key) || key!==key.toLowerCase() || !isObj(entry) ||
+           entry.name!==key || typeof entry.found!=="boolean" ||
+           !Number.isSafeInteger(entry.ttl) || entry.ttl<1 || entry.ttl>86400 ||
+           !Number.isSafeInteger(entry.expires) || entry.expires<0 ||
+           !Array.isArray(entry.chain) || !entry.chain.every(record=>
+             isObj(record) && validDnsName(record.name) &&
+             ["A","CNAME"].includes(record.type) &&
+             typeof record.value==="string" &&
+             (record.type==="A"?ipv4ToInt(record.value)!==null:validDnsName(record.value)) &&
+             Number.isInteger(record.ttl) && record.ttl>=1 && record.ttl<=86400) ||
+           (entry.serverAddress!==undefined && ipv4ToInt(entry.serverAddress)===null))return false;
+        if(entry.found){
+          if(ipv4ToInt(entry.address)===null || entry.reason!==null ||
+             entry.chain.length===0 || entry.chain.at(-1).type!=="A" ||
+             entry.chain.at(-1).value!==entry.address)return false;
+        }else if(entry.address!==null || !["name_not_found","name_outside_zone"].includes(entry.reason))return false;
+      }
+    }
+  }
+  if(domain.dnsLastResults!==undefined){
+    if(!isObj(domain.dnsLastResults))return false;
+    for(const [clientId,result] of Object.entries(domain.dnsLastResults)){
+      if(!state.objectsById[clientId]?.config.ipv4 || !isObj(result) ||
+         !["ok","unavailable"].includes(result.status) || typeof result.fromCache!=="boolean" ||
+         (result.found!==undefined && typeof result.found!=="boolean") ||
+         (result.address!==undefined && ipv4ToInt(result.address)===null) ||
+         (result.ttl!==undefined && (!Number.isInteger(result.ttl) || result.ttl<0 || result.ttl>86400)) ||
+         (result.chain!==undefined && (!Array.isArray(result.chain) || result.chain.some(record=>!isObj(record)))))return false;
+    }
+  }
+  return true;
+}
 function validateState(s, state) {
   if (!isObj(state) || state.format!=="r2d3-state" || state.schemaVersion!==1 ||
       state.scenario?.scenarioId!==s.scenarioId || state.scenario?.scenarioVersion!==s.scenarioVersion ||
@@ -136,6 +175,7 @@ function validateState(s, state) {
   if (Object.keys(state.objectsById).sort().join("|")!==s.objects.map(x=>x.id).sort().join("|") ||
       Object.keys(state.linksById).sort().join("|")!==s.links.map(x=>x.id).sort().join("|"))
     throw new Error("Inventaire incohérent");
+  if(!validRestoredDnsState(state))throw new Error("Cache DNS restauré invalide");
   const test={...s,objects:Object.values(state.objectsById),links:Object.values(state.linksById)};
   checkScenario(test);
   for(const o of Object.values(state.objectsById)){
@@ -351,11 +391,16 @@ function makeEngine(scenario, existing) {
         }
       }
       if(!validPools(server.config))return fail("invalid_dhcp_pool","Plages DHCP invalides");
-    }else if(c.type==="dhcp.advanceTime"){
-      // Horloge de scénario uniquement : aucun minuteur réel ou appel réseau.
+    }else if(c.type==="dhcp.advanceTime" || c.type==="simulation.advanceTime"){
+      // Horloge commune. L'ancienne commande DHCP reste compatible.
       const seconds=c.params.seconds;
-      if(!dhcpPools(next.objectsById[c.targetId]?.config??{}).length || !Number.isSafeInteger(seconds) || seconds<1 || seconds>604800)
-        return fail("invalid_time_step","Serveur DHCP ou progression temporelle invalide");
+      if(c.type==="dhcp.advanceTime" && !dhcpPools(next.objectsById[c.targetId]?.config??{}).length)
+        return fail("invalid_time_step","Serveur DHCP inconnu");
+      if(c.type==="simulation.advanceTime" && c.targetId!=="simulation-clock")
+        return fail("invalid_time_target","Horloge de simulation inconnue");
+      if(!Number.isSafeInteger(seconds) || seconds<1 || seconds>604800 ||
+         !Number.isSafeInteger(next.simulationClock+seconds))
+        return fail("invalid_time_step","Progression temporelle invalide");
       const until=next.simulationClock+seconds;
       for(const client of Object.values(next.objectsById)){
         const ip=client.config.ipv4;
