@@ -298,6 +298,13 @@ function makeEngine(scenario, existing) {
       return {status:"ok",entries:clone(state.domainState.arpCaches?.[q.sourceId]??[])};
     }
     if(q.type==="network.ipv4Conflicts")return {status:"ok",conflicts:ipv4Conflicts()};
+    if(q.type==="network.pingAddress"){
+      if(ipv4ToInt(q.address)===null)return {status:"unavailable",success:false,reason:"Adresse IPv4 invalide"};
+      const targets=Object.values(state.objectsById).filter(o=>o.config.ipv4?.address===q.address);
+      if(!targets.length)return {status:"ok",success:false,reason:"Aucun équipement simulé ne possède cette adresse"};
+      if(targets.length>1)return {status:"ok",success:false,reason:"Plusieurs équipements possèdent cette IPv4",conflict:true};
+      return networkPing(q.sourceId,targets[0].id);
+    }
     if(q.type==="network.ping")return networkPing(q.sourceId,q.targetId);
     return {status:"unavailable",reason:"Requête non prise en charge"};
   }
