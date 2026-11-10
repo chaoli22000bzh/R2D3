@@ -70,6 +70,12 @@ function dnsCacheKey(name){return name.trim().toLowerCase().replace(/\\.$/,"");}
 const dnsTypes=["A","AAAA","CNAME","MX","TXT","PTR"];
 const dnsRecordType=type=>typeof type==="string"?type.toUpperCase():"A";
 const dnsTypedCacheKey=(name,type)=>type==="A"?name:type+"|"+name;
+function dnsQueryName(name,type){
+  if(typeof name!=="string")return null;
+  const plain=dnsCacheKey(name);
+  if(type==="PTR"&&ipv4ToInt(plain)!==null)return plain.split(".").reverse().join(".")+".in-addr.arpa";
+  return plain;
+}
 function validIpv6(value){
   if(typeof value!=="string" || !/^[0-9a-f:]+$/i.test(value) || value.includes(":::"))return false;
   const parts=value.split("::");
@@ -293,7 +299,7 @@ function makeEngine(scenario, existing) {
     }
     if(q.type==="dns.resolve"){
       const client=state.objectsById[q.sourceId],type=dnsRecordType(q.recordType),
-        name=typeof q.name==="string"?dnsCacheKey(q.name):null;
+        name=dnsQueryName(q.name,type);
       if(!client?.config.ipv4||!validDnsName(name)||!["A","AAAA","MX","TXT","PTR"].includes(type))
         return {status:"unavailable",reason:"Client, nom ou type DNS invalide"};
       const configured=client.config.networkOptions?.dns??[];
@@ -367,7 +373,7 @@ function makeEngine(scenario, existing) {
     if(s.capabilities.network!==true)return fail("capability_unavailable","Réseau désactivé");
     const next=clone(state);
     if(c.type==="dns.clientResolve"){
-      const client=next.objectsById[c.targetId],name=typeof c.params.name==="string"?dnsCacheKey(c.params.name):null,
+      const client=next.objectsById[c.targetId],name=dnsQueryName(c.params.name,dnsRecordType(c.params.recordType)),
         recordType=dnsRecordType(c.params.recordType);
       if(!client?.config.ipv4||!validDnsName(name)||!["A","AAAA","MX","TXT","PTR"].includes(recordType))
         return fail("invalid_dns_request","Poste, nom ou type DNS invalide");
