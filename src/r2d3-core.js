@@ -169,7 +169,7 @@ function validRestoredDnsState(state) {
            typeof entry.found!=="boolean"||
            !Number.isSafeInteger(entry.ttl)||entry.ttl<1||entry.ttl>86400||
            !Number.isSafeInteger(entry.expires)||entry.expires<0||
-           !Array.isArray(entry.chain)||entry.chain.some(record=>!isObj(record)||!dnsTypes.includes(record.type)||!validDnsTtl(record.ttl))||
+           !Array.isArray(entry.chain)||entry.chain.some(record=>!isObj(record)||!validDnsName(record.name)||!dnsTypes.includes(record.type)||typeof record.value!=="string"||!validDnsTtl(record.ttl)||\n             (record.type==="A"&&ipv4ToInt(record.value)===null)||\n             (record.type==="AAAA"&&!validIpv6(record.value))||\n             (["CNAME","PTR"].includes(record.type)&&!validDnsName(record.value))||\n             (record.type==="MX"&&(!validDnsName(record.value)||!Number.isInteger(record.priority))))||
            (entry.serverAddress!==undefined&&ipv4ToInt(entry.serverAddress)===null))return false;
         if(entry.found){
           if(entry.reason!==null||entry.chain.length===0)return false;
