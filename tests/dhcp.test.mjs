@@ -129,8 +129,10 @@ test("DHCP-TIME-02 : T1 et T2 échouent sans serveur, bail conservé jusqu'à l'
  advance(e,"preexpiry",10799);
  assert.equal(pc(e).config.ipv4.address,"192.168.10.100");
  advance(e,"expiry",1);
- assert.equal(e.getSnapshot().runtime["pc-dhcp"].dhcpStatus,"expired");
- assert.equal(pc(e).config.ipv4.address,null);
+ assert.equal(e.getSnapshot().runtime["pc-dhcp"].dhcpStatus,"apipa");
+ assert.equal(e.getSnapshot().runtime["pc-dhcp"].dhcpLeasePhase,"expired-apipa");
+ assert.equal(pc(e).config.ipv4.address,"169.254.10.20");
+ assert.equal(pc(e).config.ipv4.prefix,16);
  assert.equal(pc(e).config.ipv4.lease,null);
  assert.deepEqual(pc(e).config.networkOptions,{gateway:null,dns:[]});
  assert.equal(ping(e).success,false);
