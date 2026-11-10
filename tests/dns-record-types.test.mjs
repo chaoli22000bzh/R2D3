@@ -65,7 +65,7 @@ test("DNS-EXT-07 : expiration TTL par type et purge",()=>{
  cmd(e,"first","dns.clientResolve","pc-dhcp-01",{name:"atelier.test",recordType:"TXT"});
  const old=e.query({type:"dns.cache",sourceId:"pc-dhcp-01"}).entries.find(x=>x.recordType==="TXT");
  assert.ok(old);
- assert.equal(cmd(e,"clock","simulation.advanceTime",null,{seconds:old.ttl+1}).status,"applied");
+ assert.equal(cmd(e,"clock","simulation.advanceTime","simulation-clock",{seconds:old.ttl+1}).status,"applied");
  assert.equal(cmd(e,"again","dns.clientResolve","pc-dhcp-01",{name:"atelier.test",recordType:"TXT"}).dnsResult.fromCache,false);
  assert.equal(cmd(e,"flush","dns.flushCache","pc-dhcp-01").status,"applied");
  assert.equal(e.query({type:"dns.cache",sourceId:"pc-dhcp-01"}).entries.length,0);
