@@ -674,6 +674,41 @@ try {
   await cataloguePage.close();
   console.log("PASS BANC-COMPOSANTS : 3 composants partagés testés sans catalogue documentaire local");passed++;
 
+  // Complément DNS : enregistrements typés, PTR, édition, cache et TTL.
+  assert.deepEqual(
+    JSON.parse(readFileSync("c2-lab/r2d3-v1/dns-enregistrements-scenario.json","utf8")),
+    JSON.parse(readFileSync("scenarios/atelier-dns-enregistrements-v1.json","utf8"))
+  );
+  const typedDnsPage=await browser.newPage({viewport:{width:1100,height:850}});
+  const typedDnsErrors=[];typedDnsPage.on("pageerror",err=>typedDnsErrors.push(err.message));
+  const typedDnsResponse=await typedDnsPage.goto("http://127.0.0.1:8765/r2d3-v1/dns-enregistrements.html",{waitUntil:"networkidle"});
+  assert.equal(typedDnsResponse.status(),200);
+  await typedDnsPage.locator("#status").getByText("Laboratoire prêt.",{exact:false}).waitFor();
+  await typedDnsPage.locator("#dhcp").click();
+  await typedDnsPage.locator("#lookup-type").selectOption("MX");
+  await typedDnsPage.locator("#lookup").click();
+  assert.match(await typedDnsPage.locator("#answer").innerText(),/mail exchanger = 10 mail\.atelier\.test/);
+  assert.match(await typedDnsPage.locator("#answer").innerText(),/mail exchanger = 20 secours\.atelier\.test/);
+  await typedDnsPage.locator("#lookup-type").selectOption("TXT");
+  await typedDnsPage.locator("#lookup").click();
+  assert.match(await typedDnsPage.locator("#answer").innerText(),/v=spf1 mx -all/);
+  await typedDnsPage.locator("#windows").click();
+  assert.match(await typedDnsPage.locator("#cache").innerText(),/TXT/);
+  await typedDnsPage.locator("#advance").click();
+  await typedDnsPage.locator("#windows").click();
+  assert.match(await typedDnsPage.locator("#origin").innerText(),/Interrogation du serveur DNS/);
+  await typedDnsPage.locator("#lookup-type").selectOption("AAAA");
+  await typedDnsPage.locator("#lookup").click();
+  assert.match(await typedDnsPage.locator("#answer").innerText(),/2001:db8::50/);
+  await typedDnsPage.locator("#lookup-name").fill("192.168.10.50");
+  await typedDnsPage.locator("#lookup-type").selectOption("PTR");
+  await typedDnsPage.locator("#lookup").click();
+  assert.match(await typedDnsPage.locator("#answer").innerText(),/atelier\.test/);
+  assert.deepEqual(typedDnsErrors,[]);
+  await typedDnsPage.close();
+  console.log("PASS DNS-EXT-CHROMIUM : MX, TXT, AAAA, PTR et cache via interface");
+  passed++;
+
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
   await browser.close();
