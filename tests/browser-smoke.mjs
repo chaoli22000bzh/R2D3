@@ -795,6 +795,16 @@ try {
   await serverPage.locator("#inject").click();
   await serverPage.waitForFunction(()=>window.__mailServerLab.getSnapshot().messages.length===1);
   assert.equal((await serverPage.evaluate(()=>window.__mailServerLab.getSnapshot())).messages[0].read,false);
+  await serverPage.locator('#domain-form [name="domain"]').fill("cybernet.fr");
+  await serverPage.locator('#domain-form button[type="submit"]').click();
+  assert.deepEqual(await serverPage.evaluate(()=>window.__mailServerLab.getDomains()),["atelier-kerwen.fr","cybernet.fr"]);
+  assert.equal(await serverPage.locator("#imap-host").innerText(),"imap.cybernet.fr");
+  assert.equal(await serverPage.locator("#pop-host").innerText(),"pop.cybernet.fr");
+  assert.equal(await serverPage.locator("#smtp-host").innerText(),"smtp.cybernet.fr");
+  await serverPage.locator('#mailbox-form [name="email"]').fill("toto@cybernet.fr");
+  await serverPage.locator('#mailbox-form button[type="submit"]').click();
+  await serverPage.waitForFunction(()=>window.__mailServerLab.getSnapshot().mailboxes.length===2);
+  assert.equal((await serverPage.evaluate(()=>window.__mailServerLab.getSnapshot().mailboxes[1].settings.incomingHost)),"imap.cybernet.fr");
   assert.deepEqual(serverErrors,[]);
   await serverPage.close();
   console.log("PASS MAIL-SERVER : boîte créée, configuration Outlook, réception d'un message");
