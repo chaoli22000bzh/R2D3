@@ -768,6 +768,38 @@ try {
   console.log("PASS OUTLOOK-R2D3 : compte IMAP, lecture, réception, envoi sans doublon, panne");
   passed++;
 
+  // Serveur fictif : une boîte doit exister côté serveur avant validation Outlook.
+  assert.deepEqual(
+    JSON.parse(readFileSync("c2-lab/r2d3-v1/mail-server-scenario.json","utf8")),
+    JSON.parse(readFileSync("scenarios/atelier-mail-admin-v1.json","utf8"))
+  );
+  const serverPage=await browser.newPage({viewport:{width:1200,height:850}});
+  const serverErrors=[];serverPage.on("pageerror",err=>serverErrors.push(err.message));
+  const serverResponse=await serverPage.goto("http://127.0.0.1:8765/r2d3-v1/mail-server.html",{waitUntil:"networkidle"});
+  assert.equal(serverResponse.status(),200);
+  assert.equal(await serverPage.evaluate(()=>window.__mailServerLab.getSnapshot().mailboxes.length),0);
+  await serverPage.locator(".ou-gear").click();
+  await serverPage.locator('#ou-account [name="email"]').fill("technicien@atelier-kerwen.fr");
+  await serverPage.locator('#ou-account [name="incomingHost"]').fill("imap.entreprise.fr");
+  await serverPage.locator('#ou-account [name="incomingUsername"]').fill("technicien@atelier-kerwen.fr");
+  await serverPage.locator('#ou-account [name="incomingPassword"]').fill("demo2026");
+  await serverPage.locator('#ou-account [name="outgoingHost"]').fill("smtp.entreprise.fr");
+  await serverPage.locator('#ou-account button[type="submit"]').click();
+  assert.equal(await serverPage.evaluate(()=>window.__mailServerLab.getAccounts().length),0);
+  await serverPage.locator("#mailbox-form button[type=submit]").click();
+  assert.match(await serverPage.locator("#admin-status").innerText(),/Boîte créée/);
+  await serverPage.locator('#ou-account button[type="submit"]').click();
+  await serverPage.waitForFunction(()=>window.__mailServerLab.getAccounts().length===1);
+  assert.equal((await serverPage.evaluate(()=>window.__mailServerLab.getSnapshot())).configured.length,1);
+  await serverPage.locator('[data-action="close-settings"]').last().click();
+  await serverPage.locator("#inject").click();
+  await serverPage.waitForFunction(()=>window.__mailServerLab.getSnapshot().messages.length===1);
+  assert.equal((await serverPage.evaluate(()=>window.__mailServerLab.getSnapshot())).messages[0].read,false);
+  assert.deepEqual(serverErrors,[]);
+  await serverPage.close();
+  console.log("PASS MAIL-SERVER : boîte créée, configuration Outlook, réception d'un message");
+  passed++;
+
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
   await browser.close();
