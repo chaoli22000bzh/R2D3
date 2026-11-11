@@ -52,3 +52,41 @@ test("Édition d'une liste sans effacer les valeurs existantes",()=>{
  assert.equal(e.getAsset(a.id).values.type_camera,"PTZ");
  assert.equal(e.updateAsset(a.id,{status:"En réparation"}).success,false);
 });
+
+test("Ports intégrés générés et figés sur chaque équipement",()=>{
+ const e=createAssetRegistry(),p=e.createProfile("Switch non administrable").profile;
+ assert.equal(e.addPortGroup(p.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:5,digits:2}).success,true);
+ const a=e.createAsset(p.id,{name:"SW01"}).asset;
+ assert.deepEqual(a.ports.map(x=>x.name),["LAN01","LAN02","LAN03","LAN04","LAN05"]);
+ assert.ok(a.ports.every(x=>x.medium==="ethernet"&&x.connector==="RJ45"&&x.origin==="integrated"));
+ const portIds=a.ports.map(x=>x.id);
+ assert.equal(e.addPortGroup(p.id,{type:"wifi",prefix:"WLAN",start:1,count:1}).success,true);
+ assert.equal(e.getAsset(a.id).ports.length,5,"pas de modification rétroactive du matériel");
+ const b=e.createAsset(p.id,{name:"SW02"}).asset;
+ assert.equal(b.ports.length,6);
+ assert.notDeepEqual(b.ports.slice(0,5).map(x=>x.id),portIds);
+ assert.deepEqual(restoreAssetRegistry(e.exportState()).getAsset(a.id).ports.map(x=>x.id),portIds);
+});
+test("Ports nommés, doublons et types sans fil",()=>{
+ const e=createAssetRegistry(),p=e.createProfile("Point d'accès").profile;
+ assert.equal(e.addPortGroup(p.id,{type:"ethernet-rj45",prefix:"LAN",start:0,count:2}).success,true);
+ assert.equal(e.addPortGroup(p.id,{type:"ethernet-fibre",prefix:"LAN",start:1,count:1}).code,"port_name_exists");
+ assert.equal(e.addPortGroup(p.id,{type:"wifi",prefix:"WIFI",start:1,count:1}).success,true);
+ const a=e.createAsset(p.id,{name:"AP01"}).asset;
+ assert.equal(a.ports[2].connector,null);
+ assert.equal(a.ports[2].medium,"wireless");
+ assert.equal(e.removePortGroup(p.id,p.portGroups?.[0]?.id||e.getProfile(p.id).portGroups[0].id).success,true);
+ assert.equal(e.getAsset(a.id).ports.length,3);
+});
+test("Extension indépendante et retrait protégé",()=>{
+ const e=createAssetRegistry(),p=e.createProfile("Serveur").profile;
+ e.addPortGroup(p.id,{type:"ethernet-rj45",prefix:"ETH",start:1,count:1});
+ const a=e.createAsset(p.id,{name:"SRV01"}).asset;
+ assert.equal(e.addExtension(a.id,{type:"ethernet-fibre",prefix:"SFP",start:1,count:2}).success,true);
+ assert.equal(e.getAsset(a.id).ports.length,3);
+ assert.equal(e.addExtension(a.id,{type:"usb-c",prefix:"ETH",start:1,count:1}).code,"port_name_exists");
+ const ext=e.getAsset(a.id).ports[1].groupId;
+ assert.equal(e.removeExtension(a.id,ext).success,true);
+ assert.equal(e.getAsset(a.id).ports.length,1);
+ assert.equal(e.removeExtension(a.id,e.getAsset(a.id).ports[0].groupId).code,"not_found");
+});
