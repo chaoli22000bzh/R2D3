@@ -1,0 +1,53 @@
+{
+  "scenarioId": "mail-demo-v1",
+  "accounts": [
+    {
+      "email": "contact@atelier-kerwen.fr",
+      "type": "imap",
+      "settings": {
+        "incomingHost": "imap.entreprise.fr",
+        "incomingPort": "993",
+        "incomingSecurity": "ssl",
+        "incomingUsername": "contact@atelier-kerwen.fr",
+        "incomingPassword": "atelier2026",
+        "outgoingHost": "smtp.entreprise.fr",
+        "outgoingPort": "587",
+        "outgoingSecurity": "starttls",
+        "outgoingUsername": "smtp-agent",
+        "outgoingPassword": "demo-outgoing"
+      }
+    },
+    {
+      "email": "sav@atelier-kerwen.fr",
+      "type": "pop3",
+      "settings": {
+        "incomingHost": "pop.entreprise.fr",
+        "incomingPort": "995",
+        "incomingSecurity": "ssl",
+        "incomingUsername": "sav@atelier-kerwen.fr",
+        "incomingPassword": "sav-demo",
+        "outgoingHost": "smtp.entreprise.fr",
+        "outgoingPort": "587",
+        "outgoingSecurity": "starttls",
+        "outgoingUsername": "sav@atelier-kerwen.fr",
+        "outgoingPassword": "sav-demo"
+      }
+    },
+    {
+      "email": "bureau@atelier-kerwen.fr",
+      "type": "m365",
+      "settings": {
+        "username": "bureau@atelier-kerwen.fr",
+        "password": "m365-demo"
+      }
+    }
+  ],
+  "messages": [
+    {
+      "from": "client@exemple.fr",
+      "to": "contact@atelier-kerwen.fr",
+      "subject": "Incident messagerie",
+      "body": "Bonjour, ma messagerie ne fonctionne plus."
+    }
+  ]
+}
