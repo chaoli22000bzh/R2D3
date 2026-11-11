@@ -21,6 +21,12 @@ const errorText = {
   password:"Mot de passe Microsoft 365 incorrect."
 };
 const response = (success,code,message,extra={}) => ({success,code,message,...extra});
+const validDate = value => typeof value==="string" && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString()===value;
+function scenarioDate(mail,now){
+  if(mail.date!==undefined)return mail.date;
+  if(mail.minutesAgo!==undefined)return new Date(now-mail.minutesAgo*60000).toISOString();
+  return new Date(now).toISOString();
+}
 function incoming(a){return {user:a.incomingUsername ?? a.username ?? "",pass:a.incomingPassword ?? a.password ?? ""};}
 function outgoing(a){
   return a.smtpAuthMode === "separate"
@@ -40,7 +46,10 @@ function checkScenario(scenario){
     if(required.some(key=>typeof a.settings[key]!=="string"||!a.settings[key].trim()))
       throw Error("Paramètres de référence incomplets");
   }
-  if(scenario.messages!==undefined&&(!Array.isArray(scenario.messages)||scenario.messages.some(m=>!object(m)||!emailOk(m.to)||!emailOk(m.from)||typeof m.subject!=="string"||typeof m.body!=="string")))
+  if(scenario.messages!==undefined&&(!Array.isArray(scenario.messages)||scenario.messages.some(m=>!object(m)||!emailOk(m.to)||!emailOk(m.from)||typeof m.subject!=="string"||typeof m.body!=="string"||
+    (m.date!==undefined&&!validDate(m.date))||
+    (m.minutesAgo!==undefined&&(!Number.isInteger(m.minutesAgo)||m.minutesAgo<0||m.minutesAgo>5256000))||
+    (m.date!==undefined&&m.minutesAgo!==undefined)))
     throw Error("Courriel initial invalide");
 }
 export function createMailEngine(scenario,savedState){
@@ -88,15 +97,18 @@ export function createMailEngine(scenario,savedState){
   }
   const lookup=email=>[...reference.accounts,...state.mailboxes].find(a=>norm(a.email)===norm(email));
   function event(type,info){state.revision++;state.events.push({id:state.revision,type,...info});}
-  function receive(mail){
+  function receive(mail,initialDate){
     if(!object(mail)||!emailOk(mail.to)||!emailOk(mail.from)||typeof mail.subject!=="string"||typeof mail.body!=="string"||!lookup(mail.to))
       return response(false,"invalid_message","Courriel entrant invalide ou destinataire inconnu.");
     const msg={id:"mail-"+state.nextId++,folder:"inbox",accountEmail:lookup(mail.to).email,from:mail.from,to:mail.to,
-      subject:mail.subject,body:mail.body,read:false};
+      subject:mail.subject,body:mail.body,read:false,date:initialDate??new Date().toISOString()};
     state.messages.push(msg);event("mail.received",{messageId:msg.id,to:msg.accountEmail});
     return response(true,"received","Courriel reçu.",{message:clone(msg)});
   }
-  if(savedState===undefined) for(const mail of reference.messages??[]) receive(mail);
+  if(savedState===undefined){
+    const startupNow=Date.now();
+    for(const mail of reference.messages??[]) receive(mail,scenarioDate(mail,startupNow));
+  }
   function createMailbox({email,password,type="imap"}={}) {
     if(!reference.mailServer)return response(false,"no_mail_server","Administration de messagerie non disponible.");
     if(!emailOk(email)||!["imap","pop3"].includes(type)||typeof password!=="string"||password.length<4||password.length>100)
@@ -164,7 +176,7 @@ export function createMailEngine(scenario,savedState){
     const recipients=mail.to.split(/[;,]/).map(x=>x.trim());
     if(recipients.some(x=>!emailOk(x)))return response(false,"invalid_recipient","Adresse du destinataire incorrecte.");
     const sent={id:"mail-"+state.nextId++,folder:"sent",accountEmail:sender.email,
-      from:sender.email,to:mail.to,subject:mail.subject,body:mail.body,read:true};
+      from:sender.email,to:mail.to,subject:mail.subject,body:mail.body,read:true,date:new Date().toISOString()};
     state.messages.push(sent);event("mail.sent",{messageId:sent.id,from:sender.email,to:mail.to});
     const received=[];
     for(const recipient of new Set(recipients.map(norm))){
