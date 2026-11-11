@@ -47,8 +47,9 @@ export function createAssetRegistry(saved){
  function editField(id,key,patch){
   const p=getP(id),index=p?.fields.findIndex(f=>f.key===key)??-1;
   if(index<0)return result(false,"not_found","Champ introuvable.");
-  const old=p.fields[index],f={...old,label:patch.label===undefined?old.label:trim(patch.label),type:patch.type??old.type,unit:patch.unit===undefined?old.unit:trim(patch.unit)};
-  if(f.type==="select")f.options=patch.options===undefined?old.options:clone(patch.options);
+  const changes=patch||{};
+  const old=p.fields[index],f={...old,label:changes.label===undefined?old.label:trim(changes.label),type:changes.type??old.type,unit:changes.unit===undefined?old.unit:trim(changes.unit)};
+  if(f.type==="select")f.options=changes.options===undefined?old.options:clone(changes.options);
   else delete f.options;
   if(!fieldValid(f))return result(false,"invalid_field","Champ invalide.");
   if(occupied(id,key)&&f.type!==old.type)return result(false,"field_in_use","Vider toutes les valeurs avant de changer le type.");
@@ -83,6 +84,7 @@ export function createAssetRegistry(saved){
  }
  function updateAsset(id,info){
   const a=getA(id);if(!a)return result(false,"not_found","Matériel introuvable.");
+  if(!info||typeof info!=="object")return result(false,"invalid_asset","Données de matériel invalides.");
   if(info.name!==undefined&&!trim(info.name))return result(false,"invalid_name","Nom obligatoire.");
   if(info.status!==undefined&&!["En service","Hors service","En stock"].includes(info.status))return result(false,"invalid_status","Statut incorrect.");
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
