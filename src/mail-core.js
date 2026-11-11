@@ -27,7 +27,7 @@ function outgoing(a){
     : incoming(a);
 }
 function checkScenario(scenario){
-  if(!object(scenario)||!Array.isArray(scenario.accounts)||!scenario.accounts.length)
+  if(!object(scenario)||!Array.isArray(scenario.accounts)||!scenario.accounts.length && !object(scenario.mailServer))
     throw Error("Scénario mail invalide");
   const addresses=new Set();
   for(const a of scenario.accounts){
@@ -45,12 +45,17 @@ function checkScenario(scenario){
 export function createMailEngine(scenario,savedState){
   checkScenario(scenario);
   const reference=clone(scenario);
-  let state=savedState===undefined?{revision:0,nextId:1,configured:[],messages:[],events:[],
+  if(reference.mailServer){
+    const cfg=reference.mailServer;
+    if(!object(cfg)||typeof cfg.domain!=="string"||!cfg.domain.trim()||!object(cfg.imap)||!object(cfg.pop3)||!object(cfg.smtp))throw Error("Serveur de messagerie invalide");
+  }
+  let state=savedState===undefined?{revision:0,nextId:1,configured:[],messages:[],events:[],mailboxes:[],
     failures:{incomingDown:false,smtpDown:false,m365Down:false,...reference.failures}}:clone(savedState);
   if(!object(state)||!Number.isInteger(state.revision)||state.revision<0||!Number.isInteger(state.nextId)||state.nextId<1||
-    !Array.isArray(state.configured)||!Array.isArray(state.messages)||!Array.isArray(state.events)||!object(state.failures))
+    !Array.isArray(state.configured)||!Array.isArray(state.messages)||!Array.isArray(state.events)||!object(state.failures)|| (state.mailboxes!==undefined&&!Array.isArray(state.mailboxes)))
     throw Error("Sauvegarde de messagerie invalide");
-  const lookup=email=>reference.accounts.find(a=>norm(a.email)===norm(email));
+  state.mailboxes??=[];
+  const lookup=email=>[...reference.accounts,...state.mailboxes].find(a=>norm(a.email)===norm(email));
   function event(type,info){state.revision++;state.events.push({id:state.revision,type,...info});}
   function receive(mail){
     if(!object(mail)||!emailOk(mail.to)||!emailOk(mail.from)||typeof mail.subject!=="string"||typeof mail.body!=="string"||!lookup(mail.to))
@@ -61,6 +66,32 @@ export function createMailEngine(scenario,savedState){
     return response(true,"received","Courriel reçu.",{message:clone(msg)});
   }
   if(savedState===undefined) for(const mail of reference.messages??[]) receive(mail);
+  function createMailbox({email,password,type="imap"}={}) {
+    if(!reference.mailServer)return response(false,"no_mail_server","Administration de messagerie non disponible.");
+    if(!emailOk(email)||!["imap","pop3"].includes(type)||typeof password!=="string"||password.length<4||password.length>100)
+      return response(false,"invalid_mailbox","Adresse, protocole ou mot de passe invalide (4 à 100 caractères).");
+    const domain=norm(reference.mailServer.domain);
+    if(!norm(email).endsWith("@"+domain))
+      return response(false,"invalid_domain","L'adresse doit appartenir au domaine du serveur.");
+    if(lookup(email))return response(false,"mailbox_exists","Cette boîte existe déjà.");
+    const incomingProfile=reference.mailServer[type],smtp=reference.mailServer.smtp;
+    const required=[incomingProfile.host,incomingProfile.port,incomingProfile.security,smtp.host,smtp.port,smtp.security];
+    if(required.some(v=>typeof v!=="string"||!v.trim()))
+      return response(false,"invalid_mail_server","Paramètres du serveur incomplets.");
+    const entry={email:norm(email),type,settings:{
+      incomingHost:incomingProfile.host,incomingPort:incomingProfile.port,incomingSecurity:incomingProfile.security,
+      incomingUsername:norm(email),incomingPassword:password,
+      outgoingHost:smtp.host,outgoingPort:smtp.port,outgoingSecurity:smtp.security,
+      outgoingUsername:norm(email),outgoingPassword:password
+    }};
+    state.mailboxes.push(entry);
+    event("mailbox.created",{email:entry.email,type});
+    // Mot de passe pédagogique fictif : pour un TP, l'état exporté ne doit pas être partagé publiquement.
+    return response(true,"mailbox_created","Boîte créée sur le serveur simulé.",{email:entry.email,type});
+  }
+  function listMailboxes(){
+    return state.mailboxes.map(({email,type})=>({email,type}));
+  }
   function validateAccount(a){
     if(!object(a)||!emailOk(a.email)||!types.has(a.type))return response(false,"invalid_account","Compte invalide.");
     const ref=lookup(a.email);
@@ -126,6 +157,6 @@ export function createMailEngine(scenario,savedState){
     return response(true,"updated","État du service modifié.");
   }
   function getSnapshot(){return clone(state);}
-  return {validateAccount,send,receive,markRead,setFailure,getSnapshot,exportState:getSnapshot};
+  return {createMailbox,listMailboxes,validateAccount,send,receive,markRead,setFailure,getSnapshot,exportState:getSnapshot};
 }
 export const restoreMailEngine=(scenario,state)=>createMailEngine(scenario,state);
