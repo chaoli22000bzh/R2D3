@@ -47,7 +47,8 @@
       "from": "client@exemple.fr",
       "to": "contact@atelier-kerwen.fr",
       "subject": "Incident messagerie",
-      "body": "Bonjour, ma messagerie ne fonctionne plus."
+      "body": "Bonjour, ma messagerie ne fonctionne plus.",
+      "minutesAgo": 75
     }
   ]
 }

@@ -63,3 +63,38 @@ test("aucun secret de référence dans l'état sauvegardé",()=>{
  assert.equal(JSON.stringify(e.exportState()).includes("smtp-secret"),false);
  assert.equal(JSON.stringify(e.exportState()).includes("incoming-secret"),false);
 });
+
+test("messages envoyés et reçus horodatés au moment de leur création",()=>{
+ const e=createMailEngine(scenario);
+ e.validateAccount(form("agent@example.test"));
+ const start=Date.now();
+ const sent=e.send({from:"agent@example.test",to:"agent@example.test",subject:"Horloge",body:"Bonjour"});
+ const end=Date.now();
+ assert.equal(sent.success,true);
+ const mails=e.getSnapshot().messages.filter(x=>x.subject==="Horloge");
+ assert.equal(mails.length,2);
+ for(const m of mails){
+   assert.match(m.date,/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+   assert.ok(Date.parse(m.date)>=start && Date.parse(m.date)<=end);
+ }
+ assert.equal(e.markRead(sent.receivedIds[0]).success,true);
+ assert.deepEqual(e.getSnapshot().messages.filter(x=>x.subject==="Horloge").map(x=>x.date),mails.map(x=>x.date));
+});
+test("dates relatives des messages initiaux et sauvegarde sans recalcul",()=>{
+ const initial={...scenario,messages:[
+  {from:"client@example.test",to:"agent@example.test",subject:"Hier",body:"Ancien",minutesAgo:1440},
+  {from:"client@example.test",to:"agent@example.test",subject:"Daté",body:"Fixe",date:"2025-02-01T10:20:30.000Z"}]};
+ const start=Date.now(),e=createMailEngine(initial),end=Date.now();
+ const messages=e.getSnapshot().messages;
+ assert.ok(Date.parse(messages[0].date)>=start-86400000 && Date.parse(messages[0].date)<=end-86400000);
+ assert.equal(messages[1].date,"2025-02-01T10:20:30.000Z");
+ const saved=e.exportState(),restored=restoreMailEngine(initial,saved);
+ assert.deepEqual(restored.getSnapshot().messages,messages);
+ assert.equal(restored.getSnapshot().messages[0].date,messages[0].date);
+});
+test("dates invalides dans les scénarios refusées",()=>{
+ for(const date of ["demain","2025-13-40T00:00:00.000Z"]){
+  assert.throws(()=>createMailEngine({...scenario,messages:[{...scenario.messages[0],date}]}));
+ }
+ assert.throws(()=>createMailEngine({...scenario,messages:[{...scenario.messages[0],minutesAgo:-2}]}));
+});
