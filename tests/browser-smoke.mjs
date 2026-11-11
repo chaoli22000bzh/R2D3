@@ -780,10 +780,10 @@ try {
   assert.equal(await serverPage.evaluate(()=>window.__mailServerLab.getSnapshot().mailboxes.length),0);
   await serverPage.locator(".ou-gear").click();
   await serverPage.locator('#ou-account [name="email"]').fill("technicien@atelier-kerwen.fr");
-  await serverPage.locator('#ou-account [name="incomingHost"]').fill("imap.entreprise.fr");
+  await serverPage.locator('#ou-account [name="incomingHost"]').fill("imap.atelier-kerwen.fr");
   await serverPage.locator('#ou-account [name="incomingUsername"]').fill("technicien@atelier-kerwen.fr");
   await serverPage.locator('#ou-account [name="incomingPassword"]').fill("demo2026");
-  await serverPage.locator('#ou-account [name="outgoingHost"]').fill("smtp.entreprise.fr");
+  await serverPage.locator('#ou-account [name="outgoingHost"]').fill("smtp.atelier-kerwen.fr");
   await serverPage.locator('#ou-account button[type="submit"]').click();
   assert.equal(await serverPage.evaluate(()=>window.__mailServerLab.getAccounts().length),0);
   await serverPage.locator("#mailbox-form button[type=submit]").click();
