@@ -49,7 +49,7 @@ function checkScenario(scenario){
   if(scenario.messages!==undefined&&(!Array.isArray(scenario.messages)||scenario.messages.some(m=>!object(m)||!emailOk(m.to)||!emailOk(m.from)||typeof m.subject!=="string"||typeof m.body!=="string"||
     (m.date!==undefined&&!validDate(m.date))||
     (m.minutesAgo!==undefined&&(!Number.isInteger(m.minutesAgo)||m.minutesAgo<0||m.minutesAgo>5256000))||
-    (m.date!==undefined&&m.minutesAgo!==undefined)))
+    (m.date!==undefined&&m.minutesAgo!==undefined))))
     throw Error("Courriel initial invalide");
 }
 export function createMailEngine(scenario,savedState){
