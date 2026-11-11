@@ -74,7 +74,7 @@ test("messages envoyés et reçus horodatés au moment de leur création",()=>{
  const mails=e.getSnapshot().messages.filter(x=>x.subject==="Horloge");
  assert.equal(mails.length,2);
  for(const m of mails){
-   assert.match(m.date,/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/);
+   assert.match(m.date,/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
    assert.ok(Date.parse(m.date)>=start && Date.parse(m.date)<=end);
  }
  assert.equal(e.markRead(sent.receivedIds[0]).success,true);
