@@ -709,6 +709,65 @@ try {
   console.log("PASS DNS-EXT-CHROMIUM : MX, TXT, AAAA, PTR et cache via interface");
   passed++;
 
+  // Raccordement Outlook 0.4.5 : vraie interface, moteur canonique, cache de messages externe.
+  assert.equal(
+    readFileSync("c2-lab/r2d3-v1/mail-core.js","utf8"),
+    readFileSync("src/mail-core.js","utf8"),
+    "Copie du moteur de messagerie non synchronisée"
+  );
+  assert.deepEqual(
+    JSON.parse(readFileSync("c2-lab/r2d3-v1/mail-outlook-scenario.json","utf8")),
+    JSON.parse(readFileSync("scenarios/atelier-mail-v1.json","utf8")),
+    "Scénario de messagerie non synchronisé"
+  );
+  const mailPage=await browser.newPage({viewport:{width:1200,height:850}});
+  const mailErrors=[];mailPage.on("pageerror",err=>mailErrors.push(err.message));
+  const mailResponse=await mailPage.goto("http://127.0.0.1:8765/r2d3-v1/mail-outlook.html",{waitUntil:"networkidle"});
+  assert.equal(mailResponse.status(),200);
+  await mailPage.locator("#lab-status").getByText("Laboratoire prêt.",{exact:false}).waitFor();
+  await mailPage.locator(".ou-gear").click();
+  await mailPage.locator('#ou-account [name="smtpAuthMode"]').selectOption("separate");
+  await mailPage.locator('#ou-account [name="email"]').fill("contact@atelier-kerwen.fr");
+  await mailPage.locator('#ou-account [name="incomingHost"]').fill("imap.entreprise.fr");
+  await mailPage.locator('#ou-account [name="incomingUsername"]').fill("contact@atelier-kerwen.fr");
+  await mailPage.locator('#ou-account [name="incomingPassword"]').fill("atelier2026");
+  await mailPage.locator('#ou-account [name="outgoingHost"]').fill("smtp.entreprise.fr");
+  await mailPage.locator('#ou-account [name="outgoingUsername"]').fill("smtp-agent");
+  await mailPage.locator('#ou-account [name="outgoingPassword"]').fill("demo-outgoing");
+  await mailPage.locator('#ou-account button[type="submit"]').click();
+  await mailPage.waitForFunction(()=>window.__mailLab.getAccounts().length===1);
+  assert.equal((await mailPage.evaluate(()=>window.__mailLab.getSnapshot())).configured.length,1);
+  await mailPage.locator('[data-action="close-settings"]').last().click();
+  const initial=await mailPage.evaluate(()=>window.__mailLab.getSnapshot().messages);
+  assert.equal(initial.filter(x=>x.folder==="inbox").length,1);
+  await mailPage.locator(".ou-message").getByText("Incident messagerie").click();
+  await mailPage.waitForFunction(()=>window.__mailLab.getSnapshot().messages[0].read===true);
+  await mailPage.locator("#inject").click();
+  await mailPage.waitForFunction(()=>window.__mailLab.getSnapshot().messages.filter(x=>x.folder==="inbox").length===2);
+  const beforeSend=await mailPage.evaluate(()=>window.__mailLab.getSnapshot().messages.length);
+  await mailPage.locator('[data-action="compose"]').click();
+  await mailPage.locator("#ou-to").fill("contact@atelier-kerwen.fr");
+  await mailPage.locator("#ou-subject").fill("Test raccordement");
+  await mailPage.locator('#ou-compose-form textarea[name="body"]').fill("Courriel fictif.");
+  await mailPage.locator('#ou-compose-form button[type="submit"]').click();
+  await mailPage.waitForFunction(()=>window.__mailLab.getSnapshot().messages.some(m=>m.folder==="sent"&&m.subject==="Test raccordement"));
+  const after=await mailPage.evaluate(()=>({
+    canonical:window.__mailLab.getSnapshot().messages,
+    displayed:window.__mailLab.getUiMessages()
+  }));
+  assert.equal(after.canonical.length,beforeSend+2,"Un envoi local ajoute un envoyé et un reçu");
+  assert.equal(after.canonical.filter(x=>x.subject==="Test raccordement"&&x.folder==="sent").length,1);
+  assert.equal(after.canonical.filter(x=>x.subject==="Test raccordement"&&x.folder==="inbox").length,1);
+  assert.equal(after.displayed.filter(x=>x.subject==="Test raccordement"&&x.folder==="sent").length,1);
+  assert.equal(after.displayed.filter(x=>x.subject==="Test raccordement"&&x.folder==="inbox").length,1);
+  await mailPage.locator("#failure-type").selectOption("smtpDown");
+  await mailPage.locator("#fail-on").click();
+  assert.equal(await mailPage.evaluate(()=>window.__mailLab.getSnapshot().failures.smtpDown),true);
+  assert.deepEqual(mailErrors,[]);
+  await mailPage.close();
+  console.log("PASS OUTLOOK-R2D3 : compte IMAP, lecture, réception, envoi sans doublon, panne");
+  passed++;
+
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
   await browser.close();
