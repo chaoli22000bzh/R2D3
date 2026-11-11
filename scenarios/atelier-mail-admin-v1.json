@@ -1,0 +1,23 @@
+{
+  "scenarioId": "mail-admin-v1",
+  "accounts": [],
+  "mailServer": {
+    "domain": "atelier-kerwen.fr",
+    "imap": {
+      "host": "imap.entreprise.fr",
+      "port": "993",
+      "security": "ssl"
+    },
+    "pop3": {
+      "host": "pop.entreprise.fr",
+      "port": "995",
+      "security": "ssl"
+    },
+    "smtp": {
+      "host": "smtp.entreprise.fr",
+      "port": "587",
+      "security": "starttls"
+    }
+  },
+  "messages": []
+}
