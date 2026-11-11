@@ -1,6 +1,7 @@
 /* Moteur de messagerie pédagogique R2D3 V1 : aucun protocole ni serveur réel. */
 const clone = value => JSON.parse(JSON.stringify(value));
 const norm = value => String(value ?? "").trim().toLowerCase();
+const domainOk = value => /^(?=.{4,253}$)[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?)+$/.test(norm(value));
 const emailOk = value => /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(String(value ?? "").trim());
 const object = value => value !== null && typeof value === "object" && !Array.isArray(value);
 const types = new Set(["pop3", "imap", "m365"]);
@@ -50,11 +51,41 @@ export function createMailEngine(scenario,savedState){
     if(!object(cfg)||typeof cfg.domain!=="string"||!cfg.domain.trim()||!object(cfg.imap)||!object(cfg.pop3)||!object(cfg.smtp))throw Error("Serveur de messagerie invalide");
   }
   let state=savedState===undefined?{revision:0,nextId:1,configured:[],messages:[],events:[],mailboxes:[],
-    failures:{incomingDown:false,smtpDown:false,m365Down:false,...reference.failures}}:clone(savedState);
+    domains:[],failures:{incomingDown:false,smtpDown:false,m365Down:false,...reference.failures}}:clone(savedState);
   if(!object(state)||!Number.isInteger(state.revision)||state.revision<0||!Number.isInteger(state.nextId)||state.nextId<1||
     !Array.isArray(state.configured)||!Array.isArray(state.messages)||!Array.isArray(state.events)||!object(state.failures)|| (state.mailboxes!==undefined&&!Array.isArray(state.mailboxes)))
     throw Error("Sauvegarde de messagerie invalide");
   state.mailboxes??=[];
+  state.domains??=[];
+  if(!Array.isArray(state.domains))throw Error("Domaines de messagerie invalides");
+  // Le domaine historique demeure disponible pour les scénarios existants.
+  const legacyDomain=reference.mailServer?norm(reference.mailServer.domain):null;
+  function listDomains(){
+    if(!reference.mailServer)return [];
+    return [...new Set([legacyDomain,...state.domains])].filter(Boolean);
+  }
+  function createDomain(value){
+    if(!reference.mailServer)return response(false,"no_mail_server","Administration de messagerie non disponible.");
+    const domain=norm(value);
+    if(!domainOk(domain))return response(false,"invalid_domain","Nom de domaine invalide.");
+    if(listDomains().includes(domain))return response(false,"domain_exists","Ce domaine existe déjà.");
+    state.domains.push(domain);
+    event("domain.created",{domain});
+    return response(true,"domain_created","Domaine ajouté au serveur simulé.",{domain});
+  }
+  function getServerSettings(domainInput){
+    if(!reference.mailServer)return null;
+    const domain=norm(domainInput||legacyDomain);
+    if(!listDomains().includes(domain))return null;
+    const profile=reference.mailServer;
+    const base=legacyDomain===domain?profile:null;
+    return {
+      domain,
+      imap:{host:"imap."+domain,port:base?.imap.port??"993",security:base?.imap.security??"ssl"},
+      pop3:{host:"pop."+domain,port:base?.pop3.port??"995",security:base?.pop3.security??"ssl"},
+      smtp:{host:"smtp."+domain,port:base?.smtp.port??"587",security:base?.smtp.security??"starttls"}
+    };
+  }
   const lookup=email=>[...reference.accounts,...state.mailboxes].find(a=>norm(a.email)===norm(email));
   function event(type,info){state.revision++;state.events.push({id:state.revision,type,...info});}
   function receive(mail){
@@ -70,11 +101,12 @@ export function createMailEngine(scenario,savedState){
     if(!reference.mailServer)return response(false,"no_mail_server","Administration de messagerie non disponible.");
     if(!emailOk(email)||!["imap","pop3"].includes(type)||typeof password!=="string"||password.length<4||password.length>100)
       return response(false,"invalid_mailbox","Adresse, protocole ou mot de passe invalide (4 à 100 caractères).");
-    const domain=norm(reference.mailServer.domain);
-    if(!norm(email).endsWith("@"+domain))
-      return response(false,"invalid_domain","L'adresse doit appartenir au domaine du serveur.");
+    const domain=norm(email).split("@")[1];
+    const profile=getServerSettings(domain);
+    if(!profile)
+      return response(false,"invalid_domain","Crée d'abord ce domaine sur le serveur.");
     if(lookup(email))return response(false,"mailbox_exists","Cette boîte existe déjà.");
-    const incomingProfile=reference.mailServer[type],smtp=reference.mailServer.smtp;
+    const incomingProfile=profile[type],smtp=profile.smtp;
     const required=[incomingProfile.host,incomingProfile.port,incomingProfile.security,smtp.host,smtp.port,smtp.security];
     if(required.some(v=>typeof v!=="string"||!v.trim()))
       return response(false,"invalid_mail_server","Paramètres du serveur incomplets.");
@@ -157,6 +189,6 @@ export function createMailEngine(scenario,savedState){
     return response(true,"updated","État du service modifié.");
   }
   function getSnapshot(){return clone(state);}
-  return {createMailbox,listMailboxes,validateAccount,send,receive,markRead,setFailure,getSnapshot,exportState:getSnapshot};
+  return {createDomain,listDomains,getServerSettings,createMailbox,listMailboxes,validateAccount,send,receive,markRead,setFailure,getSnapshot,exportState:getSnapshot};
 }
 export const restoreMailEngine=(scenario,state)=>createMailEngine(scenario,state);
