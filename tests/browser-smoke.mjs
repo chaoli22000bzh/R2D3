@@ -740,6 +740,7 @@ try {
   await mailPage.locator('[data-action="close-settings"]').last().click();
   const initial=await mailPage.evaluate(()=>window.__mailLab.getSnapshot().messages);
   assert.equal(initial.filter(x=>x.folder==="inbox").length,1);
+  assert.ok(Math.abs(Date.now()-Date.parse(initial[0].date)-75*60000)<60000,"Message initial daté relativement à l’horloge du navigateur");
   await mailPage.locator(".ou-message").getByText("Incident messagerie").click();
   await mailPage.waitForFunction(()=>window.__mailLab.getSnapshot().messages[0].read===true);
   await mailPage.locator("#inject").click();
@@ -760,6 +761,8 @@ try {
   assert.equal(after.canonical.filter(x=>x.subject==="Test raccordement"&&x.folder==="inbox").length,1);
   assert.equal(after.displayed.filter(x=>x.subject==="Test raccordement"&&x.folder==="sent").length,1);
   assert.equal(after.displayed.filter(x=>x.subject==="Test raccordement"&&x.folder==="inbox").length,1);
+  for(const m of after.canonical.filter(x=>x.subject==="Test raccordement")) assert.ok(Math.abs(Date.now()-Date.parse(m.date))<60000,"Date de réception/envoi actuelle");
+  for(const m of after.displayed.filter(x=>x.subject==="Test raccordement")) assert.ok(Math.abs(Date.now()-Date.parse(m.date))<60000,"Outlook reçoit date ISO");
   await mailPage.locator("#failure-type").selectOption("smtpDown");
   await mailPage.locator("#fail-on").click();
   assert.equal(await mailPage.evaluate(()=>window.__mailLab.getSnapshot().failures.smtpDown),true);
@@ -795,6 +798,7 @@ try {
   await serverPage.locator("#inject").click();
   await serverPage.waitForFunction(()=>window.__mailServerLab.getSnapshot().messages.length===1);
   assert.equal((await serverPage.evaluate(()=>window.__mailServerLab.getSnapshot())).messages[0].read,false);
+  assert.ok(Math.abs(Date.now()-Date.parse((await serverPage.evaluate(()=>window.__mailServerLab.getSnapshot())).messages[0].date))<60000);
   await serverPage.locator('#domain-form [name="domain"]').fill("cybernet.fr");
   await serverPage.locator('#domain-form button[type="submit"]').click();
   assert.deepEqual(await serverPage.evaluate(()=>window.__mailServerLab.getDomains()),["atelier-kerwen.fr","cybernet.fr"]);
