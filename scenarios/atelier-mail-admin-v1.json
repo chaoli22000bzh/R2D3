@@ -4,17 +4,17 @@
   "mailServer": {
     "domain": "atelier-kerwen.fr",
     "imap": {
-      "host": "imap.entreprise.fr",
+      "host": "imap.atelier-kerwen.fr",
       "port": "993",
       "security": "ssl"
     },
     "pop3": {
-      "host": "pop.entreprise.fr",
+      "host": "pop.atelier-kerwen.fr",
       "port": "995",
       "security": "ssl"
     },
     "smtp": {
-      "host": "smtp.entreprise.fr",
+      "host": "smtp.atelier-kerwen.fr",
       "port": "587",
       "security": "starttls"
     }
