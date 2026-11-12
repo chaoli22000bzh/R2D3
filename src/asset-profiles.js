@@ -271,6 +271,66 @@ export function createAssetRegistry(saved){
    ))
   ]);
  }
+ // Graphe de continuité strictement physique. Une prise et un port de panneau
+ // relient leurs deux faces, mais un switch ne crée aucun lien automatique entre ports.
+ function explorePhysicalPath(fromPortId,toPortId){
+  const points=listCablePoints(),byId=new Map(points.map(p=>[p.portId,p]));
+  if(!byId.has(fromPortId)||!byId.has(toPortId))
+   return result(false,"not_found","Point de raccordement introuvable.");
+  const neighbors=new Map(points.map(p=>[p.portId,[]]));
+  const link=(a,b,kind,id)=>{
+   if(!neighbors.has(a)||!neighbors.has(b))return;
+   neighbors.get(a).push({to:b,kind,id});
+   neighbors.get(b).push({to:a,kind,id});
+  };
+  // Continuité interne passive de la prise ou du connecteur du panneau.
+  for(const obj of [...s.wallOutlets,...s.racks])
+   for(const slot of obj.ports)link(slot.front.id,slot.back.id,"passage",slot.id);
+  // Les deux bouts doivent être raccordés : câble à bout libre = pas de liaison.
+  for(const cable of s.cables)
+   if(cable.ends[0]?.portId&&cable.ends[1]?.portId)
+    link(cable.ends[0].portId,cable.ends[1].portId,"cable",cable.id);
+  const scan=start=>{
+   const queue=[start],previous=new Map([[start,null]]),links=new Map();
+   for(let index=0;index<queue.length;index++){
+    const current=queue[index];
+    for(const edge of neighbors.get(current)){
+     if(previous.has(edge.to))continue;
+     previous.set(edge.to,current);links.set(edge.to,edge);queue.push(edge.to);
+    }
+   }
+   return {queue,previous,links};
+  };
+  const left=scan(fromPortId),right=scan(toPortId);
+  const describe=id=>({
+   ...byId.get(id),
+   // Le statut de terminaison libre/occupée est celui du point de câble,
+   // non la disponibilité de passage interne avant/arrière.
+  });
+  let path=[],segments=[];
+  if(left.previous.has(toPortId)){
+   const reverse=[];let cursor=toPortId;
+   while(cursor!==null){reverse.push(cursor);cursor=left.previous.get(cursor);}
+   const ids=reverse.reverse();
+   path=ids.map(describe);
+   segments=ids.slice(1).map((id,i)=>({
+    fromPortId:ids[i],toPortId:id,
+    kind:left.links.get(id).kind,id:left.links.get(id).id
+   }));
+  }
+  const terminalPoints=scanResult=>scanResult.queue.filter(id=>
+   !(neighbors.get(id)||[]).some(edge=>!scanResult.previous.has(edge.to))
+   && (neighbors.get(id)||[]).filter(edge=>scanResult.previous.has(edge.to)).length<=1
+  );
+  return result(true,"explored",path.length?"Chemin physique continu trouvé.":"Aucun chemin physique continu entre ces deux points.",{
+   connected:path.length>0,path,segments,
+   fromReachable:left.queue.map(describe),
+   toReachable:right.queue.map(describe),
+   // Ces bornes décrivent les parcours observés ; elles ne suggèrent aucun câble à ajouter.
+   fromEnds:terminalPoints(left).map(describe),
+   toEnds:terminalPoints(right).map(describe)
+  });
+ }
  function createAsset(profileId,info){
   const p=getP(profileId);if(!p)return result(false,"not_found","Profil introuvable.");
   const name=trim(info?.name);if(!name)return result(false,"invalid_name","Nom de matériel obligatoire.");
@@ -293,7 +353,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createProfile,duplicateProfile,renameProfile,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createRack,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,createAsset,setAssetField,updateAsset,
+ return {createProfile,duplicateProfile,renameProfile,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createRack,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,setAssetField,updateAsset,
  listWallOutlets:()=>clone(s.wallOutlets),listRacks:()=>clone(s.racks),listCables:()=>clone(s.cables),getCable:id=>clone(s.cables.find(x=>x.id===id)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);
