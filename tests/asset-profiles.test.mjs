@@ -255,3 +255,43 @@ test("Chemins : branchement incomplet, cycles, bornes invalides et aucun passage
  e.connectCableEnd(dangling.id,0,sw.ports[0].id);
  assert.equal(e.explorePhysicalPath(sw.ports[0].id,rack.ports[0].front.id).connected,false);
 });
+
+
+test("Remplacement de switch : interdiction de suppression branchée, câbles conservés et réutilisables",()=>{
+ const e=createAssetRegistry(),p=e.createProfile("Switch").profile;
+ assert.equal(e.addPortGroup(p.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:2}).success,true);
+ const old=e.createAsset(p.id,{name:"SW01"}).asset;
+ const wall=e.createWallOutlet({name:"B12",location:"Salle 101"}).outlet;
+ const cable=e.createCable().cable;
+ assert.equal(e.connectCableEnd(cable.id,0,old.ports[0].id).success,true);
+ assert.equal(e.connectCableEnd(cable.id,1,wall.ports[0].front.id).success,true);
+ assert.equal(e.removeAsset(old.id).code,"asset_connected");
+ assert.equal(e.getAsset(old.id).name,"SW01");
+ assert.equal(e.disconnectCableEnd(cable.id,0).success,true);
+ assert.equal(e.removeAsset(old.id).success,true);
+ assert.equal(e.getAsset(old.id),null);
+ assert.equal(e.getCable(cable.id).ends[0],null);
+ assert.equal(e.getCable(cable.id).ends[1].portId,wall.ports[0].front.id);
+ const replacement=e.createAsset(p.id,{name:"SW02",serialNumber:"NEW-02"}).asset;
+ assert.notEqual(replacement.ports[0].id,old.ports[0].id);
+ assert.equal(e.connectCableEnd(cable.id,0,replacement.ports[0].id).success,true);
+ assert.equal(e.getCable(cable.id).ends[1].portId,wall.ports[0].front.id);
+ assert.equal(e.listCables().length,1);
+ const restored=restoreAssetRegistry(e.exportState());
+ assert.equal(restored.getAsset(old.id),null);
+ assert.equal(restored.getCable(cable.id).ends[0].portId,replacement.ports[0].id);
+ assert.equal(restored.getAsset(replacement.id).serialNumber,"NEW-02");
+});
+test("Suppression appareil : une seule extrémité branchée suffit à refuser, renommage permis",()=>{
+ const e=createAssetRegistry(),p=e.createProfile("PC").profile;
+ e.addPortGroup(p.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1});
+ const a=e.createAsset(p.id,{name:"PC01"}).asset,c=e.createCable().cable;
+ assert.equal(e.connectCableEnd(c.id,1,a.ports[0].id).success,true);
+ assert.equal(e.removeAsset(a.id).code,"asset_connected");
+ assert.equal(e.updateAsset(a.id,{name:"PC-RENOMMÉ"}).success,true);
+ assert.equal(e.listCablePoints().find(x=>x.portId===a.ports[0].id).assetName,"PC-RENOMMÉ");
+ assert.equal(e.disconnectCableEnd(c.id,1).success,true);
+ assert.equal(e.removeAsset(a.id).success,true);
+ assert.equal(e.listCables().length,1);
+ assert.equal(e.removeAsset(a.id).code,"not_found");
+});
