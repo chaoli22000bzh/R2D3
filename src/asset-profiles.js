@@ -5,6 +5,30 @@ const result=(success,code,message,extra={})=>({success,code,message,...extra});
 const types=["text","number","boolean","select","date"];
 const common=["name","manufacturer","model","serialNumber","status","location","reservable"];
 const empty=v=>v===undefined||v===null||v==="";
+const cableConnectors=[
+ "rj45-male","rj45-female","usb-a-plug","usb-a-socket",
+ "usb-b-plug","usb-b-socket","usb-c-plug","usb-c-socket",
+ "hdmi-plug","hdmi-socket","vga-male","vga-female",
+ "dvi-male","dvi-female","displayport-plug","displayport-socket",
+ "mini-displayport-plug","mini-displayport-socket",
+ "db9-male","db9-female","db25-male","db25-female",
+ "lc-plug","lc-socket","sc-plug","sc-socket"
+];
+const connectorInfo=code=>{
+ const suffix=code?.match(/-(male|female|plug|socket)$/)?.[1];
+ return suffix?{family:code.slice(0,-suffix.length-1),gender:suffix}:null;
+};
+const isCompatible=(cableEnd,portEnd)=>{
+ const a=connectorInfo(cableEnd),b=connectorInfo(portEnd);
+ return !!a&&!!b&&a.family===b.family&&(
+ (a.gender==="male"&&b.gender==="female")||
+ (a.gender==="female"&&b.gender==="male")||
+ (a.gender==="plug"&&b.gender==="socket")||
+ (a.gender==="socket"&&b.gender==="plug")
+ );
+};
+const physicalPortConnector={"ethernet-rj45":"rj45-female","usb-a":"usb-a-socket","usb-c":"usb-c-socket","hdmi":"hdmi-socket"};
+
 const portTypes={
  "ethernet-rj45":{medium:"ethernet",connector:"RJ45"},
  "ethernet-fibre":{medium:"ethernet",connector:"Fibre"},
@@ -28,11 +52,13 @@ function valueValid(f,v){
  return false;
 }
 export function createAssetRegistry(saved){
- const s=saved?clone(saved):{revision:0,nextProfile:1,nextAsset:1,nextPortGroup:1,nextPort:1,profiles:[],assets:[]};
+ const s=saved?clone(saved):{revision:0,nextProfile:1,nextAsset:1,nextPortGroup:1,nextPort:1,nextCable:1,cables:[],profiles:[],assets:[]};
  if(!Array.isArray(s.profiles)||!Array.isArray(s.assets)||!Number.isInteger(s.revision)||!Number.isInteger(s.nextProfile)||!Number.isInteger(s.nextAsset))throw Error("État R2 invalide");
- s.nextPortGroup??=1;s.nextPort??=1;
+ s.nextPortGroup??=1;s.nextPort??=1;s.nextCable??=1;s.cables??=[];
  for(const p of s.profiles)p.portGroups??=[];
  for(const a of s.assets)a.ports??=[];
+ // Les occupations sont déduites de la liste canonique des câbles, jamais d’une seconde source de vérité.
+ for(const a of s.assets)for(const p of a.ports)p.connectedCableIds=s.cables.flatMap(c=>c.ends.some(e=>e?.portId===p.id)?[c.id]:[]);
  const getP=id=>s.profiles.find(x=>x.id===id),getA=id=>s.assets.find(x=>x.id===id);
  const occupied=(id,key)=>s.assets.some(a=>a.profileId===id&&!empty(a.values[key]));
  function createProfile(name){
@@ -129,6 +155,79 @@ export function createAssetRegistry(saved){
   a.ports=a.ports.filter(p=>p.groupId!==extensionId);s.revision++;
   return result(true,"extension_removed","Extension retirée.");
  }
+
+ const findPort=portId=>{
+  for(const asset of s.assets){
+   const port=asset.ports.find(p=>p.id===portId);
+   if(port)return {asset,port};
+  }
+  return null;
+ };
+ const cablePoint=(cableId,end)=>s.cables.find(c=>c.id===cableId)?.ends[end]??null;
+ const occupiedBy=portId=>s.cables.find(c=>c.ends.some(x=>x?.portId===portId));
+ function createCable(raw={}){
+  const ends=raw.connectors??["rj45-male","rj45-male"];
+  if(!Array.isArray(ends)||ends.length!==2||ends.some(x=>!cableConnectors.includes(x)))
+   return result(false,"invalid_connector","Connecteur inconnu. Choisir un connecteur pour chaque extrémité.");
+  const c={id:"cable-"+s.nextCable++,connectors:[...ends],ends:[null,null]};
+  s.cables.push(c);s.revision++;
+  return result(true,"cable_created","Câble créé, ses deux extrémités sont libres.",{cable:clone(c)});
+ }
+ function connectCableEnd(cableId,end,portId){
+  const c=s.cables.find(x=>x.id===cableId),found=findPort(portId);
+  if(!c)return result(false,"not_found","Câble introuvable.");
+  if(end!==0&&end!==1)return result(false,"invalid_end","Extrémité A ou B attendue.");
+  if(!found)return result(false,"not_found","Port introuvable.");
+  if(c.ends[end]?.portId===portId)return result(true,"already_connected","Extrémité déjà raccordée.");
+  if(c.ends[end])return result(false,"end_connected","Débrancher cette extrémité avant de la raccorder ailleurs.");
+  if(c.ends[1-end]?.portId===portId)return result(false,"same_port","Un câble ne peut pas relier un port à lui-même.");
+  if(occupiedBy(portId))return result(false,"port_occupied","Ce port possède déjà un câble.");
+  const socket=physicalPortConnector[found.port.type];
+  if(!socket)return result(false,"unsupported_port","Ce type de port n'a pas encore de connecteur physique défini pour le raccordement.");
+  if(!isCompatible(c.connectors[end],socket))
+   return result(false,"incompatible_connector","Le connecteur du câble est incompatible avec ce port.");
+  c.ends[end]={portId};found.port.connectedCableIds=[c.id];s.revision++;
+  return result(true,"connected","Extrémité raccordée.",{cable:clone(c)});
+ }
+ function disconnectCableEnd(cableId,end){
+  const c=s.cables.find(x=>x.id===cableId);
+  if(!c)return result(false,"not_found","Câble introuvable.");
+  if(end!==0&&end!==1)return result(false,"invalid_end","Extrémité A ou B attendue.");
+  if(!c.ends[end])return result(false,"end_free","Extrémité déjà libre.");
+  const p=findPort(c.ends[end].portId)?.port;
+  if(p)p.connectedCableIds=p.connectedCableIds.filter(x=>x!==c.id);
+  c.ends[end]=null;s.revision++;
+  return result(true,"disconnected","Extrémité débranchée. Le câble reste inventorié.",{cable:clone(c)});
+ }
+ function updateCableConnectors(cableId,connectors){
+  const c=s.cables.find(x=>x.id===cableId);
+  if(!c)return result(false,"not_found","Câble introuvable.");
+  if(!Array.isArray(connectors)||connectors.length!==2||connectors.some(x=>!cableConnectors.includes(x)))return result(false,"invalid_connector","Connecteur inconnu.");
+  for(let i=0;i<2;i++)if(c.ends[i]){
+   const type=findPort(c.ends[i].portId)?.port?.type,socket=physicalPortConnector[type];
+   if(!socket||!isCompatible(connectors[i],socket))
+    return result(false,"incompatible_connector","Débrancher ou choisir un connecteur compatible avec le port raccordé.");
+  }
+  c.connectors=[...connectors];s.revision++;
+  return result(true,"cable_updated","Connecteurs modifiés.",{cable:clone(c)});
+ }
+ function deleteCable(cableId){
+  const i=s.cables.findIndex(x=>x.id===cableId);
+  if(i<0)return result(false,"not_found","Câble introuvable.");
+  const c=s.cables[i];for(const end of c.ends){
+   if(!end)continue;
+   const p=findPort(end.portId)?.port;
+   if(p)p.connectedCableIds=p.connectedCableIds.filter(x=>x!==c.id);
+  }
+  s.cables.splice(i,1);s.revision++;
+  return result(true,"cable_deleted","Câble supprimé de l’inventaire.");
+ }
+ function listCablePoints(){
+  return clone(s.assets.flatMap(a=>a.ports.filter(p=>p.connector!==null).map(p=>({
+   portId:p.id,assetId:a.id,assetName:a.name,portName:p.name,portType:p.type,
+   socket:physicalPortConnector[p.type]||null,occupied:!!occupiedBy(p.id)
+  }))));
+ }
  function createAsset(profileId,info){
   const p=getP(profileId);if(!p)return result(false,"not_found","Profil introuvable.");
   const name=trim(info?.name);if(!name)return result(false,"invalid_name","Nom de matériel obligatoire.");
@@ -151,7 +250,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createProfile,duplicateProfile,renameProfile,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createAsset,setAssetField,updateAsset,
- listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
+ return {createProfile,duplicateProfile,renameProfile,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,createAsset,setAssetField,updateAsset,
+ listCables:()=>clone(s.cables),getCable:id=>clone(s.cables.find(x=>x.id===id)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);

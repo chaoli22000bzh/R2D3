@@ -90,3 +90,57 @@ test("Extension indépendante et retrait protégé",()=>{
  assert.equal(e.getAsset(a.id).ports.length,1);
  assert.equal(e.removeExtension(a.id,e.getAsset(a.id).ports[0].groupId).code,"not_found");
 });
+
+
+test("Câble inventorié, raccordement de deux équipements et débranchement partiel",()=>{
+ const e=createAssetRegistry(),p=e.createProfile("Machine").profile;
+ assert.equal(e.addPortGroup(p.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1}).success,true);
+ const a=e.createAsset(p.id,{name:"PC01"}).asset,b=e.createAsset(p.id,{name:"SW01"}).asset;
+ const c=e.createCable().cable;
+ assert.deepEqual(c.connectors,["rj45-male","rj45-male"]);
+ assert.deepEqual(c.ends,[null,null]);
+ assert.equal(e.connectCableEnd(c.id,0,a.ports[0].id).success,true);
+ assert.equal(e.connectCableEnd(c.id,1,b.ports[0].id).success,true);
+ assert.equal(e.listCablePoints().filter(p=>p.occupied).length,2);
+ assert.equal(e.disconnectCableEnd(c.id,0).success,true);
+ assert.equal(e.getCable(c.id).ends[0],null);
+ assert.equal(e.getCable(c.id).ends[1].portId,b.ports[0].id);
+ assert.equal(e.getAsset(a.id).ports[0].connectedCableIds.length,0);
+ assert.equal(e.getAsset(b.id).ports[0].connectedCableIds[0],c.id);
+ const restored=restoreAssetRegistry(e.exportState());
+ assert.equal(restored.getCable(c.id).ends[1].portId,b.ports[0].id);
+ assert.equal(restored.getAsset(b.id).ports[0].connectedCableIds[0],c.id);
+ assert.equal(restored.connectCableEnd(c.id,0,a.ports[0].id).success,true);
+ assert.equal(restored.deleteCable(c.id).success,true);
+ assert.equal(restored.listCables().length,0);
+ assert.equal(restored.listCablePoints().filter(p=>p.occupied).length,0);
+});
+test("Refuser port occupé, connecteur incompatible et double branchement",()=>{
+ const e=createAssetRegistry(),p=e.createProfile("PC").profile;
+ e.addPortGroup(p.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:2});
+ const a=e.createAsset(p.id,{name:"PC1"}).asset;
+ const c=e.createCable().cable,d=e.createCable().cable;
+ assert.equal(e.connectCableEnd(c.id,0,a.ports[0].id).success,true);
+ assert.equal(e.connectCableEnd(d.id,0,a.ports[0].id).code,"port_occupied");
+ assert.equal(e.connectCableEnd(c.id,1,a.ports[0].id).code,"same_port");
+ assert.equal(e.updateCableConnectors(c.id,["rj45-female","rj45-male"]).code,"incompatible_connector");
+ assert.equal(e.connectCableEnd(c.id,0,a.ports[1].id).code,"end_connected");
+ assert.equal(e.connectCableEnd(d.id,0,a.ports[1].id).success,true);
+ assert.equal(e.connectCableEnd(d.id,1,a.ports[0].id).code,"port_occupied");
+ assert.equal(e.getCable(d.id).ends[1],null);
+});
+test("Connecteurs arbitraires, ports sans fil non raccordables et extension protégée",()=>{
+ const e=createAssetRegistry(),p=e.createProfile("Serveur").profile;
+ e.addPortGroup(p.id,{type:"wifi",prefix:"WLAN",start:1,count:1});
+ const a=e.createAsset(p.id,{name:"SRV"}).asset;
+ const c=e.createCable({connectors:["db9-female","rj45-male"]}).cable;
+ assert.deepEqual(c.connectors,["db9-female","rj45-male"]);
+ assert.equal(e.connectCableEnd(c.id,0,a.ports[0].id).code,"unsupported_port");
+ assert.equal(e.addExtension(a.id,{type:"ethernet-rj45",prefix:"ETH",start:1,count:1}).success,true);
+ const port=e.getAsset(a.id).ports[1],ext=port.groupId;
+ assert.equal(e.connectCableEnd(c.id,0,port.id).code,"incompatible_connector");
+ assert.equal(e.connectCableEnd(c.id,1,port.id).success,true);
+ assert.equal(e.removeExtension(a.id,ext).code,"extension_connected");
+ assert.equal(e.disconnectCableEnd(c.id,1).success,true);
+ assert.equal(e.removeExtension(a.id,ext).success,true);
+});
