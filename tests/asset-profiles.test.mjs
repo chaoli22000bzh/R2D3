@@ -144,3 +144,50 @@ test("Connecteurs arbitraires, ports sans fil non raccordables et extension prot
  assert.equal(e.disconnectCableEnd(c.id,1).success,true);
  assert.equal(e.removeExtension(a.id,ext).success,true);
 });
+
+
+test("Prise murale et panneau : occupation indépendante des faces avant et arrière",()=>{
+ const e=createAssetRegistry();
+ const outlet=e.createWallOutlet({name:"B12",location:"Salle 101"}).outlet;
+ const rack=e.createRack({name:"Baie A",location:"Local réseau",count:24,start:1,prefix:"P"}).rack;
+ assert.equal(outlet.ports.length,1);
+ assert.equal(rack.ports.length,24);
+ assert.equal(rack.ports[11].label,"P12");
+ const outletFront=outlet.ports[0].front.id,outletBack=outlet.ports[0].back.id;
+ const panelFront=rack.ports[11].front.id,panelBack=rack.ports[11].back.id;
+ const fixed=e.createCable({connectors:["rj45-male","rj45-male"]}).cable;
+ const patch=e.createCable().cable;
+ assert.equal(e.connectCableEnd(fixed.id,0,outletBack).success,true);
+ assert.equal(e.connectCableEnd(fixed.id,1,panelBack).success,true);
+ assert.equal(e.connectCableEnd(patch.id,0,panelFront).success,true);
+ assert.equal(e.connectCableEnd(patch.id,1,outletFront).success,true);
+ assert.equal(e.listCablePoints().filter(p=>p.occupied).length,4);
+ const second=e.createCable().cable;
+ assert.equal(e.connectCableEnd(second.id,0,panelFront).code,"port_occupied");
+ assert.equal(e.disconnectCableEnd(patch.id,0).success,true);
+ assert.equal(e.getCable(fixed.id).ends[1].portId,panelBack);
+ assert.equal(e.getCable(patch.id).ends[0],null);
+ assert.equal(e.getCable(patch.id).ends[1].portId,outletFront);
+ assert.equal(e.deleteCable(patch.id).success,true);
+ assert.equal(e.getCable(fixed.id).ends[1].portId,panelBack);
+ const restored=restoreAssetRegistry(e.exportState());
+ assert.equal(restored.getCable(fixed.id).ends[0].portId,outletBack);
+ assert.equal(restored.listCablePoints().find(p=>p.portId===panelBack).occupied,true);
+ assert.equal(restored.listCablePoints().find(p=>p.portId===panelFront).occupied,false);
+});
+test("Baies multiples, noms et ports individuels libres",()=>{
+ const e=createAssetRegistry();
+ const a=e.createRack({name:"A",location:"Rennes",count:3,start:0,prefix:""}).rack;
+ const b=e.createRack({name:"B",location:"Redon",count:1,start:1,prefix:""}).rack;
+ assert.deepEqual(a.ports.map(x=>x.label),["0","1","2"]);
+ assert.equal(e.createRack({name:"A",location:"Rennes",count:3,start:1}).code,"duplicate_name");
+ assert.equal(e.createRack({name:"A",location:"Bruz",count:1,start:1}).success,true);
+ assert.equal(e.createWallOutlet({name:"B12",location:"Salle 1"}).success,true);
+ assert.equal(e.createWallOutlet({name:"B12",location:"Salle 1"}).code,"duplicate_name");
+ const c=e.createCable({connectors:["rj45-female","rj45-female"]}).cable;
+ assert.equal(e.connectCableEnd(c.id,0,a.ports[0].back.id).code,"incompatible_connector");
+ assert.equal(e.updateCableConnectors(c.id,["rj45-male","rj45-male"]).success,true);
+ assert.equal(e.connectCableEnd(c.id,0,a.ports[0].back.id).success,true);
+ assert.equal(e.connectCableEnd(c.id,1,b.ports[0].back.id).success,true);
+ assert.equal(e.getCable(c.id).ends[1].portId,b.ports[0].back.id);
+});
