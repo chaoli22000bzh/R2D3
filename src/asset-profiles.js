@@ -331,6 +331,59 @@ export function createAssetRegistry(saved){
    toEnds:terminalPoints(right).map(describe)
   });
  }
+ function tracePhysicalPath(fromPortId,toPortId){
+  if(!findPort(fromPortId)||!findPort(toPortId))
+   return result(false,"not_found","Un des deux ports est introuvable.");
+  if(fromPortId===toPortId)
+   return result(false,"same_port","Choisir deux ports différents.");
+  // Chaque port est un sommet. La prise et le panneau assurent seulement
+  // la continuité de leur propre couple avant/arrière.
+  // Un switch ou un routeur ne crée jamais de liaison physique implicite
+  // entre deux de ses ports : le transfert logique est hors périmètre.
+  const links=new Map();
+  const link=(a,b,kind,id)=>{
+   if(!links.has(a))links.set(a,[]);
+   if(!links.has(b))links.set(b,[]);
+   links.get(a).push({to:b,kind,id});
+   links.get(b).push({to:a,kind,id});
+  };
+  for(const obj of [...s.wallOutlets,...s.racks])
+   for(const slot of obj.ports)
+    link(slot.front.id,slot.back.id,"termination",slot.id);
+  for(const cable of s.cables)
+   if(cable.ends[0]&&cable.ends[1])
+    link(cable.ends[0].portId,cable.ends[1].portId,"cable",cable.id);
+  const previous=new Map([[fromPortId,null]]);
+  const queue=[fromPortId];
+  for(let i=0;i<queue.length&&!previous.has(toPortId);i++)
+   for(const edge of links.get(queue[i])||[]){
+    if(previous.has(edge.to))continue;
+    previous.set(edge.to,{from:queue[i],kind:edge.kind,id:edge.id});
+    queue.push(edge.to);
+   }
+  const points=listCablePoints(),label=id=>{
+   const p=points.find(x=>x.portId===id);
+   return p?{portId:id,label:p.assetName+" / "+p.portName}:null;
+  };
+  if(!previous.has(toPortId)){
+   const reachable=queue.map(label).filter(Boolean);
+   const openPorts=reachable.filter(p=>!occupiedBy(p.portId));
+   const dangling=s.cables.filter(c=>c.ends.some(e=>e&&previous.has(e.portId))&&c.ends.some(e=>!e)).map(c=>c.id);
+   return result(false,"path_not_found","Aucun chemin physique complet entre ces deux ports.",{
+    reachable,openPorts,danglingCableIds:dangling
+   });
+  }
+  const route=[toPortId],segments=[];
+  for(let at=toPortId;at!==fromPortId;){
+   const edge=previous.get(at);
+   segments.push({fromPortId:edge.from,toPortId:at,kind:edge.kind,id:edge.id});
+   route.push(edge.from);at=edge.from;
+  }
+  route.reverse();segments.reverse();
+  return result(true,"path_found","Chemin physique continu trouvé.",{
+   path:{points:route.map(label),segments}
+  });
+ }
  function createAsset(profileId,info){
   const p=getP(profileId);if(!p)return result(false,"not_found","Profil introuvable.");
   const name=trim(info?.name);if(!name)return result(false,"invalid_name","Nom de matériel obligatoire.");
@@ -353,7 +406,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createProfile,duplicateProfile,renameProfile,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createRack,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,setAssetField,updateAsset,
+ return {createProfile,duplicateProfile,renameProfile,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createRack,tracePhysicalPath,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,setAssetField,updateAsset,
  listWallOutlets:()=>clone(s.wallOutlets),listRacks:()=>clone(s.racks),listCables:()=>clone(s.cables),getCable:id=>clone(s.cables.find(x=>x.id===id)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);
