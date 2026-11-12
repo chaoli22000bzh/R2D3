@@ -68,7 +68,11 @@ export function createAssetRegistry(saved){
   const seen=new Set([place.id]);let current=place;
   while(current.parentId!=null){if(seen.has(current.parentId))throw Error("Cycle dans les lieux");seen.add(current.parentId);current=s.places.find(p=>p.id===current.parentId)}
  }
- for(const asset of s.assets){asset.placeId??=null;if(asset.placeId!==null&&!placeIds.has(asset.placeId))throw Error("Localisation d'équipement inconnue");}
+ for(const asset of s.assets){
+  asset.placeId??=null;asset.rackId??=null;
+  if(asset.placeId!==null&&!placeIds.has(asset.placeId))throw Error("Localisation d'équipement inconnue");
+  if(asset.rackId!==null&&!s.racks.some(r=>r.id===asset.rackId))throw Error("Baie d'équipement inconnue");
+ }
  for(const p of s.profiles)p.portGroups??=[];
  for(const a of s.assets)a.ports??=[];
  // Les occupations sont déduites de la liste canonique des câbles, jamais d’une seconde source de vérité.
@@ -83,10 +87,21 @@ export function createAssetRegistry(saved){
   const place={id:"place-"+s.nextPlace++,name,parentId};s.places.push(place);s.revision++;
   return result(true,"place_created","Lieu créé.",{place:clone(place)});
  }
+ function placeAssetInRack(assetId,rackId=null){
+  const asset=getA(assetId);if(!asset)return result(false,"not_found","Équipement introuvable.");
+  if(rackId!==null&&!s.racks.some(r=>r.id===rackId))return result(false,"not_found","Baie introuvable.");
+  if((asset.rackId??null)===rackId)return result(true,"unchanged","L'équipement est déjà à cet emplacement.",{asset:clone(asset)});
+  const ports=new Set(asset.ports.map(p=>p.id));
+  if(s.cables.some(c=>c.ends.some(end=>end&&ports.has(end.portId))))
+   return result(false,"asset_connected","Débrancher tous les câbles de l'équipement avant de l'installer ou de le retirer d'une baie.");
+  asset.rackId=rackId;s.revision++;
+  return result(true,"rack_assignment_updated",rackId===null?"Équipement retiré de la baie. Sa fiche est conservée.":"Équipement installé dans la baie.",{asset:clone(asset)});
+ }
  function moveAssetToPlace(assetId,placeId=null){
   const asset=getA(assetId);if(!asset)return result(false,"not_found","Équipement introuvable.");
   if(placeId!==null&&!s.places.some(p=>p.id===placeId))return result(false,"not_found","Lieu introuvable.");
   if((asset.placeId??null)===placeId)return result(true,"unchanged","L'équipement est déjà à cet emplacement.",{asset:clone(asset)});
+  if(asset.rackId!==null)return result(false,"asset_in_rack","Retirer d'abord l'équipement de sa baie avant de changer de lieu.");
   const ports=new Set(asset.ports.map(p=>p.id));
   if(s.cables.some(c=>c.ends.some(end=>end&&ports.has(end.portId))))
    return result(false,"asset_connected","Débrancher tous les câbles de l'équipement avant de changer son lieu.");
@@ -367,7 +382,7 @@ export function createAssetRegistry(saved){
   const name=trim(info?.name);if(!name)return result(false,"invalid_name","Nom de matériel obligatoire.");
   const status=info.status||"En service";
   if(!["En service","Hors service","En stock"].includes(status))return result(false,"invalid_status","Statut incorrect.");
-  const a={id:"asset-"+s.nextAsset++,profileId,name,manufacturer:trim(info.manufacturer),model:trim(info.model),serialNumber:trim(info.serialNumber),status,location:trim(info.location),placeId:null,reservable:!!info.reservable,values:Object.fromEntries(p.fields.map(f=>[f.key,null])),ports:buildPorts(p.portGroups,"integrated")};
+  const a={id:"asset-"+s.nextAsset++,profileId,name,manufacturer:trim(info.manufacturer),model:trim(info.model),serialNumber:trim(info.serialNumber),status,location:trim(info.location),placeId:null,rackId:null,reservable:!!info.reservable,values:Object.fromEntries(p.fields.map(f=>[f.key,null])),ports:buildPorts(p.portGroups,"integrated")};
   s.assets.push(a);s.revision++;return result(true,"asset_created","Matériel créé.",{asset:clone(a)});
  }
  function removeAsset(id){
@@ -396,7 +411,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createRack,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,removeAsset,setAssetField,updateAsset,
+ return {createPlace,moveAssetToPlace,placeAssetInRack,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createRack,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,removeAsset,setAssetField,updateAsset,
  listWallOutlets:()=>clone(s.wallOutlets),listRacks:()=>clone(s.racks),listCables:()=>clone(s.cables),getCable:id=>clone(s.cables.find(x=>x.id===id)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);
