@@ -191,3 +191,67 @@ test("Baies multiples, noms et ports individuels libres",()=>{
  assert.equal(e.connectCableEnd(c.id,1,b.ports[0].back.id).success,true);
  assert.equal(e.getCable(c.id).ends[1].portId,b.ports[0].back.id);
 });
+
+
+test("Chemin physique PC vers switch via prise et panneau, sans émulation IP",()=>{
+ const e=createAssetRegistry(),p=e.createProfile("Équipement").profile;
+ e.addPortGroup(p.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1});
+ const pc=e.createAsset(p.id,{name:"PC01"}).asset;
+ const sw=e.createAsset(p.id,{name:"SW01"}).asset;
+ const socket=e.createWallOutlet({name:"B12",location:"Salle 101"}).outlet.ports[0];
+ const panel=e.createRack({name:"Baie A",location:"Local réseau",count:12,start:1,prefix:"P"}).rack.ports[11];
+ const connect=(a,b)=>{
+  const c=e.createCable().cable;
+  assert.equal(e.connectCableEnd(c.id,0,a).success,true);
+  assert.equal(e.connectCableEnd(c.id,1,b).success,true);
+  return c;
+ };
+ const pcCable=connect(pc.ports[0].id,socket.front.id);
+ const permanent=connect(socket.back.id,panel.back.id);
+ const patch=connect(panel.front.id,sw.ports[0].id);
+ let r=e.explorePhysicalPath(pc.ports[0].id,sw.ports[0].id);
+ assert.equal(r.success,true);assert.equal(r.connected,true);
+ assert.deepEqual(r.segments.map(x=>x.kind),["cable","passage","cable","passage","cable"]);
+ assert.deepEqual(r.segments.filter(x=>x.kind==="cable").map(x=>x.id),[pcCable.id,permanent.id,patch.id]);
+ assert.equal(r.path.length,6);
+ const reverse=e.explorePhysicalPath(sw.ports[0].id,pc.ports[0].id);
+ assert.equal(reverse.connected,true);
+ assert.deepEqual(reverse.path.map(x=>x.portId),r.path.map(x=>x.portId).reverse());
+ assert.equal(e.disconnectCableEnd(permanent.id,1).success,true);
+ r=e.explorePhysicalPath(pc.ports[0].id,sw.ports[0].id);
+ assert.equal(r.connected,false);
+ assert.equal(r.path.length,0);
+ assert.equal(r.fromReachable.some(x=>x.portId===socket.back.id),true);
+ assert.equal(r.toReachable.some(x=>x.portId===panel.back.id),true);
+ assert.equal(r.fromReachable.some(x=>x.portId===panel.back.id),false);
+ assert.equal(r.toReachable.some(x=>x.portId===socket.back.id),false);
+ assert.ok(r.fromReachable.some(x=>x.assetName.includes("B12")));
+ assert.ok(r.toReachable.some(x=>x.assetName.includes("Baie A")));
+ assert.equal(e.connectCableEnd(permanent.id,1,panel.back.id).success,true);
+ assert.equal(e.explorePhysicalPath(pc.ports[0].id,sw.ports[0].id).connected,true);
+ const restored=restoreAssetRegistry(e.exportState());
+ assert.equal(restored.explorePhysicalPath(pc.ports[0].id,sw.ports[0].id).connected,true);
+});
+test("Chemins : branchement incomplet, cycles, bornes invalides et aucun passage via un switch",()=>{
+ const e=createAssetRegistry(),p=e.createProfile("Switch").profile;
+ e.addPortGroup(p.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:2});
+ const sw=e.createAsset(p.id,{name:"SW01"}).asset;
+ let r=e.explorePhysicalPath(sw.ports[0].id,sw.ports[1].id);
+ assert.equal(r.connected,false,"Le moteur ne traverse pas arbitrairement un switch");
+ assert.equal(e.explorePhysicalPath("nulle-part",sw.ports[0].id).code,"not_found");
+ const rack=e.createRack({name:"Baie",location:"Salle",count:3,start:1}).rack;
+ const ports=rack.ports;
+ const connect=(a,b)=>{
+  const c=e.createCable().cable;
+  e.connectCableEnd(c.id,0,a);e.connectCableEnd(c.id,1,b);return c;
+ };
+ connect(ports[0].front.id,ports[1].front.id);
+ connect(ports[1].back.id,ports[2].front.id);
+ connect(ports[2].back.id,ports[0].back.id);
+ r=e.explorePhysicalPath(ports[0].front.id,ports[2].front.id);
+ assert.equal(r.connected,true);
+ assert.ok(r.path.length<=6,"Exploration bornée même avec une boucle physique");
+ const dangling=e.createCable().cable;
+ e.connectCableEnd(dangling.id,0,sw.ports[0].id);
+ assert.equal(e.explorePhysicalPath(sw.ports[0].id,rack.ports[0].front.id).connected,false);
+});
