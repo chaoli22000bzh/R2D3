@@ -255,3 +255,53 @@ test("Chemins : branchement incomplet, cycles, bornes invalides et aucun passage
  e.connectCableEnd(dangling.id,0,sw.ports[0].id);
  assert.equal(e.explorePhysicalPath(sw.ports[0].id,rack.ports[0].front.id).connected,false);
 });
+
+test("Chemin physique PC vers switch traverse prise et panneau, sans routage implicite",()=>{
+ const e=createAssetRegistry(),p=e.createProfile("Réseau").profile;
+ e.addPortGroup(p.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:2});
+ const pc=e.createAsset(p.id,{name:"PC01"}).asset,sw=e.createAsset(p.id,{name:"SW01"}).asset;
+ const wall=e.createWallOutlet({name:"B12",location:"Salle 101"}).outlet;
+ const rack=e.createRack({name:"Baie A",location:"Local réseau",start:1,count:12}).rack;
+ const w=wall.ports[0],panel=rack.ports[11];
+ const add=(a,b)=>{
+  const c=e.createCable().cable;
+  assert.equal(e.connectCableEnd(c.id,0,a).success,true);
+  assert.equal(e.connectCableEnd(c.id,1,b).success,true);
+  return c;
+ };
+ const c1=add(pc.ports[0].id,w.front.id);
+ const c2=add(w.back.id,panel.back.id);
+ const c3=add(panel.front.id,sw.ports[0].id);
+ const found=e.tracePhysicalPath(pc.ports[0].id,sw.ports[0].id);
+ assert.equal(found.success,true);
+ assert.equal(found.path.points.length,8);
+ assert.deepEqual(found.path.segments.filter(x=>x.kind==="cable").map(x=>x.id),[c1.id,c2.id,c3.id]);
+ assert.equal(found.path.segments.filter(x=>x.kind==="termination").length,2);
+ assert.equal(e.tracePhysicalPath(pc.ports[0].id,sw.ports[1].id).code,"path_not_found");
+ assert.equal(e.disconnectCableEnd(c2.id,0).success,true);
+ const broken=e.tracePhysicalPath(pc.ports[0].id,sw.ports[0].id);
+ assert.equal(broken.code,"path_not_found");
+ assert.ok(broken.openPorts.some(x=>x.portId===w.back.id));
+ assert.ok(broken.danglingCableIds.includes(c2.id));
+ assert.equal(e.connectCableEnd(c2.id,0,w.back.id).success,true);
+ const restored=restoreAssetRegistry(e.exportState());
+ assert.equal(restored.tracePhysicalPath(pc.ports[0].id,sw.ports[0].id).success,true);
+});
+test("Chemins entre baies, cycles protégés et pas de pont entre ports d'un switch",()=>{
+ const e=createAssetRegistry();
+ const a=e.createRack({name:"Baie A",location:"Salle 1",start:1,count:3}).rack;
+ const b=e.createRack({name:"Baie B",location:"Salle 2",start:1,count:2}).rack;
+ const attach=(u,v)=>{
+  const c=e.createCable().cable;
+  assert.equal(e.connectCableEnd(c.id,0,u).success,true);
+  assert.equal(e.connectCableEnd(c.id,1,v).success,true);
+  return c;
+ };
+ attach(a.ports[0].back.id,b.ports[0].back.id);
+ const found=e.tracePhysicalPath(a.ports[0].front.id,b.ports[0].front.id);
+ assert.equal(found.success,true);
+ assert.equal(found.path.segments.length,3);
+ assert.equal(e.tracePhysicalPath("bad",b.ports[0].front.id).code,"not_found");
+ assert.equal(e.tracePhysicalPath(a.ports[0].front.id,a.ports[0].front.id).code,"same_port");
+ assert.equal(e.tracePhysicalPath(a.ports[1].front.id,b.ports[0].front.id).code,"path_not_found");
+});
