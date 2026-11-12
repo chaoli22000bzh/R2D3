@@ -339,6 +339,18 @@ export function createAssetRegistry(saved){
   const a={id:"asset-"+s.nextAsset++,profileId,name,manufacturer:trim(info.manufacturer),model:trim(info.model),serialNumber:trim(info.serialNumber),status,location:trim(info.location),reservable:!!info.reservable,values:Object.fromEntries(p.fields.map(f=>[f.key,null])),ports:buildPorts(p.portGroups,"integrated")};
   s.assets.push(a);s.revision++;return result(true,"asset_created","Matériel créé.",{asset:clone(a)});
  }
+ function removeAsset(id){
+  const index=s.assets.findIndex(a=>a.id===id);
+  if(index<0)return result(false,"not_found","Équipement introuvable.");
+  const asset=s.assets[index];
+  const ports=new Set(asset.ports.map(p=>p.id));
+  // Les câbles sont la source de vérité. Une ancienne copie de
+  // connectedCableIds ne doit pas permettre une suppression dangereuse.
+  if(s.cables.some(c=>c.ends.some(e=>e&&ports.has(e.portId))))
+   return result(false,"asset_connected","Débrancher tous les câbles des ports de cet équipement avant de le supprimer.");
+  s.assets.splice(index,1);s.revision++;
+  return result(true,"asset_removed","Équipement supprimé. Les câbles restent dans l’inventaire.",{assetId:id});
+ }
  function setAssetField(id,key,value){
   const a=getA(id),f=a&&getP(a.profileId)?.fields.find(f=>f.key===key);
   if(!f)return result(false,"not_found","Matériel ou champ introuvable.");
@@ -353,7 +365,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createProfile,duplicateProfile,renameProfile,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createRack,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,setAssetField,updateAsset,
+ return {createProfile,duplicateProfile,renameProfile,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createRack,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,removeAsset,setAssetField,updateAsset,
  listWallOutlets:()=>clone(s.wallOutlets),listRacks:()=>clone(s.racks),listCables:()=>clone(s.cables),getCable:id=>clone(s.cables.find(x=>x.id===id)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);
