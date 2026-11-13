@@ -52,10 +52,11 @@ function valueValid(f,v){
  return false;
 }
 export function createAssetRegistry(saved){
- const s=saved?clone(saved):{revision:0,nextProfile:1,nextAsset:1,nextPortGroup:1,nextPort:1,nextCable:1,cables:[],nextInfrastructure:1,nextInfrastructurePort:1,wallOutlets:[],racks:[],places:[],nextPlace:1,profiles:[],assets:[]};
+ const s=saved?clone(saved):{revision:0,nextProfile:1,nextAsset:1,nextPortGroup:1,nextPort:1,nextCable:1,cables:[],nextInfrastructure:1,nextInfrastructurePort:1,wallOutlets:[],panels:[],places:[],nextPlace:1,profiles:[],assets:[]};
  if(!Array.isArray(s.profiles)||!Array.isArray(s.assets)||!Number.isInteger(s.revision)||!Number.isInteger(s.nextProfile)||!Number.isInteger(s.nextAsset))throw Error("État R2 invalide");
  s.nextPortGroup??=1;s.nextPort??=1;s.nextCable??=1;s.cables??=[];
- s.nextInfrastructure??=1;s.nextInfrastructurePort??=1;s.wallOutlets??=[];s.racks??=[];
+ s.nextInfrastructure??=1;s.nextInfrastructurePort??=1;s.wallOutlets??=[];s.panels??=[];
+ if(!Array.isArray(s.panels))throw Error("Panneaux invalides");
  s.places??=[];s.nextPlace??=1;
  if(!Array.isArray(s.places)||!Number.isInteger(s.nextPlace)||s.nextPlace<1)throw Error("État des lieux R2 invalide");
  const placeIds=new Set();
@@ -70,11 +71,23 @@ export function createAssetRegistry(saved){
  }
  for(const asset of s.assets){asset.placeId??=null;if(asset.placeId!==null&&!placeIds.has(asset.placeId))throw Error("Localisation d'équipement inconnue");}
  for(const p of s.profiles)p.portGroups??=[];
+ for(const panel of s.panels){
+  if(!panel||typeof panel.id!=="string"||!trim(panel.name)||!placeIds.has(panel.placeId)||
+     !Array.isArray(panel.ports)||!panel.ports.every(slot=>slot&&slot.front&&slot.back&&
+       typeof slot.front.id==="string"&&typeof slot.back.id==="string"))
+   throw Error("Panneau de brassage invalide");
+ }
+ if(new Set(s.panels.map(p=>p.id)).size!==s.panels.length)throw Error("Identifiants de panneaux en doublon");
  for(const a of s.assets)a.ports??=[];
  // Les occupations sont déduites de la liste canonique des câbles, jamais d’une seconde source de vérité.
  for(const a of s.assets)for(const p of a.ports)p.connectedCableIds=s.cables.flatMap(c=>c.ends.some(e=>e?.portId===p.id)?[c.id]:[]);
- for(const infra of [...s.wallOutlets,...s.racks])for(const slot of infra.ports)for(const p of [slot.front,slot.back])p.connectedCableIds=s.cables.flatMap(c=>c.ends.some(e=>e?.portId===p.id)?[c.id]:[]);
+ for(const infra of [...s.wallOutlets,...s.panels])for(const slot of infra.ports)for(const p of [slot.front,slot.back])p.connectedCableIds=s.cables.flatMap(c=>c.ends.some(e=>e?.portId===p.id)?[c.id]:[]);
  const getP=id=>s.profiles.find(x=>x.id===id),getA=id=>s.assets.find(x=>x.id===id);
+ const placePath=id=>{
+  const names=[],seen=new Set();let p=s.places.find(x=>x.id===id);
+  while(p&&!seen.has(p.id)){names.unshift(p.name);seen.add(p.id);p=s.places.find(x=>x.id===p.parentId);}
+  return names.join(" / ");
+ };
  function createPlace(raw={}){
   const name=trim(raw.name),parentId=raw.parentId||null;
   if(!name)return result(false,"invalid_name","Nom du lieu obligatoire.");
@@ -194,7 +207,7 @@ export function createAssetRegistry(saved){
    const port=asset.ports.find(p=>p.id===portId);
    if(port)return {asset,port};
   }
-  for(const infrastructure of [...s.wallOutlets,...s.racks])
+  for(const infrastructure of [...s.wallOutlets,...s.panels])
    for(const slot of infrastructure.ports)
     for(const side of ["front","back"])
      if(slot[side].id===portId)return {infrastructure,slot,side,port:slot[side]};
@@ -214,17 +227,39 @@ export function createAssetRegistry(saved){
   s.wallOutlets.push(outlet);s.revision++;
   return result(true,"outlet_created","Prise murale créée avec terminaison avant et arrière.",{outlet:clone(outlet)});
  }
- function createRack(raw={}){
-  const name=trim(raw.name),location=trim(raw.location),count=Number(raw.count),start=Number(raw.start),prefix=trim(raw.prefix??"");
-  if(!name||!location||!Number.isInteger(count)||count<1||count>512||
-     !Number.isInteger(start)||start<0||start>9999||
+ function createPanel(raw={}){
+  const name=trim(raw.name),placeId=raw.placeId,count=Number(raw.count),start=Number(raw.start),prefix=trim(raw.prefix??"");
+  if(!name||typeof placeId!=="string"||!s.places.some(p=>p.id===placeId)||
+     !Number.isInteger(count)||count<1||count>512||!Number.isInteger(start)||start<0||start>9999||
      !/^[A-Za-z0-9_-]{0,20}$/.test(prefix)||start+count>10000)
-   return result(false,"invalid_infrastructure","Nom, lieu, numérotation ou capacité du panneau incorrects.");
-  if(s.racks.some(r=>r.location===location&&r.name===name))return result(false,"duplicate_name","Cette baie existe déjà dans ce lieu.");
+   return result(false,"invalid_panel","Nom, lieu, numérotation ou capacité du panneau incorrects.");
+  if(s.panels.some(p=>p.placeId===placeId&&p.name===name))
+   return result(false,"duplicate_name","Un panneau de ce nom existe déjà dans ce lieu.");
   const labels=Array.from({length:count},(_,i)=>prefix+String(start+i));
-  const rack={id:"rack-"+s.nextInfrastructure++,name,location,ports:labels.map(makeSlot)};
-  s.racks.push(rack);s.revision++;
-  return result(true,"rack_created","Baie et panneau de brassage unique créés.",{rack:clone(rack)});
+  const panel={id:"panel-"+s.nextInfrastructure++,name,placeId,ports:labels.map(makeSlot)};
+  s.panels.push(panel);s.revision++;
+  return result(true,"panel_created","Panneau de brassage créé.",{panel:clone(panel)});
+ }
+ function movePanelToPlace(panelId,placeId){
+  const panel=s.panels.find(p=>p.id===panelId);
+  if(!panel)return result(false,"not_found","Panneau introuvable.");
+  if(typeof placeId!=="string"||!s.places.some(p=>p.id===placeId))
+   return result(false,"not_found","Lieu introuvable.");
+  if(panel.placeId===placeId)return result(true,"unchanged","Le panneau est déjà dans ce lieu.",{panel:clone(panel)});
+  const ports=new Set(panel.ports.flatMap(slot=>[slot.front.id,slot.back.id]));
+  if(s.cables.some(c=>c.ends.some(e=>e&&ports.has(e.portId))))
+   return result(false,"panel_connected","Débrancher les câbles du panneau avant de le déplacer.");
+  panel.placeId=placeId;s.revision++;
+  return result(true,"panel_moved","Panneau déplacé.",{panel:clone(panel)});
+ }
+ function removePanel(panelId){
+  const index=s.panels.findIndex(p=>p.id===panelId);
+  if(index<0)return result(false,"not_found","Panneau introuvable.");
+  const panel=s.panels[index],ports=new Set(panel.ports.flatMap(slot=>[slot.front.id,slot.back.id]));
+  if(s.cables.some(c=>c.ends.some(e=>e&&ports.has(e.portId))))
+   return result(false,"panel_connected","Débrancher les câbles du panneau avant de le supprimer.");
+  s.panels.splice(index,1);s.revision++;
+  return result(true,"panel_removed","Panneau supprimé.",{panelId});
  }
 
  const cablePoint=(cableId,end)=>s.cables.find(c=>c.id===cableId)?.ends[end]??null;
@@ -292,9 +327,9 @@ export function createAssetRegistry(saved){
     portId:p.id,assetId:a.id,assetName:a.name,portName:p.name,portType:p.type,
     socket:physicalPortConnector[p.type]||null,occupied:!!occupiedBy(p.id)
    }))),
-   ...[...s.wallOutlets,...s.racks].flatMap(obj=>obj.ports.flatMap(slot=>
+   ...[...s.wallOutlets,...s.panels].flatMap(obj=>obj.ports.flatMap(slot=>
     ["front","back"].map(side=>({
-     portId:slot[side].id,infrastructureId:obj.id,assetName:obj.name+" ("+obj.location+")",
+     portId:slot[side].id,infrastructureId:obj.id,assetName:obj.name+" ("+(obj.placeId?placePath(obj.placeId):obj.location)+")",
      portName:slot.label+" / "+(side==="front"?"avant":"arrière"),
      portType:"ethernet-rj45",socket:"rj45-female",occupied:!!occupiedBy(slot[side].id),
      side,slotId:slot.id
@@ -315,7 +350,7 @@ export function createAssetRegistry(saved){
    neighbors.get(b).push({to:a,kind,id});
   };
   // Continuité interne passive de la prise ou du connecteur du panneau.
-  for(const obj of [...s.wallOutlets,...s.racks])
+  for(const obj of [...s.wallOutlets,...s.panels])
    for(const slot of obj.ports)link(slot.front.id,slot.back.id,"passage",slot.id);
   // Les deux bouts doivent être raccordés : câble à bout libre = pas de liaison.
   for(const cable of s.cables)
@@ -396,7 +431,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createRack,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,removeAsset,setAssetField,updateAsset,
- listWallOutlets:()=>clone(s.wallOutlets),listRacks:()=>clone(s.racks),listCables:()=>clone(s.cables),getCable:id=>clone(s.cables.find(x=>x.id===id)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
+ return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,removeAsset,setAssetField,updateAsset,
+ listWallOutlets:()=>clone(s.wallOutlets),listPanels:()=>clone(s.panels),getPanel:id=>clone(s.panels.find(p=>p.id===id)||null),listCables:()=>clone(s.cables),getCable:id=>clone(s.cables.find(x=>x.id===id)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);
