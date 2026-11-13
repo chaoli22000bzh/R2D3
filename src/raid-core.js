@@ -55,7 +55,7 @@ export function calculateRaid(input){
     : level==="5"?{guaranteed:1,maximum:1,description:"Une panne de disque actif peut être tolérée."}
     : level==="6"?{guaranteed:2,maximum:2,description:"Deux pannes de disques actifs peuvent être tolérées."}
     : level==="10"?{guaranteed:1,maximum:n/2,description:"Plusieurs pannes sont possibles si elles ne touchent pas les deux disques d'une même paire."}
-    : {guaranteed:1,maximum:1,description:"Une panne sur chaque groupe stripe détruit les deux copies du volume."};
+    : {guaranteed:1,maximum:n/2,description:"Les pannes sont tolérées si au moins un groupe stripe reste entièrement intact."};
   return success({
     format:"raid-result",schemaVersion:1,level,
     units:{capacity:"TB",base:1000,kind:"theoretical"},
