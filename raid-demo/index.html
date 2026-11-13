@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Laboratoire RAID</title>
+<style>
+:root{color-scheme:light dark;font-family:system-ui,Arial,sans-serif;--accent:#1767bd;--line:#a6adbb55}
+*{box-sizing:border-box}body{margin:0;background:Canvas;color:CanvasText}header{padding:18px clamp(16px,4vw,40px);border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:1.6rem}header p{margin:6px 0;color:GrayText}
+main{max-width:1080px;margin:auto;padding:20px 16px 48px;display:grid;gap:22px}
+.panel{border:1px solid var(--line);border-radius:14px;padding:18px}
+h2{font-size:1.2rem;margin:0 0 14px}label{display:grid;gap:5px;font-weight:600}
+.controls{display:flex;gap:12px;align-items:end;flex-wrap:wrap}
+button,select,input{font:inherit;min-height:40px;border-radius:8px;border:1px solid var(--line);padding:7px 10px;background:Canvas;color:CanvasText}
+button{cursor:pointer}button.primary{background:var(--accent);color:white;border:0}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #6ca6f3}
+.disks{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-top:18px}
+.disk{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:8px}
+.disk.spare{border-color:#c58b2b;background:color-mix(in srgb,orange 7%,Canvas)}
+.disk .name{font-weight:700}.disk input{width:100%}.disk select{width:100%}
+.small{font-size:.86rem;color:GrayText}.results{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.metric{padding:12px;border-radius:10px;background:color-mix(in srgb,CanvasText 5%,Canvas)}
+.metric strong{font-size:1.5rem;display:block}.metric span{font-size:.9rem}
+.bar{display:flex;height:26px;width:100%;overflow:hidden;border-radius:7px;margin:18px 0 10px;background:var(--line)}
+.bar span{display:block;min-width:0}.usable{background:#2674b9}.redundancy{background:#4aa27d}.unused{background:#e2a145}.sparebar{background:#999}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:.85rem}.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px}
+.error{color:#b63838;font-weight:700}.note{line-height:1.55}#groups{font-size:.92rem}
+@media(max-width:480px){.panel{padding:13px}.controls>*{flex:1 1 120px}}
+</style></head>
+<body><header><h1>Laboratoire RAID</h1><p>Calculateur pédagogique indépendant • capacités théoriques en To décimaux</p></header>
+<main><section class="panel"><h2>1. Configuration</h2><div class="controls">
+<label>Niveau RAID<select id="level"><option value="0">RAID 0</option><option value="1">RAID 1</option><option value="5" selected>RAID 5</option><option value="6">RAID 6</option><option value="10">RAID 10</option><option value="01">RAID 01</option></select></label>
+<button type="button" class="primary" id="add">+ Ajouter un disque</button>
+<button type="button" id="reset">Réinitialiser</button>
+</div><div class="disks" id="disks"></div><p class="small">Un disque de secours n'augmente pas la capacité utile. Il n'est pas activé automatiquement dans cet exercice.</p></section>
+<section class="panel" aria-live="polite"><h2>2. Résultats</h2><p id="message" role="status"></p>
+<div class="results" id="results"></div><div class="bar" id="bar" role="img" aria-label="Répartition des capacités"></div>
+<div class="legend"><span><i class="usable"></i>Données</span><span><i class="redundancy"></i>Redondance / parité</span><span><i class="unused"></i>Non utilisé</span><span><i class="sparebar"></i>Secours</span></div><p id="groups"></p><p id="tolerance" class="note"></p>
+<p class="small">Il s'agit de capacités RAID théoriques. Les métadonnées et le système de fichiers peuvent réduire la capacité réelle. 1 To = 1 000 Go, soit 10¹² octets.</p></section>
+<section class="panel"><h2>3. Enregistrer ou restaurer</h2><div class="controls"><button id="export">Copier la configuration JSON</button><button id="import">Importer le JSON saisi</button></div>
+<label for="json" class="small">Configuration JSON versionnée</label><textarea id="json" rows="6" style="width:100%;font: .85rem monospace; margin-top:8px; background:Canvas;color:CanvasText"></textarea></section>
+</main>
+<script type="module">
+import {calculateRaid,exportRaidConfiguration,importRaidConfiguration} from "../src/raid-core.js";
+const $=id=>document.getElementById(id);
+let next=4,disks=[1,2,3].map(i=>({id:"d"+i,capacityTB:2,role:"active"}));
+const fmt=n=>new Intl.NumberFormat("fr-FR",{maximumFractionDigits:5}).format(n)+" To";
+const config=()=>({format:"raid-configuration",schemaVersion:1,level:$("level").value,disks:disks.map(d=>({...d}))});
+function render(){
+ $("disks").replaceChildren();
+ for(const d of disks){
+  const card=document.createElement("div");card.className="disk"+(d.role==="spare"?" spare":"");
+  const name=document.createElement("div");name.className="name";name.textContent="Disque "+d.id;
+  const capLabel=document.createElement("label");capLabel.textContent="Capacité (To)";
+  const cap=document.createElement("input");cap.type="number";cap.min="0.01";cap.step="0.25";cap.value=d.capacityTB;cap.setAttribute("aria-label","Capacité de "+d.id);
+  cap.addEventListener("input",()=>{d.capacityTB=Number(cap.value);calculate()});capLabel.append(cap);
+  const role=document.createElement("select");role.setAttribute("aria-label","Rôle de "+d.id);
+  for(const [v,t] of [["active","Actif"],["spare","Disque de secours"]]){const o=new Option(t,v);role.add(o)}
+  role.value=d.role;role.addEventListener("change",()=>{d.role=role.value;render()});
+  const remove=document.createElement("button");remove.textContent="Retirer";remove.setAttribute("aria-label","Retirer le disque "+d.id);
+  remove.addEventListener("click",()=>{disks=disks.filter(x=>x!==d);render()});
+  card.append(name,capLabel,role,remove);$("disks").append(card);
+ }
+ calculate();
+}
+function calculate(){
+ const response=calculateRaid(config()),result=$("results"),bar=$("bar");
+ result.replaceChildren();bar.replaceChildren();$("groups").textContent="";$("tolerance").textContent="";
+ if(!response.ok){$("message").className="error";$("message").textContent=response.errors[0].message;return}
+ $("message").className="small";$("message").textContent="Configuration valide";
+ const r=response.value,c=r.capacitiesTB;
+ for(const [title,num] of [["Capacité brute",c.rawTotal],["Données utilisables",c.usable],["Redondance / parité",c.redundancy],["Espace non utilisé",c.unused],["Disques de secours",c.spare]]){
+  const m=document.createElement("div");m.className="metric";const v=document.createElement("strong");v.textContent=fmt(num);
+  const label=document.createElement("span");label.textContent=title;m.append(v,label);result.append(m);
+ }
+ for(const [v,cls] of [[c.usable,"usable"],[c.redundancy,"redundancy"],[c.unused,"unused"],[c.spare,"sparebar"]]){
+  const s=document.createElement("span");s.className=cls;s.style.width=(100*v/c.rawTotal)+"%";bar.append(s);
+ }
+ $("groups").textContent=r.groups.length?"Groupes : "+r.groups.map(g=>g.join(" + ")).join(" | "):"";
+ $("tolerance").textContent=r.tolerance.description+" Tolérance garantie : "+r.tolerance.guaranteed+" panne(s). Maximum selon les disques touchés : "+r.tolerance.maximum+".";
+}
+$("level").addEventListener("change",render);
+$("add").addEventListener("click",()=>{if(disks.length>=128)return;disks.push({id:"d"+next++,capacityTB:2,role:"active"});render()});
+$("reset").addEventListener("click",()=>{next=4;disks=[1,2,3].map(i=>({id:"d"+i,capacityTB:2,role:"active"}));$("level").value="5";render()});
+$("export").addEventListener("click",async()=>{const r=exportRaidConfiguration(config());if(!r.ok){$("message").textContent=r.errors[0].message;return}
+ $("json").value=r.value;try{await navigator.clipboard.writeText(r.value)}catch{}});
+$("import").addEventListener("click",()=>{const r=importRaidConfiguration($("json").value);
+ if(!r.ok){$("message").className="error";$("message").textContent=r.errors[0].message;return}
+ disks=r.value.disks.map(d=>({...d}));next=1+Math.max(0,...disks.map(d=>Number(d.id.slice(1))||0));$("level").value=r.value.level;render()});
+render();
+</script></body></html>
