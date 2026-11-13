@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {createAssetRegistry,restoreAssetRegistry} from "../src/asset-profiles.js";
+
+const panelAt=(e,name,location,count,start,prefix="")=>{
+ const place=e.listPlaces().find(p=>p.name===location&&p.parentId===null)||
+   e.createPlace({name:location}).place;
+ return e.createPanel({name,placeId:place.id,count,start,prefix});
+};
 test("Créer, dupliquer et étendre un profil existant",()=>{
  const e=createAssetRegistry(),p=e.createProfile("Caméra réseau").profile,a=e.createAsset(p.id,{name:"CAM-01"}).asset;
  assert.equal(e.addField(p.id,{key:"resolution",label:"Résolution",type:"text"}).success,true);
@@ -149,7 +155,7 @@ test("Connecteurs arbitraires, ports sans fil non raccordables et extension prot
 test("Prise murale et panneau : occupation indépendante des faces avant et arrière",()=>{
  const e=createAssetRegistry();
  const outlet=e.createWallOutlet({name:"B12",location:"Salle 101"}).outlet;
- const rack=e.createRack({name:"Baie A",location:"Local réseau",count:24,start:1,prefix:"P"}).rack;
+ const rack=panelAt(e,"Baie A","Local réseau",24,1,"P").panel;
  assert.equal(outlet.ports.length,1);
  assert.equal(rack.ports.length,24);
  assert.equal(rack.ports[11].label,"P12");
@@ -175,13 +181,13 @@ test("Prise murale et panneau : occupation indépendante des faces avant et arri
  assert.equal(restored.listCablePoints().find(p=>p.portId===panelBack).occupied,true);
  assert.equal(restored.listCablePoints().find(p=>p.portId===panelFront).occupied,false);
 });
-test("Baies multiples, noms et ports individuels libres",()=>{
+test("Panneaux indépendants, noms et ports individuels libres",()=>{
  const e=createAssetRegistry();
- const a=e.createRack({name:"A",location:"Rennes",count:3,start:0,prefix:""}).rack;
- const b=e.createRack({name:"B",location:"Redon",count:1,start:1,prefix:""}).rack;
+ const a=panelAt(e,"A","Rennes",3,0,"").panel;
+ const b=panelAt(e,"B","Redon",1,1,"").panel;
  assert.deepEqual(a.ports.map(x=>x.label),["0","1","2"]);
- assert.equal(e.createRack({name:"A",location:"Rennes",count:3,start:1}).code,"duplicate_name");
- assert.equal(e.createRack({name:"A",location:"Bruz",count:1,start:1}).success,true);
+ assert.equal(panelAt(e,"A","Rennes",3,1,"").code,"duplicate_name");
+ assert.equal(panelAt(e,"A","Bruz",1,1,"").success,true);
  assert.equal(e.createWallOutlet({name:"B12",location:"Salle 1"}).success,true);
  assert.equal(e.createWallOutlet({name:"B12",location:"Salle 1"}).code,"duplicate_name");
  const c=e.createCable({connectors:["rj45-female","rj45-female"]}).cable;
@@ -199,7 +205,7 @@ test("Chemin physique PC vers switch via prise et panneau, sans émulation IP",(
  const pc=e.createAsset(p.id,{name:"PC01"}).asset;
  const sw=e.createAsset(p.id,{name:"SW01"}).asset;
  const socket=e.createWallOutlet({name:"B12",location:"Salle 101"}).outlet.ports[0];
- const panel=e.createRack({name:"Baie A",location:"Local réseau",count:12,start:1,prefix:"P"}).rack.ports[11];
+ const panel=panelAt(e,"Baie A","Local réseau",12,1,"P").panel.ports[11];
  const connect=(a,b)=>{
   const c=e.createCable().cable;
   assert.equal(e.connectCableEnd(c.id,0,a).success,true);
@@ -239,7 +245,7 @@ test("Chemins : branchement incomplet, cycles, bornes invalides et aucun passage
  let r=e.explorePhysicalPath(sw.ports[0].id,sw.ports[1].id);
  assert.equal(r.connected,false,"Le moteur ne traverse pas arbitrairement un switch");
  assert.equal(e.explorePhysicalPath("nulle-part",sw.ports[0].id).code,"not_found");
- const rack=e.createRack({name:"Baie",location:"Salle",count:3,start:1}).rack;
+ const rack=panelAt(e,"Baie","Salle",3,1,"").panel;
  const ports=rack.ports;
  const connect=(a,b)=>{
   const c=e.createCable().cable;
@@ -355,4 +361,33 @@ test("Anciennes données sans liste de lieux restaurables ; parents et cycles in
  assert.throws(()=>restoreAssetRegistry(broken));
  const cyclic=e.exportState();cyclic.places=[{id:"place-1",name:"A",parentId:"place-2"},{id:"place-2",name:"B",parentId:"place-1"}];
  assert.throws(()=>restoreAssetRegistry(cyclic));
+});
+
+test("Deux panneaux dans un lieu ordinaire, sans objet baie ni ports du lieu",()=>{
+ const e=createAssetRegistry(),room=e.createPlace({name:"Salle technique"}).place;
+ const bay=e.createPlace({name:"Baie 01",parentId:room.id}).place;
+ const p1=e.createPanel({name:"P1",placeId:bay.id,count:12,start:1}).panel;
+ const p2=e.createPanel({name:"P2",placeId:bay.id,count:24,start:1}).panel;
+ assert.equal(e.listPanels().length,2);
+ assert.equal(e.listPlaces().find(p=>p.id===bay.id).name,"Baie 01");
+ assert.equal(e.exportState().racks,undefined);
+ assert.equal(e.createPanel({name:"P1",placeId:bay.id,count:1,start:1}).code,"duplicate_name");
+ assert.equal(e.createPanel({name:"P1",placeId:room.id,count:1,start:1}).success,true);
+ const c=e.createCable().cable;
+ assert.equal(e.connectCableEnd(c.id,0,p1.ports[0].back.id).success,true);
+ assert.equal(e.connectCableEnd(c.id,1,p2.ports[0].back.id).success,true);
+ assert.equal(e.explorePhysicalPath(p1.ports[0].front.id,p2.ports[0].front.id).connected,true);
+ const state=e.exportState(),restored=restoreAssetRegistry(state);
+ assert.deepEqual(restored.exportState(),state);
+ assert.equal(restored.explorePhysicalPath(p1.ports[0].front.id,p2.ports[0].front.id).connected,true);
+ assert.equal(e.movePanelToPlace(p1.id,room.id).code,"panel_connected");
+ assert.deepEqual(e.exportState(),state);
+ assert.equal(e.removePanel(p1.id).code,"panel_connected");
+ assert.equal(e.disconnectCableEnd(c.id,0).success,true);
+ assert.equal(e.movePanelToPlace(p1.id,room.id).success,true);
+ assert.equal(e.getPanel(p1.id).placeId,room.id);
+ assert.equal(e.getPanel(p1.id).ports[0].front.id,p1.ports[0].front.id);
+ assert.equal(e.removePanel(p1.id).success,true);
+ assert.equal(e.listCables().length,1);
+ assert.equal(e.getCable(c.id).ends[0],null);
 });
