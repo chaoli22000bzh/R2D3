@@ -113,6 +113,13 @@ function validDnsConfig(c) {
   }
   return ![...cnames].some(name=>ordinary.has(name));
 }
+
+// États pédagogiques explicites d'AD DS et SMB : aucun service n'est supposé actif.
+// Les clés sont l'identité du service ; la configuration demeure sur la machine réseau.
+const applicationServiceNames=new Set(["ad-ds","smb"]);
+const validApplicationServices=value=>value===undefined || (isObj(value)&&
+ Object.entries(value).every(([name,enabled])=>applicationServiceNames.has(name)&&typeof enabled==="boolean"));
+
 function checkScenario(s) {
   if (!isObj(s) || s.format!=="r2d3-scenario" || s.schemaVersion!==1 ||
       typeof s.scenarioId!=="string" || !s.scenarioId ||
@@ -126,6 +133,7 @@ function checkScenario(s) {
     if(o.config.networkOptions!==undefined && !validNetworkOptions(o.config.networkOptions)) throw new Error("Paramètres réseau invalides");
     if(o.config.ipv4!==undefined && !validIpv4(o.config.ipv4))throw new Error("Configuration IPv4 invalide");
     if(!validDnsConfig(o.config))throw new Error("Configuration DNS invalide");
+    if(!validApplicationServices(o.config.applicationServices))throw new Error("Services applicatifs invalides");
     if((o.config.dhcpPool!==undefined || o.config.dhcpPools!==undefined) && (!validPools(o.config) || typeof o.config.dhcpEnabled!=="boolean"))
       throw new Error("Serveur DHCP invalide");
     for (const p of o.ports) {
@@ -347,6 +355,21 @@ function makeEngine(scenario, existing) {
       if(!targets.length)return {status:"ok",success:false,reason:"Aucun équipement simulé ne possède cette adresse"};
       if(targets.length>1)return {status:"ok",success:false,reason:"Plusieurs équipements possèdent cette IPv4",conflict:true};
       return networkPing(q.sourceId,targets[0].id);
+    }
+    if(q.type==="network.applicationService"){
+      if(!applicationServiceNames.has(q.service)||!state.objectsById[q.targetId])
+        return {status:"unknown"};
+      const value=state.objectsById[q.targetId].config.applicationServices?.[q.service];
+      return {status:value===true?"available":value===false?"unavailable":"unknown"};
+    }
+    if(q.type==="network.applicationReachability"){
+      if(!applicationServiceNames.has(q.service)||!state.objectsById[q.sourceId]||!state.objectsById[q.targetId])
+        return {status:"unknown"};
+      const probe=networkPing(q.sourceId,q.targetId);
+      if(probe.status!=="ok")return {status:"unknown"};
+      if(!probe.success)return {status:"unreachable"};
+      const service=state.objectsById[q.targetId].config.applicationServices?.[q.service];
+      return {status:service===true?"reachable":service===false?"unreachable":"unknown"};
     }
     if(q.type==="network.ping")return networkPing(q.sourceId,q.targetId);
     return {status:"unavailable",reason:"Requête non prise en charge"};
@@ -623,6 +646,12 @@ function makeEngine(scenario, existing) {
       if(!o || !o.config.ipv4)return fail("unsupported_target","Équipement IPv4 inexistant");
       if(!validNetworkOptions(p))return fail("invalid_network_options","Passerelle ou DNS invalides");
       o.config.networkOptions={gateway:p.gateway,dns:[...p.dns]};
+    }else if(c.type==="network.setApplicationService"){
+      const o=next.objectsById[c.targetId],p=c.params;
+      if(!o||!o.config.ipv4)return fail("unsupported_target","Machine réseau inexistante");
+      if(!applicationServiceNames.has(p.service)||typeof p.enabled!=="boolean")
+        return fail("invalid_application_service","Service ou état invalide");
+      o.config.applicationServices={...(o.config.applicationServices??{}),[p.service]:p.enabled};
     }else if(c.type==="network.setLinkConnected"){
       const l=next.linksById[c.targetId];
       if(!l || typeof c.params.connected!=="boolean")
