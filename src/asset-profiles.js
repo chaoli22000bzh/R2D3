@@ -4,6 +4,8 @@ const trim=x=>String(x??"").trim();
 const result=(success,code,message,extra={})=>({success,code,message,...extra});
 const types=["text","number","boolean","select","date"];
 const common=["name","manufacturer","model","serialNumber","status","location","reservable"];
+// Capacités métier connues. Les champs descriptifs ne déclenchent jamais une simulation.
+const supportedNetworkCapabilities=["ethernet-switching"];
 const empty=v=>v===undefined||v===null||v==="";
 const cableConnectors=[
  "rj45-male","rj45-female","usb-a-plug","usb-a-socket",
@@ -70,7 +72,17 @@ export function createAssetRegistry(saved){
   while(current.parentId!=null){if(seen.has(current.parentId))throw Error("Cycle dans les lieux");seen.add(current.parentId);current=s.places.find(p=>p.id===current.parentId)}
  }
  for(const asset of s.assets){asset.placeId??=null;if(asset.placeId!==null&&!placeIds.has(asset.placeId))throw Error("Localisation d'équipement inconnue");}
- for(const p of s.profiles)p.portGroups??=[];
+ for(const p of s.profiles){
+  p.portGroups??=[];
+  p.networkCapabilities??=[];
+  if(!Array.isArray(p.networkCapabilities)||new Set(p.networkCapabilities).size!==p.networkCapabilities.length||
+     p.networkCapabilities.some(x=>!supportedNetworkCapabilities.includes(x)))throw Error("Capacités réseau de profil invalides");
+ }
+ for(const a of s.assets){
+  a.networkCapabilities??=[]; // Compatibilité avec les inventaires précédents.
+  if(!Array.isArray(a.networkCapabilities)||new Set(a.networkCapabilities).size!==a.networkCapabilities.length||
+     a.networkCapabilities.some(x=>!supportedNetworkCapabilities.includes(x)))throw Error("Capacités réseau d’équipement invalides");
+ }
  for(const panel of s.panels){
   if(!panel||typeof panel.id!=="string"||!trim(panel.name)||!placeIds.has(panel.placeId)||
      !Array.isArray(panel.ports)||!panel.ports.every(slot=>slot&&slot.front&&slot.back&&
@@ -109,19 +121,33 @@ export function createAssetRegistry(saved){
  const occupied=(id,key)=>s.assets.some(a=>a.profileId===id&&!empty(a.values[key]));
  function createProfile(name){
   name=trim(name);if(!name)return result(false,"invalid_name","Nom de profil obligatoire.");
-  const p={id:"profile-"+s.nextProfile++,name,fields:[],portGroups:[]};s.profiles.push(p);s.revision++;
+  const p={id:"profile-"+s.nextProfile++,name,fields:[],portGroups:[],networkCapabilities:[]};s.profiles.push(p);s.revision++;
   return result(true,"created","Profil créé.",{profile:clone(p)});
  }
  function duplicateProfile(id,name){
   const p=getP(id);if(!p)return result(false,"not_found","Profil introuvable.");
   const r=createProfile(name||p.name+" (copie)");if(!r.success)return r;
-  const target=getP(r.profile.id);target.fields=clone(p.fields);target.portGroups=clone(p.portGroups).map(g=>({...g,id:"portgroup-"+s.nextPortGroup++}));s.revision++;
+  const target=getP(r.profile.id);target.fields=clone(p.fields);target.portGroups=clone(p.portGroups).map(g=>({...g,id:"portgroup-"+s.nextPortGroup++}));target.networkCapabilities=clone(p.networkCapabilities);s.revision++;
   return result(true,"duplicated","Profil dupliqué.",{profile:clone(target)});
  }
  function renameProfile(id,name){
   const p=getP(id);if(!p)return result(false,"not_found","Profil introuvable.");
   if(!trim(name))return result(false,"invalid_name","Nom de profil obligatoire.");
   p.name=trim(name);s.revision++;return result(true,"renamed","Profil renommé.");
+ }
+ function setProfileNetworkCapability(id,capability,enabled){
+  const p=getP(id);
+  if(!p)return result(false,"not_found","Profil introuvable.");
+  if(!supportedNetworkCapabilities.includes(capability)||typeof enabled!=="boolean")
+   return result(false,"invalid_network_capability","Capacité ou état réseau invalide.");
+  if(enabled && capability==="ethernet-switching" &&
+     p.portGroups.filter(g=>g.type==="ethernet-rj45").reduce((n,g)=>n+g.count,0)<2)
+   return result(false,"insufficient_ethernet_ports","Deux ports Ethernet RJ45 au minimum sont nécessaires.");
+  const active=p.networkCapabilities.includes(capability);
+  if(active===enabled)return result(true,"unchanged","Capacité déjà dans cet état.");
+  p.networkCapabilities=enabled?[...p.networkCapabilities,capability]:p.networkCapabilities.filter(x=>x!==capability);
+  s.revision++;
+  return result(true,"capability_updated","Capacité du profil modifiée pour les futurs équipements.",{profile:clone(p)});
  }
  function addField(id,raw){
   const p=getP(id);if(!p)return result(false,"not_found","Profil introuvable.");
@@ -170,6 +196,9 @@ export function createAssetRegistry(saved){
  function removePortGroup(profileId,groupId){
   const p=getP(profileId),i=p?.portGroups.findIndex(g=>g.id===groupId)??-1;
   if(i<0)return result(false,"not_found","Groupe de ports introuvable.");
+  if(p.networkCapabilities.includes("ethernet-switching") &&
+     p.portGroups.filter((g,j)=>j!==i&&g.type==="ethernet-rj45").reduce((n,g)=>n+g.count,0)<2)
+   return result(false,"capability_requires_ports","Désactiver la commutation avant de retirer ces ports.");
   p.portGroups.splice(i,1);s.revision++;
   return result(true,"port_group_removed","Groupe retiré du profil. Les ports des actifs existants restent inchangés.");
  }
@@ -402,7 +431,7 @@ export function createAssetRegistry(saved){
   const name=trim(info?.name);if(!name)return result(false,"invalid_name","Nom de matériel obligatoire.");
   const status=info.status||"En service";
   if(!["En service","Hors service","En stock"].includes(status))return result(false,"invalid_status","Statut incorrect.");
-  const a={id:"asset-"+s.nextAsset++,profileId,name,manufacturer:trim(info.manufacturer),model:trim(info.model),serialNumber:trim(info.serialNumber),status,location:trim(info.location),placeId:null,reservable:!!info.reservable,values:Object.fromEntries(p.fields.map(f=>[f.key,null])),ports:buildPorts(p.portGroups,"integrated")};
+  const a={id:"asset-"+s.nextAsset++,profileId,name,manufacturer:trim(info.manufacturer),model:trim(info.model),serialNumber:trim(info.serialNumber),status,location:trim(info.location),placeId:null,reservable:!!info.reservable,values:Object.fromEntries(p.fields.map(f=>[f.key,null])),ports:buildPorts(p.portGroups,"integrated"),networkCapabilities:clone(p.networkCapabilities)};
   s.assets.push(a);s.revision++;return result(true,"asset_created","Matériel créé.",{asset:clone(a)});
  }
  function removeAsset(id){
@@ -431,7 +460,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,removeAsset,setAssetField,updateAsset,
+ return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileNetworkCapability,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,removeAsset,setAssetField,updateAsset,
  listWallOutlets:()=>clone(s.wallOutlets),listPanels:()=>clone(s.panels),getPanel:id=>clone(s.panels.find(p=>p.id===id)||null),listCables:()=>clone(s.cables),getCable:id=>clone(s.cables.find(x=>x.id===id)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);
