@@ -64,6 +64,17 @@ export function observeStpV01(registry,sourceId,targetId,addresses){
  // V0.1 : le cycle ne peut être qu'un lien local ou deux liens parallèles.
  const loop=swIds.size===1?links.length===1:links.length===2;
  const switches=[...swIds].map(id=>registry.getAsset(id));
+ // V0.1 traite un seul domaine Ethernet non étiqueté (VLAN 1 Access).
+ // Ne jamais annoncer un ping réussi en ignorant l'isolation VLAN.
+ for(const sw of switches){
+  if(!managed(sw))continue;
+  const config=sw.vlanConfig;
+  if(!config||sw.ports.filter(eth).some(p=>{
+   const state=config.ports[p.id];
+   return state?.mode!=="access"||
+    config.vlans.find(v=>v.id===state.vlanId)?.number!==1;
+  }))return no("Montage VLAN non initial ou Trunk : STP/VLAN combinés hors V0.1");
+ }
  const protectedByStp=loop&&switches.every(managed);
  const storm=loop&&!protectedByStp;
  // Politique déterministe : parmi les liens redondants, bloquer le dernier
