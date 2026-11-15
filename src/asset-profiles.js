@@ -5,7 +5,7 @@ const result=(success,code,message,extra={})=>({success,code,message,...extra});
 const types=["text","number","boolean","select","date"];
 const common=["name","manufacturer","model","serialNumber","status","location","reservable"];
 // Capacités métier connues. Les champs descriptifs ne déclenchent jamais une simulation.
-const supportedNetworkCapabilities=["ethernet-switching","vlan","inter-vlan-routing","ip-helper"];
+const supportedNetworkCapabilities=["ethernet-switching","vlan","inter-vlan-routing","ip-helper","dhcp-server"];
 const empty=v=>v===undefined||v===null||v==="";
 const cableConnectors=[
  "rj45-male","rj45-female","usb-a-plug","usb-a-socket",
@@ -108,6 +108,40 @@ function validIpHelperConfiguration(asset,config){
  return true;
 }
 // Adresse d'administration propre aux switchs L2/L3.
+
+function validAssetDhcpServer(asset,conf){
+ if(!asset.networkCapabilities?.includes("dhcp-server")||
+    !asset.networkCapabilities.includes("inter-vlan-routing")||
+    !conf||conf.assetId!==asset.id||typeof conf.enabled!=="boolean"||
+    !Array.isArray(conf.pools)||(conf.enabled&&conf.pools.length===0))return false;
+ const seen=new Set(),ranges=[];
+ const val=x=>validIPv4(x)?x.split(".").reduce((a,n)=>(a*256+Number(n))>>>0,0):null;
+ for(const p of conf.pools){
+  if(!p||typeof p.id!=="string"||!/^[a-zA-Z0-9_-]+$/.test(p.id)||
+   seen.has(p.id)||!Number.isInteger(p.vlanNumber)||p.vlanNumber<1||p.vlanNumber>4094||
+   !asset.vlanConfig?.vlans.some(v=>v.number===p.vlanNumber)||
+   val(p.start)===null||val(p.end)===null||
+   val(p.start)>val(p.end)||val(p.end)-val(p.start)>254||
+   !Number.isInteger(p.prefix)||p.prefix<1||p.prefix>30||
+   !sameNet(p.start,p.end,p.prefix)||
+   !validIPv4(p.gateway)||!sameNet(p.start,p.gateway,p.prefix)||
+   !Array.isArray(p.dns)||p.dns.length>2||p.dns.some(x=>!validIPv4(x))||
+   !Number.isInteger(p.leaseSeconds)||p.leaseSeconds<60||p.leaseSeconds>2592000||
+   (p.exclusions!==undefined&&(!Array.isArray(p.exclusions)||new Set(p.exclusions).size!==p.exclusions.length||
+    p.exclusions.some(x=>val(x)===null||val(x)<val(p.start)||val(x)>val(p.end))))||
+   (p.reservations!==undefined&&(!Array.isArray(p.reservations)||
+     p.reservations.some(r=>!r||typeof r.mac!=="string"||!/^([0-9A-F]{2}-){5}[0-9A-F]{2}$/i.test(r.mac)||
+      val(r.address)===null||val(r.address)<val(p.start)||val(r.address)>val(p.end)||
+      p.exclusions?.includes(r.address))||
+     new Set(p.reservations.map(r=>r.mac.toUpperCase())).size!==p.reservations.length||
+     new Set(p.reservations.map(r=>r.address)).size!==p.reservations.length)))
+   return false;
+  if(ranges.some(r=>val(p.start)<=r.end&&r.start<=val(p.end)))return false;
+  seen.add(p.id);ranges.push({start:val(p.start),end:val(p.end)});
+ }
+ return true;
+}
+
 const managementDefault=asset=>({assetId:asset.id,mode:"dhcp",address:null,prefix:null,gateway:null,lease:null});
 const sameNet=(a,b,prefix)=>{
  const parse=x=>x.split(".").reduce((n,v)=>((n<<8)|Number(v))>>>0,0);
@@ -167,6 +201,12 @@ export function createAssetRegistry(saved){
    if(p.poe&&!p.networkCapabilities.includes("ethernet-switching"))throw Error("PoE réservé à un profil switch");
  }
  for(const a of s.assets){
+   if(a.networkCapabilities?.includes("dhcp-server")&&a.dhcpServerConfig===undefined)
+    a.dhcpServerConfig={assetId:a.id,enabled:false,pools:[]};
+   if(a.networkCapabilities?.includes("dhcp-server")&&!validAssetDhcpServer(a,a.dhcpServerConfig))
+    throw Error("Configuration du service DHCP invalide");
+   if(!a.networkCapabilities?.includes("dhcp-server")&&a.dhcpServerConfig!==undefined)
+    throw Error("Service DHCP sur un équipement incompatible");
    a.poe??=false;
    if(typeof a.poe!=="boolean")throw Error("Propriété PoE de l'équipement invalide");
    if(a.poe&&!a.networkCapabilities?.includes("ethernet-switching"))
@@ -251,6 +291,10 @@ export function createAssetRegistry(saved){
    return result(false,"invalid_network_capability","Capacité ou état réseau invalide.");
   if(!enabled&&capability==="vlan"&&p.networkCapabilities.includes("inter-vlan-routing"))
    return result(false,"capability_dependency","Désactiver d’abord la capacité de routage inter-VLAN.");
+  if(enabled&&capability==="dhcp-server"&&!p.networkCapabilities.includes("inter-vlan-routing"))
+   return result(false,"capability_dependency","Serveur DHCP nécessite un switch L3.");
+  if(!enabled&&capability==="inter-vlan-routing"&&p.networkCapabilities.includes("dhcp-server"))
+   return result(false,"capability_dependency","Retirer d'abord la capacité serveur DHCP.");
   if(enabled&&capability==="inter-vlan-routing"&&!p.networkCapabilities.includes("vlan"))
    return result(false,"capability_dependency","Le routage inter-VLAN nécessite la capacité VLAN.");
   if(!enabled&&capability==="ethernet-switching"&&p.poe)
@@ -577,7 +621,17 @@ export function createAssetRegistry(saved){
    a.routingConfig={assetId:a.id,routingEnabled:false,interfaces:{}};
   if(a.networkCapabilities.includes("ip-helper"))
    a.ipHelperConfig={assetId:a.id,helpers:{}};
+  if(a.networkCapabilities.includes("dhcp-server"))
+   a.dhcpServerConfig={assetId:a.id,enabled:false,pools:[]};
   s.assets.push(a);s.revision++;return result(true,"asset_created","Matériel créé.",{asset:clone(a)});
+ }
+ function setAssetDhcpServerConfig(id,config){
+  const a=getA(id);
+  if(!a)return result(false,"not_found","Équipement introuvable.");
+  if(!validAssetDhcpServer(a,config))
+   return result(false,"invalid_dhcp_config","Configuration du serveur DHCP refusée.");
+  a.dhcpServerConfig=clone(config);s.revision++;
+  return result(true,"dhcp_config_updated","Configuration DHCP enregistrée.",{config:clone(config)});
  }
  function setAssetManagementConfig(id,config){
   const a=getA(id);
@@ -590,6 +644,8 @@ export function createAssetRegistry(saved){
  function setAssetVlanConfig(id,config){
   const a=getA(id);if(!a)return result(false,"not_found","Équipement introuvable.");
   if(!validVlanConfiguration(a,config))return result(false,"invalid_vlan_config","Configuration VLAN refusée sans modification.");
+  if(a.dhcpServerConfig?.pools.some(pool=>!config.vlans.some(v=>v.number===pool.vlanNumber)))
+   return result(false,"dhcp_pool_references_vlan","Supprimer d’abord la plage DHCP liée au VLAN.");
   a.vlanConfig=clone(config);s.revision++;
   return result(true,"vlan_config_updated","Configuration VLAN enregistrée.",{config:clone(a.vlanConfig)});
  }
@@ -635,7 +691,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,setAssetManagementConfig,setAssetVlanConfig,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,updateAsset,
+ return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,setAssetDhcpServerConfig,setAssetManagementConfig,setAssetVlanConfig,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,updateAsset,
  listWallOutlets:()=>clone(s.wallOutlets),listPanels:()=>clone(s.panels),getPanel:id=>clone(s.panels.find(p=>p.id===id)||null),listCables:()=>clone(s.cables),getCable:id=>clone(s.cables.find(x=>x.id===id)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);
