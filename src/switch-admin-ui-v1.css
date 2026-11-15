@@ -1,0 +1,70 @@
+/* R2D3 : panneau commun d'administration réseau, rendu clair inspiré des interfaces professionnelles.
+ * Texte de 16 px minimum, focus clavier visible, état indiqué avec texte et non couleur seule.
+ */
+.switch-admin{--sw-bg:#f2f5f7;--sw-panel:#fff;--sw-ink:#23313a;--sw-muted:#526572;--sw-stroke:#d6e0e5;--sw-green:#18875b;--sw-green-light:#e8f5ee;font:normal 16px/1.55 system-ui,"Segoe UI",Arial,sans-serif;color:var(--sw-ink);background:var(--sw-bg);border:1px solid var(--sw-stroke);border-radius:12px;overflow:hidden}
+.switch-admin *{box-sizing:border-box}
+.switch-shell{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:650px}
+.switch-sidebar{background:#fff;border-right:1px solid var(--sw-stroke);display:flex;flex-direction:column;padding:22px 13px 16px;gap:12px}
+.brand{font-size:21px;font-weight:700;display:flex;gap:10px;align-items:center;padding:0 9px 22px;border-bottom:1px solid var(--sw-stroke)}
+.brand strong{color:var(--sw-green)}
+.brand-glyph{background:var(--sw-green-light);color:#13754d;border-radius:10px;width:40px;height:40px;display:grid;place-items:center;font-size:28px}
+.sidebar-heading{font-size:16px;font-weight:700;color:var(--sw-muted);margin:12px 10px 0}
+.switch-sidebar nav{display:grid;gap:5px}
+.switch-sidebar .menu-entry{text-align:left;border:0;background:transparent;color:var(--sw-ink);font:600 16px/1.5 inherit;font-family:inherit;font-size:16px;font-weight:600;padding:14px 13px;min-height:50px;border-radius:8px;cursor:pointer}
+.switch-sidebar .menu-entry[aria-current=page]{background:var(--sw-green-light);color:#106640;border-left:4px solid var(--sw-green);padding-left:9px}
+.switch-sidebar .menu-entry:hover{background:#eaf2f2}
+.sidebar-foot{margin-top:auto;border-top:1px solid var(--sw-stroke);padding:18px 10px 0;color:var(--sw-muted)}
+.switch-workspace{min-width:0;background:var(--sw-bg)}
+.switch-top{display:flex;align-items:center;justify-content:space-between;gap:20px;background:var(--sw-panel);border-bottom:1px solid var(--sw-stroke);padding:26px 30px}
+.switch-top h1{font-size:clamp(25px,3vw,32px);line-height:1.25;margin:6px 0}
+.switch-top p{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.eyebrow{font-size:16px;color:var(--sw-muted)}
+.device-icon{font-size:38px;line-height:1;color:#317d62;border:1px solid #b5d8c3;border-radius:12px;background:#edf8f1;padding:10px 15px}
+.state-chip{font-size:16px;border-radius:25px;background:var(--sw-green-light);padding:3px 13px;color:#11613e;font-weight:700}
+.switch-content{padding:26px 30px;min-height:510px}
+.section-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:22px}
+.section-head h2{font-size:23px;line-height:1.3;margin:0}
+.section-head span{font-size:16px;color:var(--sw-muted)}
+.switch-content>h2{font-size:21px;margin:25px 0 14px}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:24px}
+.stats>div{background:var(--sw-panel);border:1px solid var(--sw-stroke);border-radius:10px;padding:18px 20px}
+.stats span{display:block;color:var(--sw-muted);font-size:16px}
+.stats strong{display:block;font-size:21px;line-height:1.4;margin-top:7px}
+.equipment-front{padding:22px 20px 16px;background:#27353e;border-radius:12px;border:3px solid #3c4c53;color:#fff;margin:14px 0 23px}
+.front-title{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:16px}
+.front-name{font-size:18px;font-weight:750;letter-spacing:.025em}
+.front-desc{color:#ecf2f4}
+.front-ports{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.face-port{appearance:none;border:2px solid #819198;background:#33434c;border-radius:9px;color:#fff;padding:8px 8px 10px;display:grid;place-items:center;gap:7px;min-height:116px;cursor:pointer;font:inherit;min-width:0}
+.face-port:hover,.face-port.selected{border-color:#7ee8af;background:#3a5357}
+.port-number{font-size:16px;font-weight:750;overflow-wrap:anywhere}
+.port-socket{position:relative;display:block;width:54px;height:35px;border:3px solid #9fafb6;background:#15212b;border-radius:4px 4px 8px 8px;box-shadow:inset 0 4px 0 #263b44}
+.port-socket:before{content:"";position:absolute;width:23px;height:8px;background:#15212b;top:-7px;left:12px;border:2px solid #9fafb6;border-bottom:0;border-radius:3px 3px 0 0}
+.port-pins{display:block;position:absolute;bottom:3px;left:6px;width:35px;height:7px;background:repeating-linear-gradient(90deg,#c4a65e 0 3px,transparent 3px 5px)}
+.port-status{font-size:16px;font-weight:650;text-align:center}
+.port-status.connected{color:#94edb7}.port-status.free{color:#e4ecee}
+.front-help{margin:17px 0 0;color:#e2edf1;font-size:16px}
+.info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.notice{border:1px solid var(--sw-stroke);border-radius:10px;background:var(--sw-panel);padding:15px 17px;margin-bottom:13px}
+.notice strong{font-size:17px}
+.notice p{margin:5px 0 0}
+.vlan-list{display:grid;gap:10px;margin-bottom:21px}
+.vlan-line{display:flex;gap:15px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid var(--sw-stroke);border-radius:8px;padding:13px 16px}
+.vlan-line strong{min-width:90px}
+.switch-content h3{font-size:20px;margin:22px 0 12px}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;max-width:790px;align-items:end}
+.fields label{display:grid;gap:8px;font-weight:650;font-size:16px}
+.switch-admin input,.switch-admin select{display:block;width:100%;min-width:0;border:1px solid #859aa5;border-radius:8px;background:#fff;color:var(--sw-ink);font:inherit;font-size:17px;min-height:48px;padding:10px 12px}
+.switch-admin button[type=submit]{font:inherit;font-size:16px;font-weight:750;min-height:48px;padding:11px 16px;border:1px solid #2c7660;background:#f3faf6;color:#155c42;border-radius:8px;cursor:pointer}
+.switch-admin .primary{color:#fff!important;background:#167f55!important}
+.switch-admin button:focus-visible,.switch-admin input:focus-visible,.switch-admin select:focus-visible{outline:3px solid #ecb433;outline-offset:3px}
+.port-editor{background:#fff;border:1px solid var(--sw-stroke);border-radius:10px;padding:19px 20px}
+.editor-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:13px}
+.editor-head h3{margin:0}
+.editor-head span{color:var(--sw-muted)}
+.feedback{border-left:5px solid var(--sw-green);background:#eaf5ee;padding:13px 17px;border-radius:6px;margin-bottom:20px}
+.feedback.error{border-color:#bd563f;background:#fff0ec}
+.hint{font-size:16px;color:var(--sw-muted);margin:15px 0 0}
+@media(max-width:900px){.switch-shell{grid-template-columns:205px minmax(0,1fr)}.switch-content{padding:19px}.switch-top{padding:20px}.front-ports{gap:8px}.face-port{min-height:112px}}
+@media(max-width:680px){.switch-shell{display:block}.switch-sidebar{padding:12px;border-right:0;border-bottom:1px solid var(--sw-stroke)}.brand{padding:0 7px 10px}.sidebar-heading,.sidebar-foot{display:none}.switch-sidebar nav{display:flex;gap:5px;overflow-x:auto}.switch-sidebar .menu-entry{flex:0 0 auto}.switch-top{padding:18px}.switch-content{padding:16px}.front-ports{grid-template-columns:repeat(2,minmax(0,1fr))}.stats,.fields,.info-grid{grid-template-columns:1fr}.equipment-front{padding:15px 12px}.port-status,.port-number{font-size:16px}}
+@media(prefers-reduced-motion:no-preference){.switch-sidebar .menu-entry,.face-port{transition:background .12s ease,border-color .12s ease}}
