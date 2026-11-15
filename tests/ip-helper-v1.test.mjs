@@ -150,5 +150,6 @@ test("IP Helper : futur routeur non-switch avec Ethernet reste autorisé",()=>{
  const r=createAssetRegistry(),p=r.createProfile("Routeur générique futur").profile;
  assert.equal(r.addPortGroup(p.id,{type:"ethernet-rj45",prefix:"ETH",start:1,count:4}).success,true);
  assert.equal(r.setProfileNetworkCapability(p.id,"ip-helper",true).success,true);
+ assert.equal(r.setProfileNetworkCapability(p.id,"ethernet-switching",true).code,"capability_dependency");
  assert.equal(r.createAsset(p.id,{name:"Routeur"}).asset.networkCapabilities.includes("ip-helper"),true);
 });
