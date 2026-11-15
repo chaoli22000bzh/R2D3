@@ -113,7 +113,7 @@ function validAssetDhcpServer(asset,conf){
  if(!asset.networkCapabilities?.includes("dhcp-server")||
     !asset.networkCapabilities.includes("inter-vlan-routing")||
     !conf||conf.assetId!==asset.id||typeof conf.enabled!=="boolean"||
-    !Array.isArray(conf.pools))return false;
+    !Array.isArray(conf.pools)||(conf.enabled&&conf.pools.length===0))return false;
  const seen=new Set(),ranges=[];
  const val=x=>validIPv4(x)?x.split(".").reduce((a,n)=>(a*256+Number(n))>>>0,0):null;
  for(const p of conf.pools){
@@ -644,6 +644,8 @@ export function createAssetRegistry(saved){
  function setAssetVlanConfig(id,config){
   const a=getA(id);if(!a)return result(false,"not_found","Équipement introuvable.");
   if(!validVlanConfiguration(a,config))return result(false,"invalid_vlan_config","Configuration VLAN refusée sans modification.");
+  if(a.dhcpServerConfig?.pools.some(pool=>!config.vlans.some(v=>v.number===pool.vlanNumber)))
+   return result(false,"dhcp_pool_references_vlan","Supprimer d’abord la plage DHCP liée au VLAN.");
   a.vlanConfig=clone(config);s.revision++;
   return result(true,"vlan_config_updated","Configuration VLAN enregistrée.",{config:clone(a.vlanConfig)});
  }
