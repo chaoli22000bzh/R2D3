@@ -14,15 +14,15 @@ function set(registry,id,config){
   return reject("registry_missing","Registre R2 incompatible");
  return registry.setAssetManagementConfig(id,config);
 }
-export function configureSwitchManagementStatic(registry,id,address,prefix,gateway=null){
+export function configureSwitchManagementStatic(registry,id,address,prefix,gateway=null,dns=[]){
  const old=getSwitchManagement(registry,id);
  if(!old)return reject("not_managed","Switch non administrable");
- return set(registry,id,{assetId:id,mode:"static",address,prefix,gateway,lease:null});
+ return set(registry,id,{assetId:id,mode:"static",address,prefix,gateway,dns,lease:null});
 }
 export function configureSwitchManagementDhcp(registry,id){
  const old=getSwitchManagement(registry,id);
  if(!old)return reject("not_managed","Switch non administrable");
- return set(registry,id,{assetId:id,mode:"dhcp",address:null,prefix:null,gateway:null,lease:null});
+ return set(registry,id,{assetId:id,mode:"dhcp",address:null,prefix:null,gateway:null,dns:[],lease:null});
 }
 export function acquireSwitchManagementDhcp({registry,switchId,serverId,dhcpEngine,poolId,commandId}){
  const sw=registry?.getAsset?.(switchId),server=registry?.getAsset?.(serverId);
@@ -66,7 +66,7 @@ export function acquireSwitchManagementDhcp({registry,switchId,serverId,dhcpEngi
  const lease=copy(state.ipv4.lease);
  const result=set(registry,switchId,{
   assetId:switchId,mode:"dhcp",address:state.ipv4.address,
-  prefix:state.ipv4.prefix,gateway:state.networkOptions?.gateway??null,lease
+  prefix:state.ipv4.prefix,gateway:state.networkOptions?.gateway??null,dns:copy(state.networkOptions?.dns??[]),lease
  });
  return result.success?{...result,address:state.ipv4.address,poolId:lease.poolId}:
   result;
@@ -90,10 +90,10 @@ export function syncSwitchManagementDhcp(registry,switchId,dhcpEngine){
    ipv4.prefix===16&&!ipv4.lease;
  const next=validLease?{
    assetId:switchId,mode:"dhcp",address:ipv4.address,prefix:ipv4.prefix,
-   gateway:client.config.networkOptions?.gateway??null,lease:copy(ipv4.lease)
+   gateway:client.config.networkOptions?.gateway??null,dns:copy(client.config.networkOptions?.dns??[]),lease:copy(ipv4.lease)
   }:apipa?{
-   assetId:switchId,mode:"dhcp",address:ipv4.address,prefix:16,gateway:null,lease:null
-  }:{assetId:switchId,mode:"dhcp",address:null,prefix:null,gateway:null,lease:null};
+   assetId:switchId,mode:"dhcp",address:ipv4.address,prefix:16,gateway:null,dns:[],lease:null
+  }:{assetId:switchId,mode:"dhcp",address:null,prefix:null,gateway:null,dns:[],lease:null};
  const result=set(registry,switchId,next);
  return result.success?{...result,dhcpStatus:runtime?.dhcpStatus??"unassigned",
   leasePhase:runtime?.dhcpLeasePhase??null,simulationClock:state.simulationClock}:result;
