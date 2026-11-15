@@ -30,7 +30,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
  const facade=(a,ports)=>'<div class="equipment-front"><div class="front-title"><span class="front-name">SWITCH · '+esc(a.name)+'</span>'+
  '<span class="front-desc">'+ports.length+' ports RJ45</span></div>'+
  '<div class="front-ports" role="group" aria-label="Façade des ports Ethernet">'+ports.map(p=>portCard(p,a)).join("")+'</div>'+
- '<p class="front-help">Sélectionnez un port pour consulter et modifier ses paramètres. L’état « Raccordé » provient des câbles enregistrés dans R2D3.</p></div>';
+ '<p class="front-help">Sélectionnez un port pour consulter et modifier ses paramètres. L’état « Raccordé » correspond aux câbles réellement branchés.</p></div>';
  function asset(){
   const a=registry.getAsset(current);
   if(!a?.networkCapabilities?.includes("vlan"))throw Error("Switch L2/L3 administrable introuvable");
@@ -86,9 +86,9 @@ export function mountSwitchAdmin({root,registry,assetId}){
     '<p class="hint">Le mode DHCP est enregistré sur le switch. L’obtention d’un bail nécessite un vrai serveur DHCP raccordé et sera vérifiée dans un scénario de réseau dédié.</p>';
   }
   root.innerHTML='<div class="switch-admin"><div class="switch-shell">'+
-   '<aside class="switch-sidebar"><div class="brand"><span class="brand-glyph" aria-hidden="true">◈</span><span>R2D3 <strong>Réseau</strong></span></div>'+
+   '<aside class="switch-sidebar"><div class="brand"><span class="brand-glyph" aria-hidden="true">◈</span><span>Administration <strong>réseau</strong></span></div>'+
    '<p class="sidebar-heading">ADMINISTRATION</p><nav aria-label="Configuration de l’équipement">'+tabs+'</nav>'+
-   '<div class="sidebar-foot">Interface de réseau · R2D3</div></aside>'+
+   '<div class="sidebar-foot">Configuration des équipements</div></aside>'+
    '<div class="switch-workspace"><header class="switch-top"><div><div class="eyebrow">Équipements réseau / Administration</div>'+
    '<h1>'+esc(a.name)+'</h1><p>'+esc(l3?"Switch administrable L3":"Switch administrable L2")+
    ' <span class="state-chip">'+esc(a.status)+'</span></p></div><span class="device-icon" aria-hidden="true">▤</span></header>'+
