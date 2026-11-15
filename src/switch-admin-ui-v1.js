@@ -15,7 +15,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
  const tabTitle={overview:"Vue d'ensemble",ports:"Ports et connexions",vlans:"Réseaux VLAN",management:"Adresse IP de gestion"};
  const portCard=(p,a)=>{
    const state=a.vlanConfig.ports[p.id];
-   const connected=(p.connectedCableIds||[]).length>0;
+   const connected=registry.listCables().some(c=>c.ends.some(end=>end?.portId===p.id));
    const currentVlan=state.mode==="access"?
      "Access · VLAN "+(a.vlanConfig.vlans.find(v=>v.id===state.vlanId)?.number??"?"):
      "Trunk · "+state.allowedVlanIds.length+" VLAN";
