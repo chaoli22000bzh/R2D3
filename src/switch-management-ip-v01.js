@@ -71,3 +71,30 @@ export function acquireSwitchManagementDhcp({registry,switchId,serverId,dhcpEngi
  return result.success?{...result,address:state.ipv4.address,poolId:lease.poolId}:
   result;
 }
+
+/*
+ * Relecture de l'état du vrai Core DHCP après progression de l'horloge.
+ * Un câble coupé n'efface jamais le bail. T1/T2 échoués le conservent,
+ * puis le Core calcule une APIPA uniquement à l'expiration.
+ */
+export function syncSwitchManagementDhcp(registry,switchId,dhcpEngine){
+ const conf=getSwitchManagement(registry,switchId);
+ if(!conf||conf.mode!=="dhcp")return reject("not_dhcp","Switch non configuré en DHCP");
+ if(typeof dhcpEngine?.getSnapshot!=="function")return reject("engine_missing","Core DHCP indisponible");
+ const state=dhcpEngine.getSnapshot(),client=state.objectsById?.[switchId];
+ const ipv4=client?.config?.ipv4;
+ if(!ipv4||ipv4.mode!=="dhcp")return reject("client_missing","Client DHCP absent du Core");
+ const runtime=state.runtime?.[switchId];
+ const validLease=ipv4.lease&&ipv4.lease.expires>state.simulationClock;
+ const apipa=runtime?.dhcpStatus==="apipa"&&ipv4.address?.startsWith("169.254.")&&
+   ipv4.prefix===16&&!ipv4.lease;
+ const next=validLease?{
+   assetId:switchId,mode:"dhcp",address:ipv4.address,prefix:ipv4.prefix,
+   gateway:client.config.networkOptions?.gateway??null,lease:copy(ipv4.lease)
+  }:apipa?{
+   assetId:switchId,mode:"dhcp",address:ipv4.address,prefix:16,gateway:null,lease:null
+  }:{assetId:switchId,mode:"dhcp",address:null,prefix:null,gateway:null,lease:null};
+ const result=set(registry,switchId,next);
+ return result.success?{...result,dhcpStatus:runtime?.dhcpStatus??"unassigned",
+  leasePhase:runtime?.dhcpLeasePhase??null,simulationClock:state.simulationClock}:result;
+}
