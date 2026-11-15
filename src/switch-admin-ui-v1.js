@@ -82,6 +82,8 @@ export function mountSwitchAdmin({root,registry,assetId}){
     '<label>Adresse IPv4 (mode statique)<input name="address" inputmode="decimal" placeholder="192.168.1.2" value="'+esc(staticMode?mg.address:"")+'"></label>'+
     '<label>Préfixe réseau (mode statique)<input type="number" name="prefix" min="1" max="30" placeholder="24" value="'+esc(staticMode?mg.prefix:"")+'"></label>'+
     '<label>Passerelle (facultative)<input name="gateway" inputmode="decimal" placeholder="192.168.1.1" value="'+esc(staticMode?mg.gateway:"")+'"></label>'+
+    '<label>DNS principal (mode statique)<input name="dns1" inputmode="decimal" placeholder="192.168.1.10" value="'+esc(staticMode?(mg.dns?.[0]??""):"")+'"></label>'+
+    '<label>DNS secondaire (facultatif)<input name="dns2" inputmode="decimal" placeholder="192.168.1.11" value="'+esc(staticMode?(mg.dns?.[1]??""):"")+'"></label>'+
     '<button type="submit" class="primary">Enregistrer</button></form>'+
     '<p class="hint">Le mode DHCP est enregistré sur le switch. L’obtention d’un bail nécessite un vrai serveur DHCP raccordé et sera vérifiée dans un scénario de réseau dédié.</p>';
   }
@@ -101,6 +103,15 @@ export function mountSwitchAdmin({root,registry,assetId}){
   const port=e.target.closest("[data-port]");
   if(port&&root.contains(port)){selectedPort=port.dataset.port;tab="ports";message="";render();}
  };
+ const onChange=e=>{
+   const mode=e.target.closest('select[name="mode"]');
+   if(!mode||!root.contains(mode)||!mode.closest('form[data-form="management"]'))return;
+   const form=mode.closest("form");
+   for(const name of ["address","prefix","gateway","dns1","dns2"]){
+     const input=form.elements.namedItem(name);
+     if(input)input.disabled=mode.value==="dhcp";
+   }
+ };
  const onSubmit=e=>{
   const form=e.target.closest("form[data-form]");if(!form||!root.contains(form))return;
   e.preventDefault();const data=new FormData(form),a=asset();let res;
@@ -119,12 +130,14 @@ export function mountSwitchAdmin({root,registry,assetId}){
   }else if(form.dataset.form==="management"){
    res=data.get("mode")==="dhcp"?configureSwitchManagementDhcp(registry,a.id):
     configureSwitchManagementStatic(registry,a.id,String(data.get("address")).trim(),
-      num(data.get("prefix")),String(data.get("gateway")).trim()||null);
+      num(data.get("prefix")),String(data.get("gateway")).trim()||null,
+      [String(data.get("dns1")).trim(),String(data.get("dns2")).trim()].filter(Boolean));
   }
   notify(res);
  };
  root.addEventListener("click",onClick);
  root.addEventListener("submit",onSubmit);
+ root.addEventListener("change",onChange);
  render();
- return {refresh:render,setAssetId(id){current=id;tab="overview";selectedPort=null;message="";render();},destroy(){root.removeEventListener("click",onClick);root.removeEventListener("submit",onSubmit);root.replaceChildren();}};
+ return {refresh:render,setAssetId(id){current=id;tab="overview";selectedPort=null;message="";render();},destroy(){root.removeEventListener("click",onClick);root.removeEventListener("submit",onSubmit);root.removeEventListener("change",onChange);root.replaceChildren();}};
 }
