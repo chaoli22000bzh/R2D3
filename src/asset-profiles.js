@@ -5,7 +5,7 @@ const result=(success,code,message,extra={})=>({success,code,message,...extra});
 const types=["text","number","boolean","select","date"];
 const common=["name","manufacturer","model","serialNumber","status","location","reservable"];
 // Capacités métier connues. Les champs descriptifs ne déclenchent jamais une simulation.
-const supportedNetworkCapabilities=["ethernet-switching"];
+const supportedNetworkCapabilities=["ethernet-switching","vlan"];
 const empty=v=>v===undefined||v===null||v==="";
 const cableConnectors=[
  "rj45-male","rj45-female","usb-a-plug","usb-a-socket",
@@ -42,6 +42,36 @@ const portTypes={
 };
 const portGroupValid=g=>g&&Object.hasOwn(portTypes,g.type)&&/^[A-Za-z][A-Za-z0-9_-]{0,19}$/.test(g.prefix||"")&&Number.isInteger(g.count)&&g.count>=1&&g.count<=128&&Number.isInteger(g.start)&&g.start>=0&&g.start<=9999;
 const portNames=g=>Array.from({length:g.count},(_,i)=>g.prefix+String(g.start+i).padStart(g.digits,"0"));
+const isRj45=p=>p?.type==="ethernet-rj45"&&p?.medium==="ethernet";
+const vlanDefault=asset=>({
+ assetId:asset.id,vlans:[{id:"vlan-1",number:1,name:"Défaut"}],nextVlanId:2,
+ ports:Object.fromEntries(asset.ports.filter(isRj45).map(p=>[p.id,{mode:"access",vlanId:"vlan-1"}]))
+});
+function validVlanConfiguration(asset,config){
+ if(!asset.networkCapabilities?.includes("vlan")||!asset.networkCapabilities.includes("ethernet-switching")||
+    !config||config.assetId!==asset.id||!Array.isArray(config.vlans)||
+    !Number.isInteger(config.nextVlanId)||config.nextVlanId<2||
+    !config.ports||typeof config.ports!=="object"||Array.isArray(config.ports))return false;
+ const ids=new Set(),numbers=new Set();
+ for(const v of config.vlans){
+  if(!v||typeof v.id!=="string"||!v.id||ids.has(v.id)||
+     !Number.isInteger(v.number)||v.number<1||v.number>4094||numbers.has(v.number)||
+     typeof v.name!=="string"||!trim(v.name))return false;
+  ids.add(v.id);numbers.add(v.number);
+ }
+ if(!numbers.has(1))return false;
+ const ports=asset.ports.filter(isRj45).map(p=>p.id);
+ if(ports.length<2||Object.keys(config.ports).length!==ports.length||
+    ports.some(p=>!Object.hasOwn(config.ports,p)))return false;
+ return ports.every(id=>{
+  const v=config.ports[id];
+  if(!v)return false;
+  if(v.mode==="access")return ids.has(v.vlanId);
+  return v.mode==="trunk"&&Array.isArray(v.allowedVlanIds)&&v.allowedVlanIds.length>0&&
+   new Set(v.allowedVlanIds).size===v.allowedVlanIds.length&&
+   v.allowedVlanIds.every(x=>ids.has(x));
+ });
+}
 
 const fieldValid=f=>f&&/^[a-z][a-z0-9_]*$/.test(f.key||"")&&trim(f.label)&&types.includes(f.type)&&(f.type!=="select"||Array.isArray(f.options)&&f.options.length>0&&f.options.every(x=>typeof x==="string"&&trim(x)));
 function valueValid(f,v){
@@ -82,6 +112,8 @@ export function createAssetRegistry(saved){
   a.networkCapabilities??=[]; // Compatibilité avec les inventaires précédents.
   if(!Array.isArray(a.networkCapabilities)||new Set(a.networkCapabilities).size!==a.networkCapabilities.length||
      a.networkCapabilities.some(x=>!supportedNetworkCapabilities.includes(x)))throw Error("Capacités réseau d’équipement invalides");
+  if(a.networkCapabilities.includes("vlan")&&(!a.networkCapabilities.includes("ethernet-switching")||!validVlanConfiguration(a,a.vlanConfig)))throw Error("Configuration VLAN d’équipement invalide");
+  if(!a.networkCapabilities.includes("vlan")&&a.vlanConfig!==undefined)throw Error("VLAN présent sans capacité");
  }
  for(const panel of s.panels){
   if(!panel||typeof panel.id!=="string"||!trim(panel.name)||!placeIds.has(panel.placeId)||
@@ -140,7 +172,11 @@ export function createAssetRegistry(saved){
   if(!p)return result(false,"not_found","Profil introuvable.");
   if(!supportedNetworkCapabilities.includes(capability)||typeof enabled!=="boolean")
    return result(false,"invalid_network_capability","Capacité ou état réseau invalide.");
-  if(enabled && capability==="ethernet-switching" &&
+  if(!enabled&&capability==="ethernet-switching"&&p.networkCapabilities.includes("vlan"))
+   return result(false,"capability_dependency","Désactiver d’abord la capacité VLAN.");
+  if(enabled&&capability==="vlan"&&!p.networkCapabilities.includes("ethernet-switching"))
+   return result(false,"capability_dependency","La capacité VLAN nécessite la commutation Ethernet.");
+  if(enabled && (capability==="ethernet-switching"||capability==="vlan") &&
      p.portGroups.filter(g=>g.type==="ethernet-rj45").reduce((n,g)=>n+g.count,0)<2)
    return result(false,"insufficient_ethernet_ports","Deux ports Ethernet RJ45 au minimum sont nécessaires.");
   const active=p.networkCapabilities.includes(capability);
@@ -218,7 +254,9 @@ export function createAssetRegistry(saved){
   if(names.some(n=>used.has(n)))return result(false,"port_name_exists","Un port de cet équipement porte déjà ce nom.");
   const extensionId="extension-"+s.nextPortGroup++;
   const ports=buildPorts([{...g,id:extensionId}],"extension");
-  a.ports.push(...ports);s.revision++;
+  a.ports.push(...ports);
+  if(a.vlanConfig)for(const p of ports.filter(isRj45))a.vlanConfig.ports[p.id]={mode:"access",vlanId:"vlan-1"};
+  s.revision++;
   return result(true,"extension_added","Carte ou interface d’extension ajoutée.",{extensionId,ports:clone(ports)});
  }
  function removeExtension(assetId,extensionId){
@@ -227,7 +265,9 @@ export function createAssetRegistry(saved){
   const ports=a.ports.filter(p=>p.origin==="extension"&&p.groupId===extensionId);
   if(!ports.length)return result(false,"not_found","Extension introuvable.");
   if(ports.some(p=>p.connectedCableIds?.length))return result(false,"extension_connected","Débrancher les câbles avant de retirer l’extension.");
-  a.ports=a.ports.filter(p=>p.groupId!==extensionId);s.revision++;
+  a.ports=a.ports.filter(p=>p.groupId!==extensionId);
+  if(a.vlanConfig)for(const p of ports.filter(isRj45))delete a.vlanConfig.ports[p.id];
+  s.revision++;
   return result(true,"extension_removed","Extension retirée.");
  }
 
@@ -432,7 +472,14 @@ export function createAssetRegistry(saved){
   const status=info.status||"En service";
   if(!["En service","Hors service","En stock"].includes(status))return result(false,"invalid_status","Statut incorrect.");
   const a={id:"asset-"+s.nextAsset++,profileId,name,manufacturer:trim(info.manufacturer),model:trim(info.model),serialNumber:trim(info.serialNumber),status,location:trim(info.location),placeId:null,reservable:!!info.reservable,values:Object.fromEntries(p.fields.map(f=>[f.key,null])),ports:buildPorts(p.portGroups,"integrated"),networkCapabilities:clone(p.networkCapabilities)};
+  if(a.networkCapabilities.includes("vlan"))a.vlanConfig=vlanDefault(a);
   s.assets.push(a);s.revision++;return result(true,"asset_created","Matériel créé.",{asset:clone(a)});
+ }
+ function setAssetVlanConfig(id,config){
+  const a=getA(id);if(!a)return result(false,"not_found","Équipement introuvable.");
+  if(!validVlanConfiguration(a,config))return result(false,"invalid_vlan_config","Configuration VLAN refusée sans modification.");
+  a.vlanConfig=clone(config);s.revision++;
+  return result(true,"vlan_config_updated","Configuration VLAN enregistrée.",{config:clone(a.vlanConfig)});
  }
  function removeAsset(id){
   const index=s.assets.findIndex(a=>a.id===id);
@@ -460,7 +507,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileNetworkCapability,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,removeAsset,setAssetField,updateAsset,
+ return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileNetworkCapability,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,setAssetVlanConfig,removeAsset,setAssetField,updateAsset,
  listWallOutlets:()=>clone(s.wallOutlets),listPanels:()=>clone(s.panels),getPanel:id=>clone(s.panels.find(p=>p.id===id)||null),listCables:()=>clone(s.cables),getCable:id=>clone(s.cables.find(x=>x.id===id)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);
