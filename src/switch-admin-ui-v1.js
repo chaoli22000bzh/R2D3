@@ -1,143 +1,149 @@
 /*
- * Interface d'administration graphique des switchs L2/L3.
- * Uniquement une vue/commande : les configurations restent dans le registre R2,
- * et les mutations utilisent les adaptateurs réseau R2D3 communs.
+ * Administration graphique des commutateurs L2/L3.
+ * Vue et commandes seulement : aucun état métier propre à l'interface.
+ * Les ports, VLAN et paramètres IPv4 proviennent du registre R2 et des adaptateurs communs.
  */
 import {addSwitchVlan,setSwitchAccessPort,setSwitchTrunkPort} from "./vlan-v1.js";
 import {configureSwitchManagementStatic,configureSwitchManagementDhcp} from "./switch-management-ip-v01.js";
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const num=x=>Number(x);
-const resultLabel=x=>x?.message||x?.reason||x?.code||"Configuration refusée";
-const opts=(items,selected)=>items.map(([v,t])=>'<option value="'+esc(v)+'"'+(String(v)===String(selected)?' selected':'')+'>'+esc(t)+'</option>').join("");
+const opts=(list,value)=>list.map(([id,title])=>'<option value="'+esc(id)+'"'+(String(value)===String(id)?' selected':'')+'>'+esc(title)+'</option>').join("");
+const message=r=>r?.message||r?.reason||r?.code||"Configuration refusée";
 export function mountSwitchAdmin({root,registry,assetId}){
- if(!root||!registry?.getAsset)throw Error("Élément d'affichage ou registre R2 manquant");
- let current=assetId,tab="overview",message="",severity="ok",selectedPort=null;
- const tabTitle={overview:"Vue d'ensemble",ports:"Ports et connexions",vlans:"Réseaux VLAN",management:"Adresse IP de gestion"};
- const portCard=(p,a)=>{
-   const state=a.vlanConfig.ports[p.id];
-   const connected=registry.listCables().some(c=>c.ends.some(end=>end?.portId===p.id));
-   const currentVlan=state.mode==="access"?
-     "Access · VLAN "+(a.vlanConfig.vlans.find(v=>v.id===state.vlanId)?.number??"?"):
-     "Trunk · "+state.allowedVlanIds.length+" VLAN";
-   const chosen=selectedPort===p.id;
-   return '<button type="button" class="face-port'+(chosen?' selected':'')+
-     '" data-port="'+esc(p.id)+'" aria-label="'+esc(p.name)+', '+esc(currentVlan)+', '+(connected?'câble raccordé':'port libre')+
-     '" aria-pressed="'+chosen+'" title="'+esc(p.name+' : '+currentVlan)+'">'+
-     '<span class="port-number">'+esc(p.name)+'</span>'+
-     '<span class="port-socket" aria-hidden="true"><span class="port-pins"></span></span>'+
-     '<span class="port-status '+(connected?'connected':'free')+'">'+(connected?'Raccordé':'Libre')+'</span></button>';
+ if(!root||!registry?.getAsset||!registry?.listCables)throw Error("Interface ou registre réseau indisponible");
+ let id=assetId,page="overview",selectedPort=null,feedback="",feedbackType="ok";
+ const pages={overview:"Vue d’ensemble",ports:"Ports",vlans:"VLAN",management:"IPv4 de gestion"};
+ const get=()=>{const a=registry.getAsset(id);if(!a?.networkCapabilities?.includes("vlan"))throw Error("Commutateur administrable introuvable");return a;};
+ const report=r=>{feedback=message(r);feedbackType=r?.success?"ok":"error";render();};
+ const portInfo=(a,p)=>{
+  const config=a.vlanConfig.ports[p.id],vlan=a.vlanConfig.vlans;
+  const linked=registry.listCables().some(c=>c.ends.some(end=>end?.portId===p.id));
+  const mode=config.mode==="access"?"Access":"Trunk";
+  const number=config.mode==="access"?vlan.find(v=>v.id===config.vlanId)?.number:
+   config.allowedVlanIds.map(x=>vlan.find(v=>v.id===x)?.number).join(", ");
+  return {linked,mode,number};
  };
- const facade=(a,ports)=>'<div class="equipment-front"><div class="front-title"><span class="front-name">SWITCH · '+esc(a.name)+'</span>'+
- '<span class="front-desc">'+ports.length+' ports RJ45</span></div>'+
- '<div class="front-ports" role="group" aria-label="Façade des ports Ethernet">'+ports.map(p=>portCard(p,a)).join("")+'</div>'+
- '<p class="front-help">Sélectionnez un port pour consulter et modifier ses paramètres. L’état « Raccordé » correspond aux câbles réellement branchés.</p></div>';
- function asset(){
-  const a=registry.getAsset(current);
-  if(!a?.networkCapabilities?.includes("vlan"))throw Error("Switch L2/L3 administrable introuvable");
-  return a;
- }
- function notify(out){
-  severity=out?.success?"ok":"error";message=resultLabel(out);
-  if(out?.success)render();
-  else render();
- }
- function render(){
-  const a=asset(),vlans=a.vlanConfig.vlans,ports=a.ports.filter(p=>p.type==="ethernet-rj45");
-  const l3=a.networkCapabilities.includes("inter-vlan-routing"),mg=a.managementConfig;
-  const label=v=>vlans.find(x=>x.id===v)?.number??"?";
-  const tabs=Object.entries(tabTitle).map(([id,name])=>'<button type="button" class="menu-entry" aria-current="'+(tab===id?'page':'false')+'" data-tab="'+id+'">'+name+'</button>').join("");
+ const portGrid=(a,ports)=>'<section class="port-panel" aria-label="Ports Ethernet"><div class="port-panel-head">'+
+   '<strong>Ports Ethernet</strong><span>'+ports.length+' ports RJ45</span></div>'+
+   '<div class="port-bank" role="group" aria-label="Sélection d’un port">'+ports.map((p,i)=>{
+     const info=portInfo(a,p),current=selectedPort===p.id;
+     return '<button type="button" class="mini-port'+(current?' chosen':'')+(info.linked?' linked':'')+
+       '" data-port="'+esc(p.id)+'" aria-label="'+esc(p.name)+', '+(info.linked?'raccordé':'libre')+', '+info.mode+
+       ' VLAN '+esc(info.number)+'" aria-pressed="'+current+'" title="'+esc(p.name+' · '+info.mode+' VLAN '+info.number)+'">'+
+       '<span class="mini-label">'+esc(p.name)+'</span><span class="mini-socket" aria-hidden="true"><span></span></span></button>';
+   }).join("")+'</div>'+
+   '<div class="port-legend"><span><i class="legend-dot up"></i>Raccordé</span><span><i class="legend-dot down"></i>Libre</span></div></section>';
+ const table=(heads,rows)=>'<div class="table-scroll"><table class="admin-table"><thead><tr>'+
+  heads.map(h=>'<th scope="col">'+h+'</th>').join("")+'</tr></thead><tbody>'+rows.join("")+'</tbody></table></div>';
+ const render=()=>{
+  const a=get(),ports=a.ports.filter(p=>p.type==="ethernet-rj45");
+  const vlans=a.vlanConfig.vlans,mg=a.managementConfig,l3=a.networkCapabilities.includes("inter-vlan-routing");
+  if(!ports.some(p=>p.id===selectedPort))selectedPort=ports[0]?.id??null;
+  const menu=Object.entries(pages).map(([key,label])=>'<button type="button" data-page="'+key+
+   '" class="menu-item'+(key===page?' active':'')+'" aria-current="'+(key===page?'page':'false')+'">'+label+'</button>').join("");
   let content="";
-  if(tab==="overview"){
-   content='<div class="stats">'+
-    '<div><span>Type d’équipement</span><strong>'+(l3?"Switch administrable L3":"Switch administrable L2")+'</strong></div>'+
-    '<div><span>Ports Ethernet</span><strong>'+ports.length+'</strong></div>'+
-    '<div><span>Réseaux VLAN</span><strong>'+vlans.length+'</strong></div>'+
-    '<div><span>Alimentation PoE</span><strong>'+(a.poe?"Oui · automatique":"Non")+'</strong></div></div>'+
-    '<h2>Façade du switch</h2>'+facade(a,ports)+
-    '<div class="info-grid"><div class="notice"><strong>Spanning Tree (STP)</strong><p>Actif automatiquement. Aucun réglage nécessaire.</p></div>'+
-    '<div class="notice"><strong>PoE</strong><p>Caractéristique matérielle : '+(a.poe?"activée automatiquement":"non disponible")+'. Aucun réglage par port.</p></div></div>'+
-    (l3?'<div class="notice"><strong>Fonctions L3</strong><p>Les capacités de routage, de DHCP et d’IP Helper sont présentes sur ce modèle. Leur administration sera ajoutée au prochain lot.</p></div>':'');
-  }else if(tab==="vlans"){
-   content='<h2>VLAN du switch</h2><div class="vlan-list">'+vlans.map(v=>'<div class="vlan-line"><strong>VLAN '+esc(v.number)+'</strong><span>'+esc(v.name)+'</span></div>').join("")+'</div>'+
-    '<h3>Créer un VLAN</h3><form data-form="vlan" class="fields"><label>Numéro de VLAN <input type="number" name="number" min="2" max="4094" required placeholder="10"></label>'+
-    '<label>Nom du VLAN <input name="name" required maxlength="50" placeholder="Bureaux"></label><button type="submit" class="primary">Créer le VLAN</button></form>'+
-    '<p class="hint">Les VLAN sont enregistrés sur cet équipement uniquement. VLAN 1 existe par défaut.</p>';
-  }else if(tab==="ports"){
-   if(!selectedPort||!ports.some(p=>p.id===selectedPort))selectedPort=ports[0]?.id??null;
+  if(page==="overview"){
+   const details=[
+    ["Nom",a.name],["Type",l3?"Switch administrable L3":"Switch administrable L2"],
+    ["État",a.status],["Adresse IPv4",mg.address?mg.address+"/"+mg.prefix:mg.mode==="dhcp"?"DHCP · non attribuée":"Non configurée"],
+    ["Mode IPv4",mg.mode==="static"?"Statique":"DHCP"],["PoE",a.poe?"Oui":"Non"],
+    ["Ports RJ45",String(ports.length)],["VLAN",String(vlans.length)]
+   ];
+   content=portGrid(a,ports)+'<section class="admin-panel"><h3>Informations générales</h3>'+
+    '<dl class="device-details">'+details.map(([k,v])=>'<div><dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd></div>').join("")+'</dl></section>';
+  }else if(page==="ports"){
    const p=ports.find(x=>x.id===selectedPort),state=p&&a.vlanConfig.ports[p.id];
-   const active=state?.mode==="access";
-   const currentVlans=state?(active?[label(state.vlanId)]:state.allowedVlanIds.map(label)):[];
-   content='<h2>Façade et configuration des ports</h2>'+facade(a,ports)+
-     (p?'<section class="port-editor"><div class="editor-head"><h3>Configuration du port '+esc(p.name)+'</h3><span>Port actif en permanence</span></div>'+
-      '<form data-form="port" class="fields"><input type="hidden" name="portId" value="'+esc(p.id)+'">'+
-      '<label>Mode du port<select name="mode">'+opts([["access","Access"],["trunk","Trunk"]],state.mode)+'</select></label>'+
-      '<label>VLAN Access ou VLAN Trunk autorisés<input name="vlans" required value="'+esc(currentVlans.join(", "))+'" placeholder="10 ou 10, 20"></label>'+
-      '<button type="submit" class="primary">Enregistrer les paramètres</button></form></section>':'')+
-      '<p class="hint"><strong>Access :</strong> un VLAN. <strong>Trunk :</strong> plusieurs VLAN existants, séparés par des virgules. Aucun bouton de désactivation des ports.</p>';
+   const info=p?portInfo(a,p):null;
+   const all=ports.map(port=>{
+    const z=portInfo(a,port);
+    return '<tr class="'+(port.id===selectedPort?'row-selected':'')+'"><td><button type="button" class="table-port" data-port="'+esc(port.id)+'">'+esc(port.name)+'</button></td>'+
+     '<td><span class="connection '+(z.linked?'on':'off')+'">'+(z.linked?'Raccordé':'Libre')+'</span></td><td>'+z.mode+'</td><td>'+esc(z.number)+'</td></tr>';
+   });
+   const chosen=state.mode==="access"?[vlans.find(v=>v.id===state.vlanId)?.number]:
+    state.allowedVlanIds.map(v=>vlans.find(x=>x.id===v)?.number);
+   content=portGrid(a,ports)+
+    '<section class="admin-panel"><h3>Liste des ports</h3>'+table(["Port","Connexion","Mode","VLAN"],all)+'</section>'+
+    (p?'<section class="admin-panel edit-panel"><h3>Port '+esc(p.name)+'</h3>'+
+     '<form data-form="port" class="form-grid"><input type="hidden" name="portId" value="'+esc(p.id)+'">'+
+     '<label>Mode<select name="mode">'+opts([["access","Access"],["trunk","Trunk"]],state.mode)+'</select></label>'+
+     '<label>VLAN autorisés<input name="vlans" required value="'+esc(chosen.join(", "))+'" placeholder="1 ou 10, 20"></label>'+
+     '<div class="form-actions"><button type="submit" class="primary">Appliquer</button></div></form></section>':'');
+  }else if(page==="vlans"){
+   content='<section class="admin-panel"><h3>VLAN configurés</h3>'+
+    table(["Identifiant","Nom"],vlans.map(v=>'<tr><td>'+esc(v.number)+'</td><td>'+esc(v.name)+'</td></tr>'))+
+    '</section><section class="admin-panel edit-panel"><h3>Ajouter un VLAN</h3>'+
+    '<form data-form="vlan" class="form-grid"><label>Identifiant VLAN<input type="number" name="number" min="2" max="4094" required placeholder="10"></label>'+
+    '<label>Nom<input name="name" maxlength="50" required placeholder="Bureaux"></label>'+
+    '<div class="form-actions"><button class="primary" type="submit">Ajouter</button></div></form></section>';
   }else{
-   const staticMode=mg.mode==="static";
-   content='<h2>Adresse IPv4 de gestion</h2><p>Indépendante du routage des postes.</p><div class="notice">Mode courant : <strong>'+esc(mg.mode==="dhcp"?"DHCP":"Statique")+'</strong>'+
-    (mg.address?' • '+esc(mg.address)+"/"+esc(mg.prefix):"")+'</div>'+
-    '<form data-form="management" class="fields"><label>Mode <select name="mode">'+opts([["static","Statique"],["dhcp","DHCP"]],mg.mode)+'</select></label>'+
-    '<label>Adresse IPv4 (mode statique)<input name="address" inputmode="decimal" placeholder="192.168.1.2" value="'+esc(staticMode?mg.address:"")+'"></label>'+
-    '<label>Préfixe réseau (mode statique)<input type="number" name="prefix" min="1" max="30" placeholder="24" value="'+esc(staticMode?mg.prefix:"")+'"></label>'+
-    '<label>Passerelle (facultative)<input name="gateway" inputmode="decimal" placeholder="192.168.1.1" value="'+esc(staticMode?mg.gateway:"")+'"></label>'+
-    '<label>DNS principal (mode statique)<input name="dns1" inputmode="decimal" placeholder="192.168.1.10" value="'+esc(staticMode?(mg.dns?.[0]??""):"")+'"></label>'+
-    '<label>DNS secondaire (facultatif)<input name="dns2" inputmode="decimal" placeholder="192.168.1.11" value="'+esc(staticMode?(mg.dns?.[1]??""):"")+'"></label>'+
-    '<button type="submit" class="primary">Enregistrer</button></form>'+
-    '<p class="hint">Le mode DHCP est enregistré sur le switch. L’obtention d’un bail nécessite un vrai serveur DHCP raccordé et sera vérifiée dans un scénario de réseau dédié.</p>';
+   const fixed=mg.mode==="static",dns=mg.dns??[];
+   content='<section class="admin-panel edit-panel"><h3>Configuration IPv4</h3>'+
+    '<form data-form="management" class="form-grid" id="switch-management">'+
+    '<label>Mode d’adressage<select name="mode">'+opts([["dhcp","DHCP"],["static","Statique"]],mg.mode)+'</select></label>'+
+    '<label>Adresse IPv4<input name="address" value="'+esc(fixed?mg.address:"")+'" placeholder="192.168.1.2"'+(!fixed?' disabled':'')+'></label>'+
+    '<label>Préfixe réseau<input name="prefix" type="number" min="1" max="30" value="'+esc(fixed?mg.prefix:"")+'" placeholder="24"'+(!fixed?' disabled':'')+'></label>'+
+    '<label>Passerelle<input name="gateway" value="'+esc(fixed?mg.gateway:"")+'" placeholder="192.168.1.1"'+(!fixed?' disabled':'')+'></label>'+
+    '<label>DNS principal<input name="dns1" value="'+esc(fixed?(dns[0]??""):"")+'" placeholder="192.168.1.10"'+(!fixed?' disabled':'')+'></label>'+
+    '<label>DNS secondaire<input name="dns2" value="'+esc(fixed?(dns[1]??""):"")+'" placeholder="192.168.1.11"'+(!fixed?' disabled':'')+'></label>'+
+    '<div class="form-actions"><button type="submit" class="primary">Appliquer</button></div></form></section>'+
+    '<section class="admin-panel compact-panel"><h3>État actuel</h3>'+
+    '<dl class="device-details"><div><dt>Mode</dt><dd>'+esc(fixed?"Statique":"DHCP")+'</dd></div>'+
+    '<div><dt>Adresse</dt><dd>'+esc(mg.address?mg.address+"/"+mg.prefix:"Non attribuée")+'</dd></div>'+
+    '<div><dt>DNS</dt><dd>'+esc(dns.length?dns.join(" · "):"Aucun")+'</dd></div></dl></section>';
   }
-  root.innerHTML='<div class="switch-admin"><div class="switch-shell">'+
-   '<aside class="switch-sidebar"><div class="brand"><span class="brand-glyph" aria-hidden="true">◈</span><span>Administration <strong>réseau</strong></span></div>'+
-   '<p class="sidebar-heading">ADMINISTRATION</p><nav aria-label="Configuration de l’équipement">'+tabs+'</nav>'+
-   '<div class="sidebar-foot">Configuration des équipements</div></aside>'+
-   '<div class="switch-workspace"><header class="switch-top"><div><div class="eyebrow">Équipements réseau / Administration</div>'+
-   '<h1>'+esc(a.name)+'</h1><p>'+esc(l3?"Switch administrable L3":"Switch administrable L2")+
-   ' <span class="state-chip">'+esc(a.status)+'</span></p></div><span class="device-icon" aria-hidden="true">▤</span></header>'+
-   '<main class="switch-content"><div class="section-head"><h2>'+esc(tabTitle[tab])+'</h2><span>Configuration de l’équipement</span></div>'+
-   (message?'<p class="feedback '+severity+'" role="status">'+esc(message)+'</p>':"")+content+'</main></div></div></div>';
- }
+  root.innerHTML='<div class="switch-admin v2"><div class="admin-shell">'+
+    '<aside class="admin-side"><div class="side-title">Équipement</div><nav aria-label="Rubriques d’administration">'+menu+'</nav></aside>'+
+    '<div class="admin-main"><header class="device-bar"><div><h2>'+esc(a.name)+'</h2>'+
+    '<span>'+esc(l3?"Switch L3":"Switch L2")+'</span></div><span class="device-state">'+esc(a.status)+'</span></header>'+
+    '<main class="admin-content"><div class="content-title"><h2>'+esc(pages[page])+'</h2></div>'+
+    (feedback?'<div role="status" class="feedback '+feedbackType+'">'+esc(feedback)+'</div>':"")+content+
+    '</main></div></div></div>';
+ };
  const onClick=e=>{
-  const btn=e.target.closest("[data-tab]");
-  if(btn&&root.contains(btn)){tab=btn.dataset.tab;message="";render();return;}
+  const nav=e.target.closest("[data-page]");
+  if(nav&&root.contains(nav)){page=nav.dataset.page;feedback="";render();return;}
   const port=e.target.closest("[data-port]");
-  if(port&&root.contains(port)){selectedPort=port.dataset.port;tab="ports";message="";render();}
+  if(port&&root.contains(port)){selectedPort=port.dataset.port;page="ports";feedback="";render();}
  };
  const onChange=e=>{
-   const mode=e.target.closest('select[name="mode"]');
-   if(!mode||!root.contains(mode)||!mode.closest('form[data-form="management"]'))return;
-   const form=mode.closest("form");
-   for(const name of ["address","prefix","gateway","dns1","dns2"]){
-     const input=form.elements.namedItem(name);
-     if(input)input.disabled=mode.value==="dhcp";
-   }
+  const field=e.target.closest('select[name="mode"]');
+  if(!field||!root.contains(field)||!field.closest('form[data-form="management"]'))return;
+  const form=field.closest("form");
+  for(const name of ["address","prefix","gateway","dns1","dns2"]){
+   const input=form.elements.namedItem(name);
+   if(input)input.disabled=field.value==="dhcp";
+  }
  };
  const onSubmit=e=>{
-  const form=e.target.closest("form[data-form]");if(!form||!root.contains(form))return;
-  e.preventDefault();const data=new FormData(form),a=asset();let res;
+  const form=e.target.closest("form[data-form]");
+  if(!form||!root.contains(form))return;
+  e.preventDefault();
+  const d=new FormData(form),a=get();let response;
   if(form.dataset.form==="vlan"){
-   res=addSwitchVlan(registry,a.id,num(data.get("number")),String(data.get("name")).trim());
+   response=addSwitchVlan(registry,a.id,Number(d.get("number")),String(d.get("name")).trim());
   }else if(form.dataset.form==="port"){
-   const raw=String(data.get("vlans")).trim();
-   const values=raw.split(",").map(v=>v.trim());
-   const valid=values.every(v=>/^[0-9]{1,4}$/.test(v)&&Number(v)>=1&&Number(v)<=4094);
-   if(!valid||!values.length){notify({success:false,message:"Saisis des numéros de VLAN valides, séparés par des virgules."});return;}
-   const nums=values.map(Number);
-   res=data.get("mode")==="trunk"?
-    setSwitchTrunkPort(registry,a.id,String(data.get("portId")),nums):
-    (nums.length===1?setSwitchAccessPort(registry,a.id,String(data.get("portId")),nums[0]):
-     {success:false,message:"Un port Access appartient à un seul VLAN."});
+   const tokens=String(d.get("vlans")).split(",").map(v=>v.trim());
+   if(!tokens.length||tokens.some(v=>!/^[0-9]{1,4}$/.test(v)||Number(v)<1||Number(v)>4094)){
+     report({success:false,message:"Liste des VLAN incorrecte."});return;
+   }
+   const numbers=tokens.map(Number);
+   response=d.get("mode")==="trunk"?
+     setSwitchTrunkPort(registry,a.id,String(d.get("portId")),numbers):
+     numbers.length===1?setSwitchAccessPort(registry,a.id,String(d.get("portId")),numbers[0]):
+      {success:false,message:"Le mode Access accepte un seul VLAN."};
   }else if(form.dataset.form==="management"){
-   res=data.get("mode")==="dhcp"?configureSwitchManagementDhcp(registry,a.id):
-    configureSwitchManagementStatic(registry,a.id,String(data.get("address")).trim(),
-      num(data.get("prefix")),String(data.get("gateway")).trim()||null,
-      [String(data.get("dns1")).trim(),String(data.get("dns2")).trim()].filter(Boolean));
+   response=d.get("mode")==="dhcp"?configureSwitchManagementDhcp(registry,a.id):
+    configureSwitchManagementStatic(registry,a.id,String(d.get("address")??"").trim(),
+     Number(d.get("prefix")),String(d.get("gateway")??"").trim()||null,
+     [String(d.get("dns1")??"").trim(),String(d.get("dns2")??"").trim()].filter(Boolean));
   }
-  notify(res);
+  report(response);
  };
- root.addEventListener("click",onClick);
- root.addEventListener("submit",onSubmit);
- root.addEventListener("change",onChange);
+ root.addEventListener("click",onClick);root.addEventListener("change",onChange);root.addEventListener("submit",onSubmit);
  render();
- return {refresh:render,setAssetId(id){current=id;tab="overview";selectedPort=null;message="";render();},destroy(){root.removeEventListener("click",onClick);root.removeEventListener("submit",onSubmit);root.removeEventListener("change",onChange);root.replaceChildren();}};
+ return {
+  refresh:render,
+  setAssetId(nextId){id=nextId;page="overview";selectedPort=null;feedback="";render();},
+  destroy(){root.removeEventListener("click",onClick);root.removeEventListener("change",onChange);
+   root.removeEventListener("submit",onSubmit);root.replaceChildren();}
+ };
 }
