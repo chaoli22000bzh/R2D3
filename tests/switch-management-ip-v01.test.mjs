@@ -121,7 +121,7 @@ test("IP gestion 10 : sans réponse DHCP, le vrai Core place le switch en APIPA"
  good(syncSwitchManagementDhcp(f.r,f.sw.id,f.engine));
  const state=getSwitchManagement(f.r,f.sw.id);
  assert.equal(state.mode,"dhcp");
- assert.match(state.address,/^169\\.254\\./);
+ assert.match(state.address,/^169\.254\./);
  assert.equal(state.prefix,16);
  assert.equal(state.lease,null);
  assert.equal(f.engine.getSnapshot().runtime[f.sw.id].dhcpStatus,"apipa");
@@ -150,7 +150,7 @@ test("IP gestion 11 : câble coupé conserve bail à T1/T2 et APIPA à expiratio
  assert.equal(expiry.status,"applied");
  good(syncSwitchManagementDhcp(f.r,f.sw.id,f.engine));
  const state=getSwitchManagement(f.r,f.sw.id);
- assert.equal(state.mode,"dhcp");assert.match(state.address,/^169\\.254\\./);
+ assert.equal(state.mode,"dhcp");assert.match(state.address,/^169\.254\./);
  assert.equal(state.prefix,16);assert.equal(state.lease,null);
  assert.equal(f.engine.getSnapshot().runtime[f.sw.id].dhcpLeasePhase,"expired-apipa");
 });
