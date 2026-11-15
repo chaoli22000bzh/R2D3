@@ -33,7 +33,7 @@ function setup(){
  const config=enabled=>good(configureSwitchDhcp(r,sw.id,{enabled,pools}));
  const build=()=>{
   const client=x=>({id:x.id,kind:"pc-windows",name:x.name,ports:[{id:x.ports[0].id,type:"rj45"}],
-   config:{ipv4:{interfaceId:x.ports[0].id,mode:"dhcp",address:null,prefix:null,lease:null},
+   config:{macAddress:x.id===pc1.id?"02-00-00-00-10-01":"02-00-00-00-20-01",ipv4:{interfaceId:x.ports[0].id,mode:"dhcp",address:null,prefix:null,lease:null},
     networkOptions:{gateway:null,dns:[]}}});
   const scenario={format:"r2d3-scenario",schemaVersion:1,scenarioId:"dhcp-switch-l3",
    scenarioVersion:"1",capabilities:{network:true},
@@ -106,4 +106,31 @@ test("DHCP L3 : mauvais VLAN, IP passerelle et absence de synchro Core refusés"
  good(setSwitchVlanInterface(f.r,f.sw.id,10,"192.168.10.1",24,true));
  f.config(false);
  assert.equal(f.request(e,f.pc1.id).code,"out_of_sync");
+});
+
+test("DHCP L3 : exclusions et réservations restent celles du Core commun",()=>{
+ const f=setup();
+ f.pools[0].exclusions=["192.168.10.100"];
+ f.pools[0].reservations=[{mac:"02-00-00-00-10-01",address:"192.168.10.103"}];
+ f.config(true);const e=f.build();
+ assert.equal(f.request(e,f.pc1.id).address,"192.168.10.103");
+ const leases=e.query({type:"dhcp.leases",serverId:f.sw.id});
+ assert.equal(leases.leases.length,1);
+ assert.equal(leases.leases[0].address,"192.168.10.103");
+});
+test("DHCP L3 : un bail déjà attribué reste conservé à T1/T2",()=>{
+ const f=setup();f.config(true);const e=f.build();
+ const first=f.request(e,f.pc1.id);good(first);
+ const cut=e.dispatch({commandVersion:1,id:"cut",type:"network.setLinkConnected",
+  targetId:f.c1.id,params:{connected:false}});
+ assert.equal(cut.status,"applied");
+ for(const seconds of [1800,1350]){
+  assert.equal(e.dispatch({commandVersion:1,id:"advance-"+seconds,type:"simulation.advanceTime",
+   targetId:"simulation-clock",params:{seconds}}).status,"applied");
+  assert.equal(e.getSnapshot().objectsById[f.pc1.id].config.ipv4.address,first.address);
+ }
+ assert.equal(e.getSnapshot().runtime[f.pc1.id].dhcpLeasePhase,"t2-failed");
+ assert.equal(e.dispatch({commandVersion:1,id:"expire",type:"simulation.advanceTime",
+  targetId:"simulation-clock",params:{seconds:450}}).status,"applied");
+ assert.match(e.getSnapshot().objectsById[f.pc1.id].config.ipv4.address,/^169\\.254\\./);
 });
