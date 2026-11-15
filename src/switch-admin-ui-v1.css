@@ -1,70 +1,58 @@
-/* R2D3 : panneau commun d'administration réseau, rendu clair inspiré des interfaces professionnelles.
- * Texte de 16 px minimum, focus clavier visible, état indiqué avec texte et non couleur seule.
- */
-.switch-admin{--sw-bg:#f2f5f7;--sw-panel:#fff;--sw-ink:#23313a;--sw-muted:#526572;--sw-stroke:#d6e0e5;--sw-green:#18875b;--sw-green-light:#e8f5ee;font:normal 16px/1.55 system-ui,"Segoe UI",Arial,sans-serif;color:var(--sw-ink);background:var(--sw-bg);border:1px solid var(--sw-stroke);border-radius:12px;overflow:hidden}
+/* Administration réseau V2 : interface constructeur sobre, façade RJ45 dense.
+ * Les états câblés viennent du registre, aucun débit/lien négocié fictif. */
+.switch-admin{--ink:#25343d;--muted:#52646d;--line:#dce4e8;--green:#16865d;--soft:#f7f9fa;font:16px/1.5 system-ui,"Segoe UI",Arial,sans-serif;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:7px;overflow:hidden}
 .switch-admin *{box-sizing:border-box}
-.switch-shell{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:650px}
-.switch-sidebar{background:#fff;border-right:1px solid var(--sw-stroke);display:flex;flex-direction:column;padding:22px 13px 16px;gap:12px}
-.brand{font-size:21px;font-weight:700;display:flex;gap:10px;align-items:center;padding:0 9px 22px;border-bottom:1px solid var(--sw-stroke)}
-.brand strong{color:var(--sw-green)}
-.brand-glyph{background:var(--sw-green-light);color:#13754d;border-radius:10px;width:40px;height:40px;display:grid;place-items:center;font-size:28px}
-.sidebar-heading{font-size:16px;font-weight:700;color:var(--sw-muted);margin:12px 10px 0}
-.switch-sidebar nav{display:grid;gap:5px}
-.switch-sidebar .menu-entry{text-align:left;border:0;background:transparent;color:var(--sw-ink);font:600 16px/1.5 inherit;font-family:inherit;font-size:16px;font-weight:600;padding:14px 13px;min-height:50px;border-radius:8px;cursor:pointer}
-.switch-sidebar .menu-entry[aria-current=page]{background:var(--sw-green-light);color:#106640;border-left:4px solid var(--sw-green);padding-left:9px}
-.switch-sidebar .menu-entry:hover{background:#eaf2f2}
-.sidebar-foot{margin-top:auto;border-top:1px solid var(--sw-stroke);padding:18px 10px 0;color:var(--sw-muted)}
-.switch-workspace{min-width:0;background:var(--sw-bg)}
-.switch-top{display:flex;align-items:center;justify-content:space-between;gap:20px;background:var(--sw-panel);border-bottom:1px solid var(--sw-stroke);padding:26px 30px}
-.switch-top h1{font-size:clamp(25px,3vw,32px);line-height:1.25;margin:6px 0}
-.switch-top p{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:12px}
-.eyebrow{font-size:16px;color:var(--sw-muted)}
-.device-icon{font-size:38px;line-height:1;color:#317d62;border:1px solid #b5d8c3;border-radius:12px;background:#edf8f1;padding:10px 15px}
-.state-chip{font-size:16px;border-radius:25px;background:var(--sw-green-light);padding:3px 13px;color:#11613e;font-weight:700}
-.switch-content{padding:26px 30px;min-height:510px}
-.section-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:22px}
-.section-head h2{font-size:23px;line-height:1.3;margin:0}
-.section-head span{font-size:16px;color:var(--sw-muted)}
-.switch-content>h2{font-size:21px;margin:25px 0 14px}
-.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:24px}
-.stats>div{background:var(--sw-panel);border:1px solid var(--sw-stroke);border-radius:10px;padding:18px 20px}
-.stats span{display:block;color:var(--sw-muted);font-size:16px}
-.stats strong{display:block;font-size:21px;line-height:1.4;margin-top:7px}
-.equipment-front{padding:22px 20px 16px;background:#27353e;border-radius:12px;border:3px solid #3c4c53;color:#fff;margin:14px 0 23px}
-.front-title{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:16px}
-.front-name{font-size:18px;font-weight:750;letter-spacing:.025em}
-.front-desc{color:#ecf2f4}
-.front-ports{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.face-port{appearance:none;border:2px solid #819198;background:#33434c;border-radius:9px;color:#fff;padding:8px 8px 10px;display:grid;place-items:center;gap:7px;min-height:116px;cursor:pointer;font:inherit;min-width:0}
-.face-port:hover,.face-port.selected{border-color:#7ee8af;background:#3a5357}
-.port-number{font-size:16px;font-weight:750;overflow-wrap:anywhere}
-.port-socket{position:relative;display:block;width:54px;height:35px;border:3px solid #9fafb6;background:#15212b;border-radius:4px 4px 8px 8px;box-shadow:inset 0 4px 0 #263b44}
-.port-socket:before{content:"";position:absolute;width:23px;height:8px;background:#15212b;top:-7px;left:12px;border:2px solid #9fafb6;border-bottom:0;border-radius:3px 3px 0 0}
-.port-pins{display:block;position:absolute;bottom:3px;left:6px;width:35px;height:7px;background:repeating-linear-gradient(90deg,#c4a65e 0 3px,transparent 3px 5px)}
-.port-status{font-size:16px;font-weight:650;text-align:center}
-.port-status.connected{color:#94edb7}.port-status.free{color:#e4ecee}
-.front-help{margin:17px 0 0;color:#e2edf1;font-size:16px}
-.info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
-.notice{border:1px solid var(--sw-stroke);border-radius:10px;background:var(--sw-panel);padding:15px 17px;margin-bottom:13px}
-.notice strong{font-size:17px}
-.notice p{margin:5px 0 0}
-.vlan-list{display:grid;gap:10px;margin-bottom:21px}
-.vlan-line{display:flex;gap:15px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid var(--sw-stroke);border-radius:8px;padding:13px 16px}
-.vlan-line strong{min-width:90px}
-.switch-content h3{font-size:20px;margin:22px 0 12px}
-.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;max-width:790px;align-items:end}
-.fields label{display:grid;gap:8px;font-weight:650;font-size:16px}
-.switch-admin input,.switch-admin select{display:block;width:100%;min-width:0;border:1px solid #859aa5;border-radius:8px;background:#fff;color:var(--sw-ink);font:inherit;font-size:17px;min-height:48px;padding:10px 12px}
-.switch-admin button[type=submit]{font:inherit;font-size:16px;font-weight:750;min-height:48px;padding:11px 16px;border:1px solid #2c7660;background:#f3faf6;color:#155c42;border-radius:8px;cursor:pointer}
-.switch-admin .primary{color:#fff!important;background:#167f55!important}
-.switch-admin button:focus-visible,.switch-admin input:focus-visible,.switch-admin select:focus-visible{outline:3px solid #ecb433;outline-offset:3px}
-.port-editor{background:#fff;border:1px solid var(--sw-stroke);border-radius:10px;padding:19px 20px}
-.editor-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:13px}
-.editor-head h3{margin:0}
-.editor-head span{color:var(--sw-muted)}
-.feedback{border-left:5px solid var(--sw-green);background:#eaf5ee;padding:13px 17px;border-radius:6px;margin-bottom:20px}
-.feedback.error{border-color:#bd563f;background:#fff0ec}
-.hint{font-size:16px;color:var(--sw-muted);margin:15px 0 0}
-@media(max-width:900px){.switch-shell{grid-template-columns:205px minmax(0,1fr)}.switch-content{padding:19px}.switch-top{padding:20px}.front-ports{gap:8px}.face-port{min-height:112px}}
-@media(max-width:680px){.switch-shell{display:block}.switch-sidebar{padding:12px;border-right:0;border-bottom:1px solid var(--sw-stroke)}.brand{padding:0 7px 10px}.sidebar-heading,.sidebar-foot{display:none}.switch-sidebar nav{display:flex;gap:5px;overflow-x:auto}.switch-sidebar .menu-entry{flex:0 0 auto}.switch-top{padding:18px}.switch-content{padding:16px}.front-ports{grid-template-columns:repeat(2,minmax(0,1fr))}.stats,.fields,.info-grid{grid-template-columns:1fr}.equipment-front{padding:15px 12px}.port-status,.port-number{font-size:16px}}
-@media(prefers-reduced-motion:no-preference){.switch-sidebar .menu-entry,.face-port{transition:background .12s ease,border-color .12s ease}}
+.admin-shell{display:grid;grid-template-columns:185px minmax(0,1fr);min-height:560px}
+.admin-side{border-right:1px solid var(--line);background:#f9fbfb;padding:18px 9px}
+.side-title{text-transform:uppercase;color:#596a72;letter-spacing:.03em;font-weight:700;font-size:15px;padding:8px 13px 17px}
+.admin-side nav{display:grid;gap:4px}
+.switch-admin .menu-item{display:block;width:100%;min-height:45px;text-align:left;border:0;border-radius:5px;background:transparent;padding:10px 13px;color:var(--ink);font:600 16px/1.4 inherit;font-family:inherit;font-size:16px;font-weight:600;cursor:pointer}
+.switch-admin .menu-item:hover{background:#ebf1ef}
+.switch-admin .menu-item.active{background:#e6f3ec;border-left:3px solid var(--green);color:#12613f;padding-left:10px}
+.admin-main{min-width:0;background:#fff}
+.device-bar{min-height:88px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:14px;padding:19px 25px}
+.device-bar h2{margin:0 0 2px;font-size:25px;line-height:1.2}
+.device-bar span{color:var(--muted);font-size:16px}
+.device-bar .device-state{border:1px solid #bad9c6;border-radius:20px;background:#e9f5ed;padding:5px 13px;font-weight:700;color:#116e48}
+.admin-content{background:#fff;padding:21px 25px 34px}
+.content-title{border-bottom:1px solid var(--line);padding-bottom:15px;margin-bottom:19px}
+.content-title h2{font-size:21px;margin:0}
+.port-panel{background:#fff;border:1px solid var(--line);border-radius:6px;padding:14px 18px;margin-bottom:20px}
+.port-panel-head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:13px}
+.port-panel-head strong{font-size:17px}
+.port-panel-head span{color:var(--muted)}
+.port-bank{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:7px;max-width:725px;justify-content:start}
+.switch-admin .mini-port{font:inherit;min-height:77px;min-width:0;background:#f2f5f6;border:1px solid #c2cdd1;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:5px 2px;cursor:pointer}
+.switch-admin .mini-port.chosen{outline:2px solid #13875b;outline-offset:0;background:#e8f5ee}
+.switch-admin .mini-port.linked .mini-socket{border-color:#23a879}
+.switch-admin .mini-port .mini-label{font-size:15px;font-weight:700;line-height:1.2;color:#33424b}
+.mini-socket{position:relative;display:block;width:28px;height:25px;background:#34434b;border:2px solid #72838e;border-radius:2px}
+.mini-socket:before{position:absolute;content:"";width:12px;height:6px;top:-5px;left:6px;border:2px solid #72838e;border-bottom:0;background:#34434b}
+.mini-socket span{position:absolute;bottom:3px;left:4px;width:16px;height:4px;background:repeating-linear-gradient(90deg,#d8b766 0 2px,transparent 2px 4px)}
+.port-legend{display:flex;gap:20px;flex-wrap:wrap;margin-top:12px;color:var(--muted);font-size:15px}
+.port-legend span{display:flex;align-items:center;gap:7px}
+.legend-dot{width:10px;height:10px;border-radius:2px;display:inline-block;border:1px solid #8496a1}
+.legend-dot.up{background:#23a879;border-color:#23a879}.legend-dot.down{background:#cbd5d9}
+.admin-panel{background:#fff;border:1px solid var(--line);border-radius:6px;padding:17px 19px;margin:0 0 18px}
+.admin-panel h3{font-size:18px;font-weight:700;margin:0 0 13px}
+.device-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px;margin:0}
+.device-details>div{display:grid;grid-template-columns:minmax(120px,42%) 1fr;gap:12px;border-top:1px solid #edf1f3;min-height:49px;align-items:center;padding:9px 0}
+.device-details dt{color:var(--muted)}.device-details dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.admin-table{border-collapse:collapse;width:100%;font-size:16px}
+.table-scroll{overflow-x:auto}
+.admin-table th{text-align:left;background:#f2f5f7;border-block:1px solid var(--line);padding:10px 12px;white-space:nowrap}
+.admin-table td{padding:9px 12px;border-bottom:1px solid #e8eff1}
+.admin-table .row-selected{background:#f3faf6}
+.switch-admin .table-port{border:0;background:transparent;font:inherit;font-weight:700;color:#14754e;cursor:pointer;text-decoration:underline;text-underline-offset:3px;padding:3px}
+.connection{white-space:nowrap}.connection.on{color:#12764e;font-weight:700}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px 20px;align-items:end;max-width:760px}
+.form-grid label{font-size:16px;font-weight:600;display:grid;gap:6px}
+.switch-admin input,.switch-admin select{font:inherit;min-height:45px;width:100%;border:1px solid #93a6af;background:#fff;color:var(--ink);padding:8px 10px;border-radius:5px}
+.switch-admin input:disabled{background:#f2f4f5;color:#788891;border-color:#c9d3d7}
+.form-actions{grid-column:1/-1;display:flex;justify-content:flex-start}
+.switch-admin .primary{font:inherit;font-weight:700;min-height:43px;border:1px solid #147c56;border-radius:5px;padding:9px 23px;background:#16865d;color:#fff;cursor:pointer}
+.switch-admin button:focus-visible,.switch-admin input:focus-visible,.switch-admin select:focus-visible{outline:3px solid #dda524;outline-offset:3px}
+.feedback{padding:12px 16px;border-left:4px solid var(--green);background:#edf8f1;margin-bottom:16px}
+.feedback.error{background:#fff2ec;border-color:#c66040}
+@media(max-width:950px){.admin-shell{grid-template-columns:165px minmax(0,1fr)}.admin-content{padding:17px}.port-bank{gap:5px}.device-details{grid-template-columns:1fr}}
+@media(max-width:660px){.admin-shell{display:block}.admin-side{padding:8px;border-right:0;border-bottom:1px solid var(--line)}.side-title{display:none}.admin-side nav{display:flex;overflow-x:auto}.switch-admin .menu-item{flex:0 0 auto;white-space:nowrap;width:auto}.device-bar{padding:15px 17px}.admin-content{padding:15px}.port-bank{grid-template-columns:repeat(4,minmax(0,1fr))}.form-grid{grid-template-columns:1fr}.device-details>div{grid-template-columns:40% 1fr}}
