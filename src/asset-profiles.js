@@ -303,6 +303,17 @@ export function createAssetRegistry(saved){
    return result(false,"capability_dependency","Désactiver d’abord la capacité VLAN.");
   if(enabled&&capability==="vlan"&&!p.networkCapabilities.includes("ethernet-switching"))
    return result(false,"capability_dependency","La capacité VLAN nécessite la commutation Ethernet.");
+  // Un switch ne peut relayer DHCP que s'il possède le routage L3.
+  // Les profils non-switch conservent IP Helper pour les futurs routeurs.
+  if(enabled&&capability==="ethernet-switching"&&p.networkCapabilities.includes("ip-helper")&&
+     !p.networkCapabilities.includes("inter-vlan-routing"))
+   return result(false,"capability_dependency","Retirer IP Helper avant de créer un switch sans capacité L3.");
+  if(enabled&&capability==="ip-helper"&&p.networkCapabilities.includes("ethernet-switching")&&
+     !p.networkCapabilities.includes("inter-vlan-routing"))
+   return result(false,"capability_dependency","IP Helper sur un switch nécessite un modèle L3.");
+  if(!enabled&&capability==="inter-vlan-routing"&&p.networkCapabilities.includes("ethernet-switching")&&
+     p.networkCapabilities.includes("ip-helper"))
+   return result(false,"capability_dependency","Retirer d'abord IP Helper avant de supprimer le routage L3.");
   if(enabled&&capability==="ip-helper"&&
      p.portGroups.filter(g=>g.type==="ethernet-rj45"||g.type==="ethernet-fibre").reduce((n,g)=>n+g.count,0)<1)
    return result(false,"insufficient_ethernet_ports","IP Helper nécessite une interface Ethernet.");
