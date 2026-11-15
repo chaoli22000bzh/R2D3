@@ -73,7 +73,7 @@ function validVlanConfiguration(asset,config){
  });
 }
 
-const validIPv4=value=>typeof value==="string"&&value.split(".").length===4&&value.split(".").every(o=>/^\\d{1,3}$/.test(o)&&Number(o)<=255);
+const validIPv4=value=>typeof value==="string"&&value.split(".").length===4&&value.split(".").every(o=>/^\d{1,3}$/.test(o)&&Number(o)<=255);
 function validRoutingConfiguration(asset,config){
  if(!asset.networkCapabilities?.includes("inter-vlan-routing")||!asset.networkCapabilities.includes("vlan")||
     !config||config.assetId!==asset.id||typeof config.routingEnabled!=="boolean"||
@@ -81,7 +81,7 @@ function validRoutingConfiguration(asset,config){
  const vlanNumbers=new Set(asset.vlanConfig?.vlans?.map(v=>v.number));
  for(const [key,v] of Object.entries(config.interfaces)){
   const number=Number(key);
-  if(!/^(?:[1-9]\\d{0,3})$/.test(key)||number>4094||!vlanNumbers.has(number)||!v||
+  if(!/^(?:[1-9]\d{0,3})$/.test(key)||number>4094||!vlanNumbers.has(number)||!v||
      !validIPv4(v.address)||!Number.isInteger(v.prefix)||v.prefix<1||v.prefix>30||
      typeof v.enabled!=="boolean")return false;
  }
