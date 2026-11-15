@@ -57,3 +57,34 @@
 .edit-panel{padding-top:15px;border-top:1px solid var(--line)}
 .compact-panel{padding-top:15px;border-top:1px solid var(--line)}
 @media(max-width:720px){.device-bar{padding:14px}.device-tabs{padding:0 14px;gap:15px}.admin-content{padding:16px 14px}.device-details,.form-grid{grid-template-columns:1fr}.port-bank{gap:5px}}
+
+/* V4 : conventions visuelles observées dans Omada 6.x :
+   barre supérieure verte, fiche d'équipement, onglets contextuels,
+   ports impairs/pairs superposés et tableaux sans décor scolaire. */
+.switch-admin.v4{border:0;border-radius:0;box-shadow:none;background:#fff}
+.v4 .network-topbar{height:48px;display:flex;align-items:center;gap:11px;background:#078c6d;color:#fff;padding:0 19px}
+.v4 .network-symbol{font-size:22px;line-height:1;color:#d7faec}
+.v4 .network-product{font-size:16px;font-weight:600;letter-spacing:.01em}
+.v4 .device-bar{padding:16px 22px;border-bottom:1px solid #e6e9eb;background:#fff}
+.v4 .device-ident{display:flex;align-items:center;gap:14px}
+.v4 .device-glyph{font-size:24px;color:#7f969e;border:1px solid #d7e1e5;border-radius:5px;width:48px;height:44px;display:grid;place-items:center;background:#f4f7f8}
+.v4 .device-label{display:grid;gap:4px}
+.v4 .device-label h2{font-size:20px;margin:0;line-height:1.2;font-weight:650}
+.v4 .device-label span{font-size:15px;color:#667a80}
+.v4 .device-state{font-size:14px;border-radius:4px;padding:5px 10px;background:#eaf7f0}
+.v4 .device-tabs{padding:0 22px;gap:26px}
+.v4 .admin-content{padding:18px 23px 30px}
+.v4 .port-panel{border:1px solid #e3e8ea;border-radius:5px;background:#fff;padding:14px 16px;margin-bottom:18px}
+.v4 .port-panel-head{margin-bottom:11px}
+.v4 .port-bank{display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,47px);grid-auto-columns:44px;grid-template-columns:none;column-gap:5px;row-gap:2px;justify-content:start;overflow-x:auto;padding:3px 4px 7px;max-width:100%;min-height:0}
+.v4 .mini-port{width:43px;height:46px!important;min-height:0;gap:3px!important;padding:2px!important}
+.v4 .mini-port .mini-label{font-size:13px;font-weight:650}
+.v4 .mini-socket{width:24px;height:22px}
+.v4 .port-legend{margin-top:10px}
+.v4 .admin-panel h3{color:#455a61;font-size:16px}
+.v4 .admin-table th{background:#f8fafb;color:#526872;font-weight:600}
+.v4 .admin-table td{padding:7px 12px}
+.v4 .device-details>div{min-height:36px}
+.v4 .edit-panel{padding-top:14px}
+.v4 .form-grid{max-width:730px}
+@media(max-width:720px){.v4 .device-bar{padding:12px 15px}.v4 .network-topbar{padding:0 15px}.v4 .admin-content{padding:14px}.v4 .device-tabs{padding:0 14px;gap:18px}.v4 .port-panel{padding:12px}}

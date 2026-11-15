@@ -90,9 +90,10 @@ export function mountSwitchAdmin({root,registry,assetId}){
     '<div><dt>Adresse</dt><dd>'+esc(mg.address?mg.address+"/"+mg.prefix:"Non attribuée")+'</dd></div>'+
     '<div><dt>DNS</dt><dd>'+esc(dns.length?dns.join(" · "):"Aucun")+'</dd></div></dl></section>';
   }
-  root.innerHTML='<div class="switch-admin v3">'+
-    '<header class="device-bar"><div class="device-ident"><h2>'+esc(a.name)+'</h2><span>'+esc(l3?"Switch L3":"Switch L2")+
-    '</span><span class="device-state">'+esc(a.status)+'</span></div></header>'+
+  root.innerHTML='<div class="switch-admin v4">'+
+    '<div class="network-topbar"><span class="network-symbol" aria-hidden="true">◈</span><span class="network-product">Administration réseau</span></div>'+
+    '<header class="device-bar"><div class="device-ident"><span class="device-glyph" aria-hidden="true">▤</span><div class="device-label"><h2>'+esc(a.name)+'</h2><span>'+esc(l3?"Switch administrable L3":"Switch administrable L2")+
+    '</span></div></div><span class="device-state">'+esc(a.status)+'</span></header>'+
     '<nav class="device-tabs" aria-label="Rubriques d’administration">'+menu+'</nav>'+
     '<main class="admin-content">'+
     (feedback?'<div role="status" class="feedback '+feedbackType+'">'+esc(feedback)+'</div>':"")+content+
