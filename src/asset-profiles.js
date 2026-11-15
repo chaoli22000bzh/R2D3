@@ -121,7 +121,7 @@ function validManagement(asset,c){
    c.prefix>=1&&c.prefix<=30&&
    (c.gateway===null||validIPv4(c.gateway)&&sameNet(c.address,c.gateway,c.prefix))&&c.lease===null;
  return (c.address===null&&c.prefix===null&&c.gateway===null&&c.lease===null)||
-   (typeof c.address==="string"&&/^169\\.254\\./.test(c.address)&&validIPv4(c.address)&&
+   (typeof c.address==="string"&&/^169\.254\./.test(c.address)&&validIPv4(c.address)&&
     c.prefix===16&&c.gateway===null&&c.lease===null)||
    (validIPv4(c.address)&&Number.isInteger(c.prefix)&&c.prefix>=1&&c.prefix<=30&&
     (c.gateway===null||validIPv4(c.gateway))&&c.lease&&typeof c.lease==="object"&&
