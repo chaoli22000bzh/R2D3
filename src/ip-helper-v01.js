@@ -1,3 +1,4 @@
+import {relayDhcpViaCommonEngine} from "./dhcp-relay-common-v01.js";
 /*
  * IP Helper V0.1 : relais DHCP entre deux VLAN Access d'un même switch L3.
  * Ne contient aucun allocateur DHCP : l'attribution et les baux sont gérés
@@ -77,32 +78,10 @@ export function requestRelayedDhcp({
  const helper=helperConfig.helpers[String(c.number)];
  if(!helper?.enabled)return reject("IP Helper absent ou désactivé sur le VLAN client");
  if(helper.serverAddress!==serverAddress)return reject("Adresse IP Helper incorrecte");
- const snapshot=dhcpEngine.getSnapshot();
- const dhcpServer=snapshot.objectsById?.[serverId];
- const dhcpClient=snapshot.objectsById?.[clientId];
- if(!dhcpServer||!dhcpClient)return unsupported("Serveur ou client DHCP absent du moteur commun");
- if(dhcpServer.config?.ipv4?.address!==serverAddress)
-  return reject("Adresse réelle du serveur DHCP différente de l'IP Helper");
- if(dhcpClient.config?.ipv4?.mode!=="dhcp")
-  return unsupported("Client non configuré en DHCP");
- const pools=dhcpEngine.query({type:"dhcp.pools",serverId});
- if(pools.status!=="ok"||!pools.enabled)return reject("Service DHCP indisponible");
- const matching=pools.pools.filter(p=>same(network(p.start,p.prefix),clientNet)&&same(network(p.end,p.prefix),clientNet));
- if(matching.length!==1)return reject(matching.length===0?"Aucune plage DHCP pour le VLAN client":"Plusieurs plages candidates ambiguës");
- const pool=matching[0];
- // L'ID est sélectionné depuis le réseau réel du SVI client, jamais depuis
- // la première plage ni depuis l'adresse de l'interface serveur.
- const result=dhcpEngine.dispatch({commandVersion:1,id:commandId||"helper-"+String(snapshot.revision+1),
-  type:"dhcp.request",targetId:clientId,params:{serverId,poolId:pool.id}});
- if(result.status!=="applied")
-  return reject(result.message||result.code||"Moteur DHCP : requête refusée",
-   result.status==="rejected"?"unavailable":"ok");
- const after=dhcpEngine.getSnapshot();
- const clientAfter=after.objectsById[clientId];
- const status=after.runtime?.[clientId]?.dhcpStatus;
- return {status:"ok",success:status==="lease",reason:status==="lease"?
-  "Bail attribué par le moteur DHCP commun":"Échec DHCP : "+(after.runtime?.[clientId]?.error||status||"aucun bail"),
-  poolId:pool.id,clientVlan:c.number,serverVlan:s.number,
-  address:clientAfter.config.ipv4.address,dhcpStatus:status,
-  lease:copy(clientAfter.config.ipv4.lease)};
+ return relayDhcpViaCommonEngine({
+  dhcpEngine,clientId,serverId,serverAddress,commandId,
+  clientNetwork:{address:clientSvi.address,prefix:clientSvi.prefix},
+  helper,
+  transport:{kind:"vlan",reachable:true}
+ });
 }
