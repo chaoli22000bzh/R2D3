@@ -23,15 +23,15 @@ export function mountSwitchAdmin({root,registry,assetId}){
   return {linked,mode,number};
  };
  const portGrid=(a,ports)=>'<section class="port-panel" aria-label="Ports Ethernet"><div class="port-panel-head">'+
-   '<strong>Ports Ethernet</strong><span>'+ports.length+' ports RJ45</span></div>'+
+   '<strong>Ports</strong><span>'+ports.length+' × RJ45</span></div>'+
    '<div class="port-bank" role="group" aria-label="Sélection d’un port">'+ports.map((p,i)=>{
      const info=portInfo(a,p),current=selectedPort===p.id;
      return '<button type="button" class="mini-port'+(current?' chosen':'')+(info.linked?' linked':'')+
        '" data-port="'+esc(p.id)+'" aria-label="'+esc(p.name)+', '+(info.linked?'raccordé':'libre')+', '+info.mode+
        ' VLAN '+esc(info.number)+'" aria-pressed="'+current+'" title="'+esc(p.name+' · '+info.mode+' VLAN '+info.number)+'">'+
-       '<span class="mini-label">'+esc(p.name)+'</span><span class="mini-socket" aria-hidden="true"><span></span></span></button>';
+       '<span class="mini-label">'+esc(p.name.replace(/^GE0?/,""))+'</span><span class="mini-socket" aria-hidden="true"><span></span></span></button>';
    }).join("")+'</div>'+
-   '<div class="port-legend"><span><i class="legend-dot up"></i>Raccordé</span><span><i class="legend-dot down"></i>Libre</span></div></section>';
+   '<div class="port-legend"><span><i class="legend-dot up"></i>Câblé</span><span><i class="legend-dot down"></i>Non câblé</span></div></section>';
  const table=(heads,rows)=>'<div class="table-scroll"><table class="admin-table"><thead><tr>'+
   heads.map(h=>'<th scope="col">'+h+'</th>').join("")+'</tr></thead><tbody>'+rows.join("")+'</tbody></table></div>';
  const render=()=>{
@@ -43,12 +43,12 @@ export function mountSwitchAdmin({root,registry,assetId}){
   let content="";
   if(page==="overview"){
    const details=[
-    ["Nom",a.name],["Type",l3?"Switch administrable L3":"Switch administrable L2"],
-    ["État",a.status],["Adresse IPv4",mg.address?mg.address+"/"+mg.prefix:mg.mode==="dhcp"?"DHCP · non attribuée":"Non configurée"],
-    ["Mode IPv4",mg.mode==="static"?"Statique":"DHCP"],["PoE",a.poe?"Oui":"Non"],
-    ["Ports RJ45",String(ports.length)],["VLAN",String(vlans.length)]
+    ["Type",l3?"Switch L3":"Switch L2"],
+    ["IPv4 de gestion",mg.address?mg.address+"/"+mg.prefix:mg.mode==="dhcp"?"En attente (DHCP)":"Non configurée"],
+    ["Adressage",mg.mode==="static"?"Statique":"DHCP"],["PoE",a.poe?"Oui":"Non"],
+    ["Ports",String(ports.length)],["VLAN",String(vlans.length)]
    ];
-   content=portGrid(a,ports)+'<section class="admin-panel"><h3>Informations générales</h3>'+
+   content=portGrid(a,ports)+'<section class="admin-panel"><h3>Informations</h3>'+
     '<dl class="device-details">'+details.map(([k,v])=>'<div><dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd></div>').join("")+'</dl></section>';
   }else if(page==="ports"){
    const p=ports.find(x=>x.id===selectedPort),state=p&&a.vlanConfig.ports[p.id];
@@ -61,7 +61,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
    const chosen=state.mode==="access"?[vlans.find(v=>v.id===state.vlanId)?.number]:
     state.allowedVlanIds.map(v=>vlans.find(x=>x.id===v)?.number);
    content=portGrid(a,ports)+
-    '<section class="admin-panel"><h3>Liste des ports</h3>'+table(["Port","Connexion","Mode","VLAN"],all)+'</section>'+
+    '<section class="admin-panel ports-table"><h3>Configuration des ports</h3>'+table(["Port","Câblage","Mode","VLAN"],all)+'</section>'+
     (p?'<section class="admin-panel edit-panel"><h3>Port '+esc(p.name)+'</h3>'+
      '<form data-form="port" class="form-grid"><input type="hidden" name="portId" value="'+esc(p.id)+'">'+
      '<label>Mode<select name="mode">'+opts([["access","Access"],["trunk","Trunk"]],state.mode)+'</select></label>'+
@@ -85,18 +85,18 @@ export function mountSwitchAdmin({root,registry,assetId}){
     '<label>DNS principal<input name="dns1" value="'+esc(fixed?(dns[0]??""):"")+'" placeholder="192.168.1.10"'+(!fixed?' disabled':'')+'></label>'+
     '<label>DNS secondaire<input name="dns2" value="'+esc(fixed?(dns[1]??""):"")+'" placeholder="192.168.1.11"'+(!fixed?' disabled':'')+'></label>'+
     '<div class="form-actions"><button type="submit" class="primary">Appliquer</button></div></form></section>'+
-    '<section class="admin-panel compact-panel"><h3>État actuel</h3>'+
+    '<section class="admin-panel compact-panel"><h3>Paramètres appliqués</h3>'+
     '<dl class="device-details"><div><dt>Mode</dt><dd>'+esc(fixed?"Statique":"DHCP")+'</dd></div>'+
     '<div><dt>Adresse</dt><dd>'+esc(mg.address?mg.address+"/"+mg.prefix:"Non attribuée")+'</dd></div>'+
     '<div><dt>DNS</dt><dd>'+esc(dns.length?dns.join(" · "):"Aucun")+'</dd></div></dl></section>';
   }
-  root.innerHTML='<div class="switch-admin v2"><div class="admin-shell">'+
-    '<aside class="admin-side"><div class="side-title">Équipement</div><nav aria-label="Rubriques d’administration">'+menu+'</nav></aside>'+
-    '<div class="admin-main"><header class="device-bar"><div><h2>'+esc(a.name)+'</h2>'+
-    '<span>'+esc(l3?"Switch L3":"Switch L2")+'</span></div><span class="device-state">'+esc(a.status)+'</span></header>'+
-    '<main class="admin-content"><div class="content-title"><h2>'+esc(pages[page])+'</h2></div>'+
+  root.innerHTML='<div class="switch-admin v3">'+
+    '<header class="device-bar"><div class="device-ident"><h2>'+esc(a.name)+'</h2><span>'+esc(l3?"Switch L3":"Switch L2")+
+    '</span><span class="device-state">'+esc(a.status)+'</span></div></header>'+
+    '<nav class="device-tabs" aria-label="Rubriques d’administration">'+menu+'</nav>'+
+    '<main class="admin-content">'+
     (feedback?'<div role="status" class="feedback '+feedbackType+'">'+esc(feedback)+'</div>':"")+content+
-    '</main></div></div></div>';
+    '</main></div>';
  };
  const onClick=e=>{
   const nav=e.target.closest("[data-page]");
