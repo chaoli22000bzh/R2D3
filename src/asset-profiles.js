@@ -142,7 +142,7 @@ function validAssetDhcpServer(asset,conf){
  return true;
 }
 
-const managementDefault=asset=>({assetId:asset.id,mode:"dhcp",address:null,prefix:null,gateway:null,lease:null});
+const managementDefault=asset=>({assetId:asset.id,mode:"dhcp",address:null,prefix:null,gateway:null,dns:[],lease:null});
 const sameNet=(a,b,prefix)=>{
  const parse=x=>x.split(".").reduce((n,v)=>((n<<8)|Number(v))>>>0,0);
  const mask=(0xffffffff<<(32-prefix))>>>0;
@@ -151,6 +151,9 @@ const sameNet=(a,b,prefix)=>{
 function validManagement(asset,c){
  if(!asset.networkCapabilities?.includes("vlan")||!c||c.assetId!==asset.id||
     !["static","dhcp"].includes(c.mode))return false;
+ // Accepter les anciennes sauvegardes sans champ DNS.
+ const dns=c.dns??[];
+ if(!Array.isArray(dns)||dns.length>2||dns.some(address=>!validIPv4(address)))return false;
  if(c.mode==="static")return validIPv4(c.address)&&Number.isInteger(c.prefix)&&
    c.prefix>=1&&c.prefix<=30&&
    (c.gateway===null||validIPv4(c.gateway)&&sameNet(c.address,c.gateway,c.prefix))&&c.lease===null;
