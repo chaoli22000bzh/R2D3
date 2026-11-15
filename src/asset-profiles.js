@@ -107,6 +107,25 @@ function validIpHelperConfiguration(asset,config){
  }
  return true;
 }
+// Adresse d'administration propre aux switchs L2/L3.
+const managementDefault=asset=>({assetId:asset.id,mode:"dhcp",address:null,prefix:null,gateway:null,lease:null});
+const sameNet=(a,b,prefix)=>{
+ const parse=x=>x.split(".").reduce((n,v)=>((n<<8)|Number(v))>>>0,0);
+ const mask=(0xffffffff<<(32-prefix))>>>0;
+ return (parse(a)&mask)===(parse(b)&mask);
+};
+function validManagement(asset,c){
+ if(!asset.networkCapabilities?.includes("vlan")||!c||c.assetId!==asset.id||
+    !["static","dhcp"].includes(c.mode))return false;
+ if(c.mode==="static")return validIPv4(c.address)&&Number.isInteger(c.prefix)&&
+   c.prefix>=1&&c.prefix<=30&&
+   (c.gateway===null||validIPv4(c.gateway)&&sameNet(c.address,c.gateway,c.prefix))&&c.lease===null;
+ return (c.address===null&&c.prefix===null&&c.gateway===null&&c.lease===null)||
+   (validIPv4(c.address)&&Number.isInteger(c.prefix)&&c.prefix>=1&&c.prefix<=30&&
+    (c.gateway===null||validIPv4(c.gateway))&&c.lease&&typeof c.lease==="object"&&
+    typeof c.lease.serverId==="string"&&typeof c.lease.poolId==="string"&&
+    Number.isFinite(c.lease.expires));
+}
 const fieldValid=f=>f&&/^[a-z][a-z0-9_]*$/.test(f.key||"")&&trim(f.label)&&types.includes(f.type)&&(f.type!=="select"||Array.isArray(f.options)&&f.options.length>0&&f.options.every(x=>typeof x==="string"&&trim(x)));
 function valueValid(f,v){
  if(empty(v))return true;
@@ -156,6 +175,13 @@ export function createAssetRegistry(saved){
    throw Error("Configuration IP Helper invalide");
   if(!a.networkCapabilities.includes("ip-helper")&&a.ipHelperConfig!==undefined)
    throw Error("IP Helper présent sans capacité");
+  // Les anciens inventaires VLAN restent rechargeables après l'ajout de cette fonction.
+  if(a.networkCapabilities.includes("vlan")&&a.managementConfig===undefined)
+   a.managementConfig=managementDefault(a);
+  if(a.networkCapabilities.includes("vlan")&&!validManagement(a,a.managementConfig))
+   throw Error("Adresse de gestion du switch invalide");
+  if(!a.networkCapabilities.includes("vlan")&&a.managementConfig!==undefined)
+   throw Error("Gestion IP interdite sur switch non administrable");
  }
  for(const panel of s.panels){
   if(!panel||typeof panel.id!=="string"||!trim(panel.name)||!placeIds.has(panel.placeId)||
@@ -521,12 +547,23 @@ export function createAssetRegistry(saved){
   const status=info.status||"En service";
   if(!["En service","Hors service","En stock"].includes(status))return result(false,"invalid_status","Statut incorrect.");
   const a={id:"asset-"+s.nextAsset++,profileId,name,manufacturer:trim(info.manufacturer),model:trim(info.model),serialNumber:trim(info.serialNumber),status,location:trim(info.location),placeId:null,reservable:!!info.reservable,values:Object.fromEntries(p.fields.map(f=>[f.key,null])),ports:buildPorts(p.portGroups,"integrated"),networkCapabilities:clone(p.networkCapabilities)};
-  if(a.networkCapabilities.includes("vlan"))a.vlanConfig=vlanDefault(a);
+  if(a.networkCapabilities.includes("vlan")){
+   a.vlanConfig=vlanDefault(a);
+   a.managementConfig=managementDefault(a);
+  }
   if(a.networkCapabilities.includes("inter-vlan-routing"))
    a.routingConfig={assetId:a.id,routingEnabled:false,interfaces:{}};
   if(a.networkCapabilities.includes("ip-helper"))
    a.ipHelperConfig={assetId:a.id,helpers:{}};
   s.assets.push(a);s.revision++;return result(true,"asset_created","Matériel créé.",{asset:clone(a)});
+ }
+ function setAssetManagementConfig(id,config){
+  const a=getA(id);
+  if(!a)return result(false,"not_found","Équipement introuvable.");
+  if(!validManagement(a,config))
+   return result(false,"invalid_management","Configuration IP de gestion refusée.");
+  a.managementConfig=clone(config);s.revision++;
+  return result(true,"management_updated","Adresse IP de gestion enregistrée.",{config:clone(a.managementConfig)});
  }
  function setAssetVlanConfig(id,config){
   const a=getA(id);if(!a)return result(false,"not_found","Équipement introuvable.");
@@ -576,7 +613,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileNetworkCapability,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,setAssetVlanConfig,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,updateAsset,
+ return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileNetworkCapability,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,setAssetManagementConfig,setAssetVlanConfig,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,updateAsset,
  listWallOutlets:()=>clone(s.wallOutlets),listPanels:()=>clone(s.panels),getPanel:id=>clone(s.panels.find(p=>p.id===id)||null),listCables:()=>clone(s.cables),getCable:id=>clone(s.cables.find(x=>x.id===id)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);
