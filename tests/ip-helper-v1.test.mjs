@@ -131,3 +131,24 @@ test("V1 : capacité IP Helper n'est pas autorisée sans port Ethernet",()=>{
  const reg=createAssetRegistry(),p=reg.createProfile("Sans réseau").profile;
  assert.equal(reg.setProfileNetworkCapability(p.id,"ip-helper",true).code,"insufficient_ethernet_ports");
 });
+
+
+test("IP Helper : refus sur switch non administrable et L2, autorisé sur L3",()=>{
+ const r=createAssetRegistry(),p=r.createProfile("Switch").profile;
+ assert.equal(r.addPortGroup(p.id,{type:"ethernet-rj45",prefix:"P",start:1,count:4}).success,true);
+ assert.equal(r.setProfileNetworkCapability(p.id,"ethernet-switching",true).success,true);
+ assert.equal(r.setProfileNetworkCapability(p.id,"ip-helper",true).code,"capability_dependency");
+ assert.equal(r.setProfileNetworkCapability(p.id,"vlan",true).success,true);
+ assert.equal(r.setProfileNetworkCapability(p.id,"ip-helper",true).code,"capability_dependency");
+ assert.equal(r.setProfileNetworkCapability(p.id,"inter-vlan-routing",true).success,true);
+ assert.equal(r.setProfileNetworkCapability(p.id,"ip-helper",true).success,true);
+ assert.equal(r.setProfileNetworkCapability(p.id,"inter-vlan-routing",false).code,"capability_dependency");
+ assert.equal(r.setProfileNetworkCapability(p.id,"ip-helper",false).success,true);
+ assert.equal(r.setProfileNetworkCapability(p.id,"inter-vlan-routing",false).success,true);
+});
+test("IP Helper : futur routeur non-switch avec Ethernet reste autorisé",()=>{
+ const r=createAssetRegistry(),p=r.createProfile("Routeur générique futur").profile;
+ assert.equal(r.addPortGroup(p.id,{type:"ethernet-rj45",prefix:"ETH",start:1,count:4}).success,true);
+ assert.equal(r.setProfileNetworkCapability(p.id,"ip-helper",true).success,true);
+ assert.equal(r.createAsset(p.id,{name:"Routeur"}).asset.networkCapabilities.includes("ip-helper"),true);
+});
