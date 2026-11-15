@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {createAssetRegistry,restoreAssetRegistry} from "../src/asset-profiles.js";
 import {createEngine} from "../src/r2d3-core.js";
-import {getSwitchManagement,configureSwitchManagementStatic,configureSwitchManagementDhcp,acquireSwitchManagementDhcp} from "../src/switch-management-ip-v01.js";
+import {getSwitchManagement,configureSwitchManagementStatic,configureSwitchManagementDhcp,acquireSwitchManagementDhcp,syncSwitchManagementDhcp} from "../src/switch-management-ip-v01.js";
 const good=x=>assert.equal(x.success,true,JSON.stringify(x));
 function setup(){
  const r=createAssetRegistry();
@@ -108,4 +108,49 @@ test("IP gestion 09 : refus du mode DHCP statique et serveur arrêté",()=>{
   targetId:f.server.id,params:{enabled:false}});
  assert.equal(result.status,"applied");
  assert.equal(f.acquire().success,false);
+});
+
+test("IP gestion 10 : sans réponse DHCP, le vrai Core place le switch en APIPA",()=>{
+ const f=setup();
+ const stop=f.engine.dispatch({commandVersion:1,id:"initial-stop",type:"dhcp.setServerEnabled",
+  targetId:f.server.id,params:{enabled:false}});
+ assert.equal(stop.status,"applied");
+ const command=f.engine.dispatch({commandVersion:1,id:"initial-boot",type:"dhcp.request",
+  targetId:f.sw.id,params:{}});
+ assert.equal(command.status,"applied");
+ good(syncSwitchManagementDhcp(f.r,f.sw.id,f.engine));
+ const state=getSwitchManagement(f.r,f.sw.id);
+ assert.equal(state.mode,"dhcp");
+ assert.match(state.address,/^169\.254\./);
+ assert.equal(state.prefix,16);
+ assert.equal(state.lease,null);
+ assert.equal(f.engine.getSnapshot().runtime[f.sw.id].dhcpStatus,"apipa");
+});
+test("IP gestion 11 : câble coupé conserve bail à T1/T2 et APIPA à expiration",()=>{
+ const f=setup();
+ good(f.acquire());
+ const initial=getSwitchManagement(f.r,f.sw.id);
+ assert.equal(initial.address,"192.168.1.100");
+ good(f.r.disconnectCableEnd(f.c.id,1));
+ const disconnect=f.engine.dispatch({commandVersion:1,id:"cut-link",type:"network.setLinkConnected",
+  targetId:"service-mgmt",params:{connected:false}});
+ assert.equal(disconnect.status,"applied");
+ good(syncSwitchManagementDhcp(f.r,f.sw.id,f.engine));
+ assert.equal(getSwitchManagement(f.r,f.sw.id).address,initial.address);
+ for(const [seconds,phase] of [[1800,"t1-failed"],[1350,"t2-failed"]]){
+  const result=f.engine.dispatch({commandVersion:1,id:"clock-"+phase,type:"simulation.advanceTime",
+   targetId:"simulation-clock",params:{seconds}});
+  assert.equal(result.status,"applied");
+  good(syncSwitchManagementDhcp(f.r,f.sw.id,f.engine));
+  assert.equal(getSwitchManagement(f.r,f.sw.id).address,initial.address);
+  assert.equal(f.engine.getSnapshot().runtime[f.sw.id].dhcpLeasePhase,phase);
+ }
+ const expiry=f.engine.dispatch({commandVersion:1,id:"clock-expiry",type:"simulation.advanceTime",
+  targetId:"simulation-clock",params:{seconds:450}});
+ assert.equal(expiry.status,"applied");
+ good(syncSwitchManagementDhcp(f.r,f.sw.id,f.engine));
+ const state=getSwitchManagement(f.r,f.sw.id);
+ assert.equal(state.mode,"dhcp");assert.match(state.address,/^169\.254\./);
+ assert.equal(state.prefix,16);assert.equal(state.lease,null);
+ assert.equal(f.engine.getSnapshot().runtime[f.sw.id].dhcpLeasePhase,"expired-apipa");
 });
