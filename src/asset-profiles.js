@@ -254,7 +254,9 @@ export function createAssetRegistry(saved){
   if(names.some(n=>used.has(n)))return result(false,"port_name_exists","Un port de cet équipement porte déjà ce nom.");
   const extensionId="extension-"+s.nextPortGroup++;
   const ports=buildPorts([{...g,id:extensionId}],"extension");
-  a.ports.push(...ports);s.revision++;
+  a.ports.push(...ports);
+  if(a.vlanConfig)for(const p of ports.filter(isRj45))a.vlanConfig.ports[p.id]={mode:"access",vlanId:"vlan-1"};
+  s.revision++;
   return result(true,"extension_added","Carte ou interface d’extension ajoutée.",{extensionId,ports:clone(ports)});
  }
  function removeExtension(assetId,extensionId){
@@ -263,7 +265,9 @@ export function createAssetRegistry(saved){
   const ports=a.ports.filter(p=>p.origin==="extension"&&p.groupId===extensionId);
   if(!ports.length)return result(false,"not_found","Extension introuvable.");
   if(ports.some(p=>p.connectedCableIds?.length))return result(false,"extension_connected","Débrancher les câbles avant de retirer l’extension.");
-  a.ports=a.ports.filter(p=>p.groupId!==extensionId);s.revision++;
+  a.ports=a.ports.filter(p=>p.groupId!==extensionId);
+  if(a.vlanConfig)for(const p of ports.filter(isRj45))delete a.vlanConfig.ports[p.id];
+  s.revision++;
   return result(true,"extension_removed","Extension retirée.");
  }
 
