@@ -158,13 +158,20 @@ export function createAssetRegistry(saved){
  }
  for(const asset of s.assets){asset.placeId??=null;if(asset.placeId!==null&&!placeIds.has(asset.placeId))throw Error("Localisation d'équipement inconnue");}
  for(const p of s.profiles){
-  p.portGroups??=[];
+   p.poe??=false;
+   if(typeof p.poe!=="boolean")throw Error("Propriété PoE du profil invalide");
+   p.portGroups??=[];
   p.networkCapabilities??=[];
   if(!Array.isArray(p.networkCapabilities)||new Set(p.networkCapabilities).size!==p.networkCapabilities.length||
-     p.networkCapabilities.some(x=>!supportedNetworkCapabilities.includes(x)))throw Error("Capacités réseau de profil invalides");
+      p.networkCapabilities.some(x=>!supportedNetworkCapabilities.includes(x)))throw Error("Capacités réseau de profil invalides");
+   if(p.poe&&!p.networkCapabilities.includes("ethernet-switching"))throw Error("PoE réservé à un profil switch");
  }
  for(const a of s.assets){
-  a.networkCapabilities??=[]; // Compatibilité avec les inventaires précédents.
+   a.poe??=false;
+   if(typeof a.poe!=="boolean")throw Error("Propriété PoE de l'équipement invalide");
+   if(a.poe&&!a.networkCapabilities?.includes("ethernet-switching"))
+    throw Error("PoE réservé à un switch Ethernet");
+   a.networkCapabilities??=[]; // Compatibilité avec les inventaires précédents.
   if(!Array.isArray(a.networkCapabilities)||new Set(a.networkCapabilities).size!==a.networkCapabilities.length||
      a.networkCapabilities.some(x=>!supportedNetworkCapabilities.includes(x)))throw Error("Capacités réseau d’équipement invalides");
   if(a.networkCapabilities.includes("vlan")&&(!a.networkCapabilities.includes("ethernet-switching")||!validVlanConfiguration(a,a.vlanConfig)))throw Error("Configuration VLAN d’équipement invalide");
@@ -223,13 +230,13 @@ export function createAssetRegistry(saved){
  const occupied=(id,key)=>s.assets.some(a=>a.profileId===id&&!empty(a.values[key]));
  function createProfile(name){
   name=trim(name);if(!name)return result(false,"invalid_name","Nom de profil obligatoire.");
-  const p={id:"profile-"+s.nextProfile++,name,fields:[],portGroups:[],networkCapabilities:[]};s.profiles.push(p);s.revision++;
+  const p={id:"profile-"+s.nextProfile++,name,fields:[],portGroups:[],networkCapabilities:[],poe:false};s.profiles.push(p);s.revision++;
   return result(true,"created","Profil créé.",{profile:clone(p)});
  }
  function duplicateProfile(id,name){
   const p=getP(id);if(!p)return result(false,"not_found","Profil introuvable.");
   const r=createProfile(name||p.name+" (copie)");if(!r.success)return r;
-  const target=getP(r.profile.id);target.fields=clone(p.fields);target.portGroups=clone(p.portGroups).map(g=>({...g,id:"portgroup-"+s.nextPortGroup++}));target.networkCapabilities=clone(p.networkCapabilities);s.revision++;
+  const target=getP(r.profile.id);target.fields=clone(p.fields);target.portGroups=clone(p.portGroups).map(g=>({...g,id:"portgroup-"+s.nextPortGroup++}));target.networkCapabilities=clone(p.networkCapabilities);target.poe=p.poe;s.revision++;
   return result(true,"duplicated","Profil dupliqué.",{profile:clone(target)});
  }
  function renameProfile(id,name){
@@ -246,6 +253,8 @@ export function createAssetRegistry(saved){
    return result(false,"capability_dependency","Désactiver d’abord la capacité de routage inter-VLAN.");
   if(enabled&&capability==="inter-vlan-routing"&&!p.networkCapabilities.includes("vlan"))
    return result(false,"capability_dependency","Le routage inter-VLAN nécessite la capacité VLAN.");
+  if(!enabled&&capability==="ethernet-switching"&&p.poe)
+   return result(false,"capability_dependency","Désactiver d'abord PoE sur le modèle de switch.");
   if(!enabled&&capability==="ethernet-switching"&&p.networkCapabilities.includes("vlan"))
    return result(false,"capability_dependency","Désactiver d’abord la capacité VLAN.");
   if(enabled&&capability==="vlan"&&!p.networkCapabilities.includes("ethernet-switching"))
@@ -261,6 +270,17 @@ export function createAssetRegistry(saved){
   p.networkCapabilities=enabled?[...p.networkCapabilities,capability]:p.networkCapabilities.filter(x=>x!==capability);
   s.revision++;
   return result(true,"capability_updated","Capacité du profil modifiée pour les futurs équipements.",{profile:clone(p)});
+ }
+ // Caractéristique matérielle du switch, jamais un réglage de port.
+ function setProfilePoe(id,enabled){
+  const p=getP(id);
+  if(!p)return result(false,"not_found","Profil introuvable.");
+  if(typeof enabled!=="boolean")return result(false,"invalid_poe","PoE doit être oui ou non.");
+  if(!p.networkCapabilities.includes("ethernet-switching"))
+   return result(false,"not_switch","PoE réservé aux profils de switch.");
+  if(p.poe===enabled)return result(true,"unchanged","PoE déjà dans cet état.",{profile:clone(p)});
+  p.poe=enabled;s.revision++;
+  return result(true,"poe_updated","Propriété matérielle PoE du modèle enregistrée.",{profile:clone(p)});
  }
  function addField(id,raw){
   const p=getP(id);if(!p)return result(false,"not_found","Profil introuvable.");
@@ -548,7 +568,7 @@ export function createAssetRegistry(saved){
   const name=trim(info?.name);if(!name)return result(false,"invalid_name","Nom de matériel obligatoire.");
   const status=info.status||"En service";
   if(!["En service","Hors service","En stock"].includes(status))return result(false,"invalid_status","Statut incorrect.");
-  const a={id:"asset-"+s.nextAsset++,profileId,name,manufacturer:trim(info.manufacturer),model:trim(info.model),serialNumber:trim(info.serialNumber),status,location:trim(info.location),placeId:null,reservable:!!info.reservable,values:Object.fromEntries(p.fields.map(f=>[f.key,null])),ports:buildPorts(p.portGroups,"integrated"),networkCapabilities:clone(p.networkCapabilities)};
+  const a={id:"asset-"+s.nextAsset++,profileId,name,manufacturer:trim(info.manufacturer),model:trim(info.model),serialNumber:trim(info.serialNumber),status,location:trim(info.location),placeId:null,reservable:!!info.reservable,values:Object.fromEntries(p.fields.map(f=>[f.key,null])),ports:buildPorts(p.portGroups,"integrated"),networkCapabilities:clone(p.networkCapabilities),poe:p.poe};
   if(a.networkCapabilities.includes("vlan")){
    a.vlanConfig=vlanDefault(a);
    a.managementConfig=managementDefault(a);
@@ -615,7 +635,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileNetworkCapability,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,setAssetManagementConfig,setAssetVlanConfig,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,updateAsset,
+ return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,setAssetManagementConfig,setAssetVlanConfig,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,updateAsset,
  listWallOutlets:()=>clone(s.wallOutlets),listPanels:()=>clone(s.panels),getPanel:id=>clone(s.panels.find(p=>p.id===id)||null),listCables:()=>clone(s.cables),getCable:id=>clone(s.cables.find(x=>x.id===id)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);
