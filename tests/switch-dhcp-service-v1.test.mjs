@@ -132,5 +132,5 @@ test("DHCP L3 : un bail déjà attribué reste conservé à T1/T2",()=>{
  assert.equal(e.getSnapshot().runtime[f.pc1.id].dhcpLeasePhase,"t2-failed");
  assert.equal(e.dispatch({commandVersion:1,id:"expire",type:"simulation.advanceTime",
   targetId:"simulation-clock",params:{seconds:450}}).status,"applied");
- assert.match(e.getSnapshot().objectsById[f.pc1.id].config.ipv4.address,/^169\\.254\\./);
+ assert.match(e.getSnapshot().objectsById[f.pc1.id].config.ipv4.address,/^169\.254\./);
 });
