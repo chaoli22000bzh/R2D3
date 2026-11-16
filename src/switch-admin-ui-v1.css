@@ -275,3 +275,11 @@
 /* L3: validation indépendante de l'interface VLAN et du relais DHCP. */
 .switch-admin.v4 .grouped-routing-form .routing-field-group .form-actions{margin-top:9px}
 .switch-admin.v4 .grouped-routing-form .routing-field-group .primary{font-size:15px}
+
+/* L3 : sélection du VLAN alignée sur le titre et activation à gauche des deux blocs. */
+.switch-admin.v4 .routing-heading{display:flex;align-items:center;flex-wrap:wrap;gap:9px 18px;margin-bottom:9px}
+.switch-admin.v4 .routing-heading h3{margin:0}
+.switch-admin.v4 .routing-heading .routing-vlan-selector{display:flex;align-items:center;gap:8px;font-weight:550;color:#4b5d65;white-space:nowrap}
+.switch-admin.v4 .routing-heading .routing-vlan-selector select{width:150px;max-width:100%}
+.switch-admin.v4 .grouped-routing-form .routing-fields>.check-label{display:flex;align-items:center;min-height:36px;gap:7px;white-space:nowrap}
+@media(max-width:430px){.switch-admin.v4 .routing-heading .routing-vlan-selector{width:100%}}

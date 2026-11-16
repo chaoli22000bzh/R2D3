@@ -88,9 +88,10 @@ export function mountSwitchAdmin({root,registry,assetId}){
    content='<section class="admin-panel"><h3>Routage inter-VLAN</h3>'+
     '<form data-form="routing" class="routing-switch"><label class="check-label"><input type="checkbox" name="routing"'+
     (routing.routingEnabled?' checked':'')+'><span>Activer le routage inter-VLAN</span></label>'+
-    '<button type="submit" class="primary">Appliquer</button></form></section>'+
-    '<section class="admin-panel edit-panel"><h3>Interfaces VLAN</h3>'+
-    table(["VLAN","Adresse IPv4","Préfixe","État",...(hasHelper?["Relais DHCP","IP serveur DHCP"]:[])],configured.map(([number,i])=>{
+    '<button type="submit" class="primary">Appliquer le routage</button></form></section>'+
+    '<section class="admin-panel edit-panel"><div class="routing-heading"><h3>Interfaces VLAN</h3>'+ 
+    '<label class="routing-vlan-selector">VLAN<select name="vlan" form="switch-routing-interface">'+opts(vlans.map(v=>[v.number,v.number+" · "+v.name]),initialVlan)+'</select></label></div>'+
+    table(["VLAN","Adresse IPv4","Préfixe","État",...(hasHelper?["IP Helper","IP serveur DHCP"]:[])],configured.map(([number,i])=>{
       const h=helper?.helpers["vlan:"+number];
       return '<tr class="'+(Number(number)===selectedRoutingVlan?'row-selected':'')+'"><td>'+
        '<button type="button" class="table-port" data-routing-vlan="'+esc(number)+'" aria-label="Modifier l’interface VLAN '+esc(number)+'">'+esc(number)+'</button></td>'+
@@ -98,13 +99,12 @@ export function mountSwitchAdmin({root,registry,assetId}){
        (hasHelper?'<td>'+(h?(h.enabled?'Activé':'Désactivé'):'Non configuré')+'</td><td>'+esc(h?.serverAddress??"")+'</td>':'')+
        '</tr>';
     }))+
-    '<form data-form="interface" class="routing-form grouped-routing-form">'+
-    '<div class="routing-vlan-selector"><label>VLAN<select name="vlan">'+opts(vlans.map(v=>[v.number,v.number+" · "+v.name]),initialVlan)+'</select></label></div>'+
+    '<form id="switch-routing-interface" data-form="interface" class="routing-form grouped-routing-form">'+
     '<div class="routing-field-group"><h4>Interface VLAN</h4><div class="routing-fields">'+
+    '<label class="check-label"><input name="enabled" type="checkbox"'+(initialInterface?.enabled===false?'':' checked')+'>Interface activée</label>'+
     '<label>Adresse IPv4<input name="address" inputmode="decimal" required value="'+esc(initialInterface?.address??"")+'"></label>'+
     '<label>Préfixe réseau<input name="prefix" type="number" min="1" max="30" required value="'+esc(initialInterface?.prefix??"")+'"></label>'+
-    '<label class="check-label"><input name="enabled" type="checkbox"'+(initialInterface?.enabled===false?'':' checked')+'>Interface activée</label>'+
-    '</div><div class="form-actions"><button class="primary" type="submit" name="applySection" value="interface">Appliquer l’interface</button></div></div>'+
+    '</div><div class="form-actions"><button class="primary" type="submit" name="applySection" value="interface">Appliquer au VLAN</button></div></div>'+
     (hasHelper?'<div class="routing-field-group helper-field-group"><h4>Relais DHCP (IP Helper)</h4><div class="routing-fields">'+
     '<label class="check-label"><input name="helperEnabled" type="checkbox"'+(currentHelper?.enabled?' checked':'')+'>Relais activé</label>'+
     '<label>Serveur DHCP (IPv4)<input name="helperServer" inputmode="decimal" value="'+esc(currentHelper?.serverAddress??"")+'"></label>'+
@@ -149,10 +149,10 @@ export function mountSwitchAdmin({root,registry,assetId}){
   if(port&&root.contains(port)){selectedPort=port.dataset.port;page="ports";feedback="";render();}
  };
  const onChange=e=>{
-  const vlanSelect=e.target.closest('form[data-form="interface"] select[name="vlan"]');
+  const vlanSelect=e.target.closest('select[name="vlan"][form="switch-routing-interface"]');
   if(vlanSelect&&root.contains(vlanSelect)){
    selectedRoutingVlan=Number(vlanSelect.value);
-   const form=vlanSelect.closest("form");
+   const form=root.querySelector('form[data-form="interface"]');
    const conf=getSwitchRoutingConfig(registry,get().id)?.interfaces[String(vlanSelect.value)];
    form.elements.namedItem("address").value=conf?.address??"";
    form.elements.namedItem("prefix").value=conf?.prefix??"";
