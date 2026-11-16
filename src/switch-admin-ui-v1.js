@@ -101,7 +101,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
     (conf.pools.length?table(["VLAN","Début","Fin","Préfixe","Bail"],conf.pools.map(p=>
       '<tr class="routing-data-row '+(!newDhcpPool&&p.id===selectedDhcpPoolId?'row-selected':'')+'" data-dhcp-pool="'+esc(p.id)+'">'+
       '<td><button type="button" class="table-port" data-dhcp-pool="'+esc(p.id)+'" aria-pressed="'+(!newDhcpPool&&p.id===selectedDhcpPoolId)+'">'+esc(p.vlanNumber)+'</button></td>'+
-      '<td>'+esc(p.start)+'</td><td>'+esc(p.end)+'</td><td>/'+esc(p.prefix)+'</td><td>'+esc(p.leaseSeconds)+' s</td></tr>'))):
+      '<td>'+esc(p.start)+'</td><td>'+esc(p.end)+'</td><td>/'+esc(p.prefix)+'</td><td>'+esc(p.leaseSeconds)+' s</td></tr>')):
       '<p class="dhcp-note">Aucune plage configurée.</p>')+'</section>'+
     (editing?'<section class="admin-panel edit-panel dhcp-panel"><h3>'+(newDhcpPool?'Ajouter une plage':'Modifier la plage du VLAN '+esc(current.vlanNumber))+'</h3>'+
      '<form data-form="dhcp-pool" class="dhcp-pool-form"><div class="dhcp-fields">'+
