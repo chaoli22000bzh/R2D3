@@ -68,7 +68,9 @@ export function mountSwitchAdmin({root,registry,assetId}){
     (p?'<section class="admin-panel edit-panel"><h3>Port '+esc(p.name)+'</h3>'+
      '<form data-form="port" class="form-grid"><input type="hidden" name="portId" value="'+esc(p.id)+'">'+
      '<label>Mode<select name="mode">'+opts([["access","Access"],["trunk","Trunk"]],state.mode)+'</select></label>'+
-     '<label><span data-port-vlan-label>'+(state.mode==="access"?'VLAN':'VLAN autorisés')+'</span><input name="vlans" required value="'+esc(chosen.join(", "))+'"></label>'+
+     '<label class="port-access-vlan"'+(state.mode==="trunk"?' hidden':'')+'>VLAN<select name="accessVlan"'+(state.mode==="trunk"?' disabled':'')+'>'+opts(vlans.map(v=>[v.number,v.number+' · '+v.name]),chosen[0])+'</select></label>'+
+     '<div class="port-trunk-vlans"'+(state.mode==="access"?' hidden':'')+'><span>VLAN autorisés</span><div class="port-trunk-options" role="group" aria-label="VLAN autorisés">'+vlans.map(v=>
+       '<label class="check-label"><input type="checkbox" name="trunkVlans" value="'+esc(v.number)+'"'+(chosen.includes(v.number)?' checked':'')+(state.mode==="access"?' disabled':'')+'>'+esc(v.number+' · '+v.name)+'</label>').join("")+'</div></div>'+
      '<div class="form-actions"><button type="submit" class="primary">Appliquer</button></div></form></section>':'');
   }else if(page==="vlans"){
    if(!vlans.some(v=>v.id===selectedVlanId))selectedVlanId=vlans[0]?.id??null;
@@ -210,8 +212,12 @@ export function mountSwitchAdmin({root,registry,assetId}){
   if(!field||!root.contains(field))return;
   const form=field.closest("form");
   if(form?.dataset.form==="port"){
-   const label=form.querySelector("[data-port-vlan-label]");
-   if(label)label.textContent=field.value==="access"?"VLAN":"VLAN autorisés";
+   const access=form.querySelector(".port-access-vlan");
+   const trunk=form.querySelector(".port-trunk-vlans");
+   if(access)access.hidden=field.value!=="access";
+   if(trunk)trunk.hidden=field.value!=="trunk";
+   for(const input of form.querySelectorAll('[name="accessVlan"]'))input.disabled=field.value!=="access";
+   for(const input of form.querySelectorAll('[name="trunkVlans"]'))input.disabled=field.value!=="trunk";
    return;
   }
   if(form?.dataset.form!=="management")return;
@@ -274,15 +280,18 @@ export function mountSwitchAdmin({root,registry,assetId}){
     if(response?.success){selectedDhcpPoolId=pool.id;newDhcpPool=false;}
    }
   }else if(form.dataset.form==="port"){
-   const tokens=String(d.get("vlans")).split(",").map(v=>v.trim());
-   if(!tokens.length||tokens.some(v=>!/^[0-9]{1,4}$/.test(v)||Number(v)<1||Number(v)>4094)){
-     report({success:false,message:"Liste des VLAN incorrecte."});return;
+   const mode=d.get("mode");
+   const selected=mode==="trunk"?d.getAll("trunkVlans"):[d.get("accessVlan")];
+   const numbers=selected.map(Number);
+   const available=new Set(a.vlanConfig.vlans.map(v=>v.number));
+   if(!numbers.length||selected.some(v=>v===null||!available.has(Number(v)))||
+      new Set(numbers).size!==numbers.length){
+    report({success:false,message:"Sélectionnez des VLAN existants."});return;
    }
-   const numbers=tokens.map(Number);
-   response=d.get("mode")==="trunk"?
+   response=mode==="trunk"?
      setSwitchTrunkPort(registry,a.id,String(d.get("portId")),numbers):
-     numbers.length===1?setSwitchAccessPort(registry,a.id,String(d.get("portId")),numbers[0]):
-      {success:false,message:"Le mode Access accepte un seul VLAN."};
+     mode==="access"?setSwitchAccessPort(registry,a.id,String(d.get("portId")),numbers[0]):
+      {success:false,message:"Mode de port incorrect."};
   }else if(form.dataset.form==="routing"){
    response=setSwitchInterVlanRouting(registry,a.id,d.get("routing")==="on");
   }else if(form.dataset.form==="interface"){

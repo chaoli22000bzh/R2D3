@@ -329,3 +329,11 @@
 .switch-admin.v4 .dhcp-advanced .dhcp-input-help{
  font-size:12px;line-height:1.35;color:#52646c;margin:6px 0;
 }
+
+/* Sélection guidée des VLAN existants sur un port Access ou Trunk. */
+.switch-admin.v4 .port-access-vlan,.switch-admin.v4 .port-trunk-vlans{max-width:310px}
+.switch-admin.v4 .port-access-vlan select{width:100%;max-width:280px}
+.switch-admin.v4 .port-trunk-vlans>span{display:block;font-size:14px;font-weight:550;color:#4b5d65;margin-bottom:5px}
+.switch-admin.v4 .port-trunk-options{display:flex;flex-wrap:wrap;gap:6px 15px;max-width:350px}
+.switch-admin.v4 .port-trunk-options .check-label{display:inline-flex;gap:5px;align-items:center;font-size:14px;white-space:nowrap}
+.switch-admin.v4 .port-access-vlan[hidden],.switch-admin.v4 .port-trunk-vlans[hidden]{display:none}

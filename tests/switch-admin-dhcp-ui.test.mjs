@@ -78,26 +78,53 @@ test("Interface DHCP L3 : disponibilité, deux DNS, exclusions, réservations et
  } finally {globalThis.FormData=originalFormData;view.destroy();}
 });
 
-test("Port switch : libellé VLAN en Access et VLAN autorisés en Trunk",()=>{
+test("Port switch : choix guidé des VLAN Access et Trunk",()=>{
  const registry=createAssetRegistry(),profile=registry.createProfile("Switch L2").profile;
  assert.equal(registry.addPortGroup(profile.id,{type:"ethernet-rj45",prefix:"P",start:1,count:2}).success,true);
  for(const c of ["ethernet-switching","vlan"])
   assert.equal(registry.setProfileNetworkCapability(profile.id,c,true).success,true);
  const sw=registry.createAsset(profile.id,{name:"SW-L2"}).asset;
+ assert.equal(addSwitchVlan(registry,sw.id,10,"Bureau").success,true);
+ assert.equal(addSwitchVlan(registry,sw.id,20,"Atelier").success,true);
  const events=new Map();
  const root={innerHTML:"",addEventListener(type,fn){events.set(type,fn);},
   removeEventListener(type){events.delete(type);},contains(){return true;},replaceChildren(){this.innerHTML="";}};
  const view=mountSwitchAdmin({root,registry,assetId:sw.id});
+ const originalFormData=globalThis.FormData;
+ globalThis.FormData=class {constructor(form){this.values=form.values;}get(k){return this.values[k]??null;}getAll(k){return this.values[k]??[];}};
  try{
   events.get("click")({target:{dataset:{page:"ports"},closest(q){return q==="[data-page]"?this:null;}}});
-  assert.match(root.innerHTML,/<span data-port-vlan-label>VLAN<\/span>/);
-  const label={textContent:"VLAN"};
-  const form={dataset:{form:"port"},querySelector(q){return q==="[data-port-vlan-label]"?label:null;}};
+  assert.match(root.innerHTML,/<label class="port-access-vlan">VLAN<select name="accessVlan"/);
+  assert.match(root.innerHTML,/<option value="10">10 · Bureau<\/option>/);
+  assert.match(root.innerHTML,/name="trunkVlans" value="20"/);
+  const access={hidden:false},trunk={hidden:true};
+  const accessInputs=[{disabled:false}],trunkInputs=[{disabled:true},{disabled:true}];
+  const form={dataset:{form:"port"},
+   querySelector(q){return q===".port-access-vlan"?access:q===".port-trunk-vlans"?trunk:null;},
+   querySelectorAll(q){return q==='[name="accessVlan"]'?accessInputs:q==='[name="trunkVlans"]'?trunkInputs:[];}};
   const field={value:"trunk",closest(q){return q==='select[name="mode"]'?this:q==="form"?form:null;}};
   events.get("change")({target:field});
-  assert.equal(label.textContent,"VLAN autorisés");
+  assert.equal(access.hidden,true);
+  assert.equal(trunk.hidden,false);
+  assert.equal(accessInputs[0].disabled,true);
+  assert.equal(trunkInputs[0].disabled,false);
   field.value="access";
   events.get("change")({target:field});
-  assert.equal(label.textContent,"VLAN");
- } finally {view.destroy();}
+  assert.equal(access.hidden,false);
+  assert.equal(trunk.hidden,true);
+  assert.equal(accessInputs[0].disabled,false);
+  assert.equal(trunkInputs[0].disabled,true);
+  const submit=values=>events.get("submit")({target:{closest(q){return q==="form[data-form]"?{dataset:{form:"port"},values}:null;}},preventDefault(){}});
+  const portId=registry.getAsset(sw.id).ports.find(p=>p.type==="ethernet-rj45").id;
+  submit({mode:"access",portId,accessVlan:"10"});
+  let port=registry.getAsset(sw.id).vlanConfig.ports[portId];
+  assert.equal(port.mode,"access");
+  assert.equal(registry.getAsset(sw.id).vlanConfig.vlans.find(v=>v.id===port.vlanId).number,10);
+  submit({mode:"trunk",portId,trunkVlans:["10","20"]});
+  port=registry.getAsset(sw.id).vlanConfig.ports[portId];
+  assert.equal(port.mode,"trunk");
+  assert.deepEqual(port.allowedVlanIds.map(id=>registry.getAsset(sw.id).vlanConfig.vlans.find(v=>v.id===id).number).sort((a,b)=>a-b),[10,20]);
+  submit({mode:"trunk",portId,trunkVlans:[]});
+  assert.deepEqual(registry.getAsset(sw.id).vlanConfig.ports[portId].allowedVlanIds,port.allowedVlanIds);
+ } finally {globalThis.FormData=originalFormData;view.destroy();}
 });
