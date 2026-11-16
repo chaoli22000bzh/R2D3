@@ -7,13 +7,14 @@ import {addSwitchVlan,updateSwitchVlan,removeSwitchVlan,setSwitchAccessPort,setS
 import {configureSwitchManagementStatic,configureSwitchManagementDhcp} from "./switch-management-ip-v01.js";
 import {getSwitchRoutingConfig,setSwitchInterVlanRouting,setSwitchVlanInterface} from "./inter-vlan-routing-v1.js";
 import {getAssetIpHelperConfig,setVlanIpHelper} from "./ip-helper-v1.js";
+import {getSwitchDhcpConfig,configureSwitchDhcp} from "./switch-dhcp-service-v1.js";
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const opts=(list,value)=>list.map(([id,title])=>'<option value="'+esc(id)+'"'+(String(value)===String(id)?' selected':'')+'>'+esc(title)+'</option>').join("");
 const message=r=>r?.message||r?.reason||r?.code||"Configuration refusée";
 export function mountSwitchAdmin({root,registry,assetId}){
  if(!root||!registry?.getAsset||!registry?.listCables)throw Error("Interface ou registre réseau indisponible");
- let id=assetId,page="overview",selectedPort=null,selectedVlanId=null,selectedRoutingVlan=null,feedback="",feedbackType="ok";
- const pages={overview:"Vue d’ensemble",ports:"Ports",vlans:"VLAN",management:"IPv4 de gestion",routing:"Routage inter-VLAN"};
+ let id=assetId,page="overview",selectedPort=null,selectedVlanId=null,selectedRoutingVlan=null,selectedDhcpPoolId=null,newDhcpPool=false,feedback="",feedbackType="ok";
+ const pages={overview:"Vue d’ensemble",ports:"Ports",vlans:"VLAN",management:"IPv4 de gestion",routing:"Routage inter-VLAN",dhcp:"Serveur DHCP"};
  const get=()=>{const a=registry.getAsset(id);if(!a?.networkCapabilities?.includes("vlan"))throw Error("Commutateur administrable introuvable");return a;};
  const report=r=>{feedback=message(r);feedbackType=r?.success?"ok":"error";render();};
  const portInfo=(a,p)=>{
@@ -40,7 +41,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
   const a=get(),ports=a.ports.filter(p=>p.type==="ethernet-rj45");
   const vlans=a.vlanConfig.vlans,mg=a.managementConfig,l3=a.networkCapabilities.includes("inter-vlan-routing");
   if(!ports.some(p=>p.id===selectedPort))selectedPort=ports[0]?.id??null;
-  const menu=Object.entries(pages).filter(([key])=>key!=="routing"||l3).map(([key,label])=>'<button type="button" data-page="'+key+
+  const menu=Object.entries(pages).filter(([key])=>key!=="routing"&&key!=="dhcp"||key==="routing"&&l3||key==="dhcp"&&a.networkCapabilities.includes("dhcp-server")).map(([key,label])=>'<button type="button" data-page="'+key+
    '" class="menu-item'+(key===page?' active':'')+'" aria-current="'+(key===page?'page':'false')+'">'+label+'</button>').join("");
   let content="";
   if(page==="overview"){
@@ -86,6 +87,42 @@ export function mountSwitchAdmin({root,registry,assetId}){
     '<form data-form="vlan" class="form-grid"><label>Identifiant VLAN<input type="number" name="number" min="2" max="4094" required></label>'+
     '<label>Nom<input name="name" maxlength="50" required></label>'+
     '<div class="form-actions"><button class="primary" type="submit">Ajouter</button></div></form></section>';
+  }else if(page==="dhcp"&&a.networkCapabilities.includes("dhcp-server")){
+   const conf=getSwitchDhcpConfig(registry,a.id);
+   if(!conf.pools.some(p=>p.id===selectedDhcpPoolId))selectedDhcpPoolId=conf.pools[0]?.id??null;
+   const current=!newDhcpPool?conf.pools.find(p=>p.id===selectedDhcpPoolId):null;
+   const editing=newDhcpPool||!!current;
+   content='<section class="admin-panel dhcp-panel"><div class="dhcp-status-row"><h3>Serveur DHCP local</h3>'+
+    '<form data-form="dhcp-service" class="dhcp-status-form"><label class="check-label"><input type="checkbox" name="enabled"'+(conf.enabled?' checked':'')+'>Activer le serveur</label>'+
+    '<button class="primary" type="submit">Appliquer</button></form></div>'+
+    '<p class="dhcp-note">Service local du switch L3, distinct du relais IP Helper.</p></section>'+
+    '<section class="admin-panel dhcp-panel"><div class="dhcp-heading"><h3>Plages DHCP</h3>'+
+    '<button type="button" class="dhcp-add" data-dhcp-new>+ Nouvelle plage</button></div>'+
+    (conf.pools.length?table(["VLAN","Début","Fin","Préfixe","Bail"],conf.pools.map(p=>
+      '<tr class="routing-data-row '+(!newDhcpPool&&p.id===selectedDhcpPoolId?'row-selected':'')+'" data-dhcp-pool="'+esc(p.id)+'">'+
+      '<td><button type="button" class="table-port" data-dhcp-pool="'+esc(p.id)+'" aria-pressed="'+(!newDhcpPool&&p.id===selectedDhcpPoolId)+'">'+esc(p.vlanNumber)+'</button></td>'+
+      '<td>'+esc(p.start)+'</td><td>'+esc(p.end)+'</td><td>/'+esc(p.prefix)+'</td><td>'+esc(p.leaseSeconds)+' s</td></tr>'))):
+      '<p class="dhcp-note">Aucune plage configurée.</p>')+'</section>'+
+    (editing?'<section class="admin-panel edit-panel dhcp-panel"><h3>'+(newDhcpPool?'Ajouter une plage':'Modifier la plage du VLAN '+esc(current.vlanNumber))+'</h3>'+
+     '<form data-form="dhcp-pool" class="dhcp-pool-form"><div class="dhcp-fields">'+
+     '<label class="dhcp-vlan">VLAN<select name="vlanNumber" required>'+opts(vlans.map(v=>[v.number,v.number+" · "+v.name]),current?.vlanNumber??vlans[0]?.number)+'</select></label>'+
+     '<label class="dhcp-ip">Première IPv4<input name="start" inputmode="decimal" required value="'+esc(current?.start??'')+'"></label>'+
+     '<label class="dhcp-ip">Dernière IPv4<input name="end" inputmode="decimal" required value="'+esc(current?.end??'')+'"></label>'+
+     '<label class="dhcp-prefix">Préfixe<input name="prefix" type="number" min="1" max="30" required value="'+esc(current?.prefix??24)+'"></label>'+
+     '<label class="dhcp-ip">Passerelle<input name="gateway" inputmode="decimal" required value="'+esc(current?.gateway??'')+'"></label>'+
+     '<label class="dhcp-ip">DNS 1<input name="dns1" inputmode="decimal" value="'+esc(current?.dns?.[0]??'')+'"></label>'+
+     '<label class="dhcp-ip">DNS 2<input name="dns2" inputmode="decimal" value="'+esc(current?.dns?.[1]??'')+'"></label>'+
+     '<label class="dhcp-lease">Bail (secondes)<input name="leaseSeconds" type="number" min="60" max="2592000" required value="'+esc(current?.leaseSeconds??86400)+'"></label>'+
+     '</div>'+
+     '<div class="dhcp-advanced">'+
+     '<details><summary>Exclusions ('+esc(current?.exclusions?.length??0)+')</summary>'+
+     '<label>Une IPv4 exclue par ligne<textarea name="exclusions" rows="3" spellcheck="false" placeholder="192.168.10.110">'+esc((current?.exclusions??[]).join("\n"))+'</textarea></label></details>'+
+     '<details><summary>Réservations ('+esc(current?.reservations?.length??0)+')</summary>'+
+     '<label>Une association MAC ; IPv4 par ligne<textarea name="reservations" rows="3" spellcheck="false" placeholder="02-00-00-00-10-01 ; 192.168.10.120">'+
+       esc((current?.reservations??[]).map(r=>r.mac+" ; "+r.address).join("\n"))+'</textarea></label></details>'+
+     '</div><div class="dhcp-actions"><button class="primary" name="dhcpAction" value="save" type="submit">'+(newDhcpPool?'Ajouter la plage':'Enregistrer la plage')+'</button>'+
+     (!newDhcpPool?'<button class="secondary-danger" name="dhcpAction" value="delete" type="submit" formnovalidate>Supprimer la plage</button>':'')+
+     '</div></form></section>':'');
   }else if(page==="routing"&&l3){
    const routing=getSwitchRoutingConfig(registry,a.id);
    const hasHelper=a.networkCapabilities.includes("ip-helper");
@@ -157,6 +194,10 @@ export function mountSwitchAdmin({root,registry,assetId}){
    root.querySelector?.('form[data-form="interface"] input[name="enabled"]')?.focus();
    return;
   }
+  const newPool=e.target.closest("[data-dhcp-new]");
+  if(newPool&&root.contains(newPool)){newDhcpPool=true;feedback="";render();return;}
+  const poolRow=e.target.closest("[data-dhcp-pool]");
+  if(poolRow&&root.contains(poolRow)){selectedDhcpPoolId=poolRow.dataset.dhcpPool;newDhcpPool=false;feedback="";render();return;}
   const vlanRow=e.target.closest("[data-edit-vlan]");
   if(vlanRow&&root.contains(vlanRow)){selectedVlanId=vlanRow.dataset.editVlan;feedback="";render();return;}
   const port=e.target.closest("[data-port]");
@@ -188,6 +229,39 @@ export function mountSwitchAdmin({root,registry,assetId}){
     response=removeSwitchVlan(registry,a.id,vlanId);
     if(response?.success)selectedVlanId=null;
    }else response=updateSwitchVlan(registry,a.id,vlanId,Number(d.get("number")),String(d.get("name")).trim());
+  }else if(form.dataset.form==="dhcp-service"){
+   const conf=getSwitchDhcpConfig(registry,a.id);
+   response=configureSwitchDhcp(registry,a.id,{enabled:d.get("enabled")==="on",pools:conf.pools});
+  }else if(form.dataset.form==="dhcp-pool"){
+   const conf=getSwitchDhcpConfig(registry,a.id);
+   if(e.submitter?.value==="delete"){
+    const pools=conf.pools.filter(p=>p.id!==selectedDhcpPoolId);
+    response=configureSwitchDhcp(registry,a.id,{enabled:conf.enabled,pools});
+    if(response?.success){selectedDhcpPoolId=pools[0]?.id??null;newDhcpPool=false;}
+   }else{
+    const exclusions=String(d.get("exclusions")??"").split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean);
+    const rows=String(d.get("reservations")??"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+    const reservations=[];
+    for(const row of rows){
+     const parts=row.split(/[;,]/).map(x=>x.trim());
+     if(parts.length!==2||!parts[0]||!parts[1]){
+      report({success:false,message:"Réservation invalide : utiliser MAC ; IPv4, une par ligne."});return;
+     }
+     reservations.push({mac:parts[0],address:parts[1]});
+    }
+    const previous=conf.pools.find(p=>p.id===selectedDhcpPoolId);
+    let number=1;
+    while(conf.pools.some(p=>p.id==="pool-"+number))number++;
+    const pool={id:newDhcpPool?"pool-"+number:previous?.id,
+     vlanNumber:Number(d.get("vlanNumber")),start:String(d.get("start")??"").trim(),
+     end:String(d.get("end")??"").trim(),prefix:Number(d.get("prefix")),
+     gateway:String(d.get("gateway")??"").trim(),
+     dns:[String(d.get("dns1")??"").trim(),String(d.get("dns2")??"").trim()].filter(Boolean),
+     leaseSeconds:Number(d.get("leaseSeconds")),exclusions,reservations};
+    const pools=newDhcpPool?[...conf.pools,pool]:conf.pools.map(p=>p.id===selectedDhcpPoolId?pool:p);
+    response=configureSwitchDhcp(registry,a.id,{enabled:conf.enabled,pools});
+    if(response?.success){selectedDhcpPoolId=pool.id;newDhcpPool=false;}
+   }
   }else if(form.dataset.form==="port"){
    const tokens=String(d.get("vlans")).split(",").map(v=>v.trim());
    if(!tokens.length||tokens.some(v=>!/^[0-9]{1,4}$/.test(v)||Number(v)<1||Number(v)>4094)){
@@ -233,7 +307,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
  render();
  return {
   refresh:render,
-  setAssetId(nextId){id=nextId;page="overview";selectedPort=null;selectedVlanId=null;selectedRoutingVlan=null;feedback="";render();},
+  setAssetId(nextId){id=nextId;page="overview";selectedPort=null;selectedVlanId=null;selectedRoutingVlan=null;selectedDhcpPoolId=null;newDhcpPool=false;feedback="";render();},
   destroy(){root.removeEventListener("click",onClick);root.removeEventListener("change",onChange);
    root.removeEventListener("submit",onSubmit);root.replaceChildren();}
  };
