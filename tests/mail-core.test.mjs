@@ -55,8 +55,8 @@ test("envoi, réception locale et lecture restent séparés",()=>{
  const unread=e.getSnapshot().messages.find(m=>m.id===result.receivedIds[0]);assert.equal(unread.read,false);
  assert.equal(e.markRead(unread.id).success,true);
  assert.equal(e.getSnapshot().messages.find(m=>m.id===unread.id).read,true);
- assert.equal(e.getSnapshot().events.filter(x=>x.type==="mail.read").length,1);
- e.markRead(unread.id);assert.equal(e.getSnapshot().events.filter(x=>x.type==="mail.read").length,1);
+ assert.equal(e.getSnapshot().events.filter(x=>x.type==="mail.read"&&x.messageId===unread.id).length,1);
+ e.markRead(unread.id);assert.equal(e.getSnapshot().events.filter(x=>x.type==="mail.read"&&x.messageId===unread.id).length,1);
 });
 test("messages initiaux et restauration cohérente",()=>{
  const e=createMailEngine(scenario);
