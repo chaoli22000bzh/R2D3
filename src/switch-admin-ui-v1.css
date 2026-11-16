@@ -339,6 +339,9 @@
 .switch-admin.v4 .port-access-vlan[hidden],.switch-admin.v4 .port-trunk-vlans[hidden]{display:none}
 
 /* Identifiant à saisir : retirer les flèches des champs numériques de VLAN. */
-.switch-admin.v4 form[data-form="vlan"] input[name="number"]{-moz-appearance:textfield;appearance:textfield}
+.switch-admin.v4 form[data-form="vlan"] input[name="number"],
+.switch-admin.v4 form[data-form="vlan-edit"] input[name="number"]{-moz-appearance:textfield;appearance:textfield}
 .switch-admin.v4 form[data-form="vlan"] input[name="number"]::-webkit-inner-spin-button,
-.switch-admin.v4 form[data-form="vlan"] input[name="number"]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.switch-admin.v4 form[data-form="vlan"] input[name="number"]::-webkit-outer-spin-button,
+.switch-admin.v4 form[data-form="vlan-edit"] input[name="number"]::-webkit-inner-spin-button,
+.switch-admin.v4 form[data-form="vlan-edit"] input[name="number"]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
