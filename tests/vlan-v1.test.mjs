@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {createAssetRegistry,restoreAssetRegistry} from "../src/asset-profiles.js";
-import {addSwitchVlan,setSwitchAccessPort,setSwitchTrunkPort,observeRegisteredVlanPing,vlanSwitchConfig} from "../src/vlan-v1.js";
+import {addSwitchVlan,updateSwitchVlan,removeSwitchVlan,setSwitchAccessPort,setSwitchTrunkPort,observeRegisteredVlanPing,vlanSwitchConfig} from "../src/vlan-v1.js";
 function setup(){
  const r=createAssetRegistry();
  const p=r.createProfile("PC").profile;
@@ -105,4 +105,69 @@ test("V1 : anciens inventaires sans VLAN restaurables",()=>{
  delete old.assets[0].networkCapabilities;
  const restored=restoreAssetRegistry(old);
  assert.deepEqual(restored.getAsset(a.id).networkCapabilities,[]);
+});
+
+test("VLAN édition : renommer et renuméroter conserve les ports Access et Trunk",()=>{
+ const f=setup();f.vlan(f.s1,10);f.vlan(f.s1,20);
+ f.access(f.s1,10,0);f.trunk(f.s1,[10,20],1);
+ const before=vlanSwitchConfig(f.r,f.s1.id),v=before.vlans.find(x=>x.number===10);
+ const accessBefore=before.ports[f.s1.ports[0].id];
+ const trunkBefore=before.ports[f.s1.ports[1].id];
+ assert.equal(updateSwitchVlan(f.r,f.s1.id,v.id,30,"Comptabilité").success,true);
+ const after=vlanSwitchConfig(f.r,f.s1.id);
+ assert.equal(after.vlans.find(x=>x.id===v.id).number,30);
+ assert.equal(after.vlans.find(x=>x.id===v.id).name,"Comptabilité");
+ assert.deepEqual(after.ports[f.s1.ports[0].id],accessBefore);
+ assert.deepEqual(after.ports[f.s1.ports[1].id],trunkBefore);
+ assert.equal(vlanSwitchConfig(f.r,f.s2.id).vlans.length,1);
+ assert.deepEqual(restoreAssetRegistry(f.r.exportState()).exportState(),f.r.exportState());
+});
+test("VLAN édition : refus atomiques et suppression avec protection des ports",()=>{
+ const f=setup();f.vlan(f.s1,10);f.vlan(f.s1,20);
+ const id=vlanSwitchConfig(f.r,f.s1.id).vlans.find(v=>v.number===10).id;
+ f.access(f.s1,10,0);
+ const before=f.r.exportState();
+ for(const action of [
+  ()=>updateSwitchVlan(f.r,f.s1.id,id,20,"Doublon"),
+  ()=>updateSwitchVlan(f.r,f.s1.id,id,5000,"Invalide"),
+  ()=>updateSwitchVlan(f.r,f.s1.id,"vlan-1",2,"Défaut"),
+  ()=>removeSwitchVlan(f.r,f.s1.id,id),
+  ()=>removeSwitchVlan(f.r,f.s1.id,"vlan-1")
+ ]){
+  assert.equal(action().success,false);
+  assert.deepEqual(f.r.exportState(),before);
+ }
+ f.access(f.s1,1,0);
+ assert.equal(removeSwitchVlan(f.r,f.s1.id,id).success,true);
+ assert.equal(vlanSwitchConfig(f.r,f.s1.id).vlans.some(v=>v.id===id),false);
+});
+test("VLAN L3 : report atomique des interfaces, IP Helper et plages DHCP",()=>{
+ const r=createAssetRegistry(),p=r.createProfile("Switch L3").profile;
+ assert.equal(r.addPortGroup(p.id,{type:"ethernet-rj45",prefix:"P",start:1,count:4}).success,true);
+ for(const cap of ["ethernet-switching","vlan","inter-vlan-routing","ip-helper","dhcp-server"])
+  assert.equal(r.setProfileNetworkCapability(p.id,cap,true).success,true);
+ const sw=r.createAsset(p.id,{name:"L3"}).asset;
+ assert.equal(addSwitchVlan(r,sw.id,10,"Compta").success,true);
+ const v=r.getAsset(sw.id).vlanConfig.vlans.find(x=>x.number===10);
+ const routing=r.getAsset(sw.id).routingConfig;
+ routing.interfaces["10"]={address:"192.168.10.1",prefix:24,enabled:true};
+ assert.equal(r.setAssetRoutingConfig(sw.id,routing).success,true);
+ const helpers=r.getAsset(sw.id).ipHelperConfig;
+ helpers.helpers["vlan:10"]={enabled:true,serverAddress:"192.168.20.2"};
+ assert.equal(r.setAssetIpHelperConfig(sw.id,helpers).success,true);
+ const dhcp=r.getAsset(sw.id).dhcpServerConfig;
+ dhcp.pools=[{id:"pool10",vlanNumber:10,start:"192.168.10.100",end:"192.168.10.109",prefix:24,gateway:"192.168.10.1",dns:["1.1.1.1"],leaseSeconds:3600}];
+ assert.equal(r.setAssetDhcpServerConfig(sw.id,dhcp).success,true);
+ const before=r.exportState();
+ assert.equal(removeSwitchVlan(r,sw.id,v.id).success,false);
+ assert.deepEqual(r.exportState(),before);
+ assert.equal(updateSwitchVlan(r,sw.id,v.id,20,"Comptabilité").success,true);
+ const after=r.getAsset(sw.id);
+ assert.equal(after.vlanConfig.vlans.find(x=>x.id===v.id).number,20);
+ assert.deepEqual(after.routingConfig.interfaces["20"],routing.interfaces["10"]);
+ assert.equal(after.routingConfig.interfaces["10"],undefined);
+ assert.deepEqual(after.ipHelperConfig.helpers["vlan:20"],helpers.helpers["vlan:10"]);
+ assert.equal(after.ipHelperConfig.helpers["vlan:10"],undefined);
+ assert.equal(after.dhcpServerConfig.pools[0].vlanNumber,20);
+ assert.deepEqual(restoreAssetRegistry(r.exportState()).exportState(),r.exportState());
 });
