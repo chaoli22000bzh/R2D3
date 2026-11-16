@@ -116,7 +116,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
      '</div>'+
      '<div class="dhcp-advanced">'+
      '<details><summary>Exclusions ('+esc(current?.exclusions?.length??0)+')</summary>'+
-     '<label>Une IPv4 exclue par ligne<textarea name="exclusions" rows="3" spellcheck="false" placeholder="192.168.10.110">'+esc((current?.exclusions??[]).join("\n"))+'</textarea></label></details>'+
+     '<label>Une IPv4 ou plage (début-fin) par ligne<textarea name="exclusions" rows="3" spellcheck="false" placeholder="192.168.10.110">'+esc((current?.exclusions??[]).join("\n"))+'</textarea></label></details>'+
      '<details><summary>Réservations ('+esc(current?.reservations?.length??0)+')</summary>'+
      '<label>Une association MAC ; IPv4 par ligne<textarea name="reservations" rows="3" spellcheck="false" placeholder="02-00-00-00-10-01 ; 192.168.10.120">'+
        esc((current?.reservations??[]).map(r=>r.mac+" ; "+r.address).join("\n"))+'</textarea></label></details>'+
@@ -252,6 +252,9 @@ export function mountSwitchAdmin({root,registry,assetId}){
     const previous=conf.pools.find(p=>p.id===selectedDhcpPoolId);
     let number=1;
     while(conf.pools.some(p=>p.id==="pool-"+number))number++;
+    if(!String(d.get("dns1")??"").trim()&&String(d.get("dns2")??"").trim()){
+     report({success:false,message:"Renseigner DNS 1 avant DNS 2."});return;
+    }
     const pool={id:newDhcpPool?"pool-"+number:previous?.id,
      vlanNumber:Number(d.get("vlanNumber")),start:String(d.get("start")??"").trim(),
      end:String(d.get("end")??"").trim(),prefix:Number(d.get("prefix")),
