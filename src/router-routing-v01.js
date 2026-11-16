@@ -51,8 +51,12 @@ export function observeRouterPing(registry,routerId,sourceId,targetId,addresses)
  const pair=[a,b].map((port,i)=>({port,interface:router.routerConfig.interfaces[port.id],client:config[i],asset:clients[i],clientPort:ports[i][0]}));
  if(pair.some(p=>!p.interface||p.interface.mode!=="static"))
   return fail("Interface du routeur sans IPv4 statique");
- if(pair.some(p=>p.interface.role!=="lan"))
-  return unsupported("Lot 2 : routage direct entre deux interfaces LAN uniquement");
+ const roles=pair.map(p=>p.interface.role);
+ if(roles.some(role=>!["lan","wan"].includes(role)))
+  return unsupported("Lot 2 : les réseaux DMZ ne sont pas encore pris en charge");
+ if(roles[0]==="wan"&&roles[1]==="wan")
+  return unsupported("Lot 2 : deux interfaces WAN non prises en charge");
+ const hasWan=roles.includes("wan");
  const gatewayNets=pair.map(p=>network(p.interface.address,p.interface.prefix));
  if(gatewayNets.some(n=>!n))return unsupported("Adressage d'interface routeur invalide");
  if(overlap(gatewayNets[0],gatewayNets[1]))
@@ -69,5 +73,5 @@ export function observeRouterPing(registry,routerId,sourceId,targetId,addresses)
   const observed=corePing(p.asset,p.clientPort,p.client,router,p.port,p.interface,true);
   if(!observed.success)return {status:observed.status||"ok",success:false,reason:"PC et passerelle non joignables : "+(observed.reason||"échec réseau")};
  }
- return {status:"ok",success:true,reason:"Routage IPv4 direct opérationnel entre les deux réseaux LAN"};
+ return {status:"ok",success:true,reason:hasWan?"Routage IPv4 direct opérationnel entre LAN et WAN (sans NAT ni pare-feu simulé)":"Routage IPv4 direct opérationnel entre les deux réseaux LAN"};
 }

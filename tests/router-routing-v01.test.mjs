@@ -70,3 +70,25 @@ test("ROUTER-07 : export-restauration et absence de topologie parallèle",()=>{
  assert.deepEqual(after,before);
  assert.deepEqual(f.r.exportState(),snapshot);
 });
+
+test("ROUTER-08 : LAN/WAN direct, ping dans les deux sens",()=>{
+ const f=fixture();
+ assert.ok(f.r.disconnectCableEnd(f.c2.id,1).success);
+ assert.ok(f.r.connectCableEnd(f.c2.id,1,f.router.ports[0].id).success);
+ assert.ok(configureRouterPort(f.r,f.router.id,f.router.ports[0].id,{role:"wan",mode:"static",address:"192.168.20.1",prefix:24}).success);
+ assert.equal(f.ping().success,true);
+ assert.match(f.ping().reason,/LAN et WAN/);
+ assert.equal(observeRouterPing(f.r,f.router.id,f.pc2.id,f.pc1.id,f.addresses).success,true);
+});
+test("ROUTER-09 : mauvaise passerelle WAN ou coupure de câble",()=>{
+ const f=fixture();
+ assert.ok(f.r.disconnectCableEnd(f.c2.id,1).success);
+ assert.ok(f.r.connectCableEnd(f.c2.id,1,f.router.ports[0].id).success);
+ assert.ok(configureRouterPort(f.r,f.router.id,f.router.ports[0].id,{role:"wan",mode:"static",address:"192.168.20.1",prefix:24}).success);
+ assert.equal(f.ping().success,true);
+ f.addresses[f.pc2.id].gateway="192.168.20.254";
+ assert.equal(f.ping().success,false);
+ f.addresses[f.pc2.id].gateway="192.168.20.1";
+ assert.ok(f.r.disconnectCableEnd(f.c2.id,1).success);
+ assert.equal(f.ping().success,false);
+});
