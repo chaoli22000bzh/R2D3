@@ -345,3 +345,15 @@
 .switch-admin.v4 form[data-form="vlan"] input[name="number"]::-webkit-outer-spin-button,
 .switch-admin.v4 form[data-form="vlan-edit"] input[name="number"]::-webkit-inner-spin-button,
 .switch-admin.v4 form[data-form="vlan-edit"] input[name="number"]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+
+/* Même largeur en modification qu'à la création : 90 px pour l'identifiant VLAN. */
+.switch-admin.v4 form[data-form="vlan-edit"]{
+ grid-template-columns:90px 205px;
+ max-width:307px;
+ column-gap:12px;
+}
+.switch-admin.v4 form[data-form="vlan-edit"] input[name="number"]{width:90px}
+@media(max-width:430px){
+ .switch-admin.v4 form[data-form="vlan-edit"]{grid-template-columns:minmax(0,1fr);max-width:100%}
+ .switch-admin.v4 form[data-form="vlan-edit"] input[name="number"]{width:100%;max-width:110px}
+}
