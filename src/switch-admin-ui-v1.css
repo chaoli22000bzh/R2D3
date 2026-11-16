@@ -88,3 +88,11 @@
 .v4 .edit-panel{padding-top:14px}
 .v4 .form-grid{max-width:730px}
 @media(max-width:720px){.v4 .device-bar{padding:12px 15px}.v4 .network-topbar{padding:0 15px}.v4 .admin-content{padding:14px}.v4 .device-tabs{padding:0 14px;gap:18px}.v4 .port-panel{padding:12px}}
+
+/* Administration L3 : contrôles denses, sans encadré pédagogique */
+.switch-admin .routing-switch{display:flex;align-items:center;gap:22px;flex-wrap:wrap;padding:5px 0 10px}
+.switch-admin .check-label{display:flex;align-items:center;gap:10px;font-weight:550;color:#344b52;min-height:40px;cursor:pointer}
+.switch-admin .check-label input[type=checkbox]{width:19px;height:19px;min-height:0;margin:0;accent-color:#009b75;flex:0 0 auto}
+.switch-admin .routing-form{padding-top:19px}
+.switch-admin .routing-form select{max-width:350px}
+@media(max-width:720px){.switch-admin .routing-switch{gap:12px}}
