@@ -66,14 +66,14 @@ export function mountSwitchAdmin({root,registry,assetId}){
     (p?'<section class="admin-panel edit-panel"><h3>Port '+esc(p.name)+'</h3>'+
      '<form data-form="port" class="form-grid"><input type="hidden" name="portId" value="'+esc(p.id)+'">'+
      '<label>Mode<select name="mode">'+opts([["access","Access"],["trunk","Trunk"]],state.mode)+'</select></label>'+
-     '<label>VLAN autorisés<input name="vlans" required value="'+esc(chosen.join(", "))+'" placeholder="1 ou 10, 20"></label>'+
+     '<label>VLAN autorisés<input name="vlans" required value="'+esc(chosen.join(", "))+'"></label>'+
      '<div class="form-actions"><button type="submit" class="primary">Appliquer</button></div></form></section>':'');
   }else if(page==="vlans"){
    content='<section class="admin-panel"><h3>VLAN configurés</h3>'+
     table(["Identifiant","Nom"],vlans.map(v=>'<tr><td>'+esc(v.number)+'</td><td>'+esc(v.name)+'</td></tr>'))+
     '</section><section class="admin-panel edit-panel"><h3>Ajouter un VLAN</h3>'+
-    '<form data-form="vlan" class="form-grid"><label>Identifiant VLAN<input type="number" name="number" min="2" max="4094" required placeholder="10"></label>'+
-    '<label>Nom<input name="name" maxlength="50" required placeholder="Bureaux"></label>'+
+    '<form data-form="vlan" class="form-grid"><label>Identifiant VLAN<input type="number" name="number" min="2" max="4094" required></label>'+
+    '<label>Nom<input name="name" maxlength="50" required></label>'+
     '<div class="form-actions"><button class="primary" type="submit">Ajouter</button></div></form></section>';
   }else if(page==="routing"&&l3){
    const routing=getSwitchRoutingConfig(registry,a.id);
@@ -90,8 +90,8 @@ export function mountSwitchAdmin({root,registry,assetId}){
        (i.enabled?'Activée':'Désactivée')+'</td></tr>'))+
     '<form data-form="interface" class="form-grid routing-form">'+
     '<label>VLAN<select name="vlan">'+opts(vlans.map(v=>[v.number,v.number+" · "+v.name]),vlans[0]?.number)+'</select></label>'+
-    '<label>Adresse IPv4<input name="address" inputmode="decimal" required placeholder="192.168.10.1" value="'+esc(initialInterface?.address??"")+'"></label>'+
-    '<label>Préfixe réseau<input name="prefix" type="number" min="1" max="30" required placeholder="24" value="'+esc(initialInterface?.prefix??"")+'"></label>'+
+    '<label>Adresse IPv4<input name="address" inputmode="decimal" required value="'+esc(initialInterface?.address??"")+'"></label>'+
+    '<label>Préfixe réseau<input name="prefix" type="number" min="1" max="30" required value="'+esc(initialInterface?.prefix??"")+'"></label>'+
     '<label class="check-label"><input name="enabled" type="checkbox"'+(initialInterface?.enabled===false?'':' checked')+'>Interface activée</label>'+
     '<div class="form-actions"><button class="primary" type="submit">Appliquer</button></div></form></section>';
   }else{
@@ -99,11 +99,11 @@ export function mountSwitchAdmin({root,registry,assetId}){
    content='<section class="admin-panel edit-panel"><h3>Configuration IPv4</h3>'+
     '<form data-form="management" class="form-grid" id="switch-management">'+
     '<label>Mode d’adressage<select name="mode">'+opts([["dhcp","DHCP"],["static","Statique"]],mg.mode)+'</select></label>'+
-    '<label>Adresse IPv4<input name="address" value="'+esc(fixed?mg.address:"")+'" placeholder="192.168.1.2"'+(!fixed?' disabled':'')+'></label>'+
-    '<label>Préfixe réseau<input name="prefix" type="number" min="1" max="30" value="'+esc(fixed?mg.prefix:"")+'" placeholder="24"'+(!fixed?' disabled':'')+'></label>'+
-    '<label>Passerelle<input name="gateway" value="'+esc(fixed?mg.gateway:"")+'" placeholder="192.168.1.1"'+(!fixed?' disabled':'')+'></label>'+
-    '<label>DNS principal<input name="dns1" value="'+esc(fixed?(dns[0]??""):"")+'" placeholder="192.168.1.10"'+(!fixed?' disabled':'')+'></label>'+
-    '<label>DNS secondaire<input name="dns2" value="'+esc(fixed?(dns[1]??""):"")+'" placeholder="192.168.1.11"'+(!fixed?' disabled':'')+'></label>'+
+    '<label>Adresse IPv4<input name="address" value="'+esc(fixed?mg.address:"")+'"'+(!fixed?' disabled':'')+'></label>'+
+    '<label>Préfixe réseau<input name="prefix" type="number" min="1" max="30" value="'+esc(fixed?mg.prefix:"")+'"'+(!fixed?' disabled':'')+'></label>'+
+    '<label>Passerelle<input name="gateway" value="'+esc(fixed?mg.gateway:"")+'"'+(!fixed?' disabled':'')+'></label>'+
+    '<label>DNS principal<input name="dns1" value="'+esc(fixed?(dns[0]??""):"")+'"'+(!fixed?' disabled':'')+'></label>'+
+    '<label>DNS secondaire<input name="dns2" value="'+esc(fixed?(dns[1]??""):"")+'"'+(!fixed?' disabled':'')+'></label>'+
     '<div class="form-actions"><button type="submit" class="primary">Appliquer</button></div></form></section>'+
     '<section class="admin-panel compact-panel"><h3>Paramètres appliqués</h3>'+
     '<dl class="device-details"><div><dt>Mode</dt><dd>'+esc(fixed?"Statique":"DHCP")+'</dd></div>'+
