@@ -39,7 +39,7 @@ test("Interface DHCP L3 : disponibilité, deux DNS, exclusions, réservations et
   submit("dhcp-pool",{
    vlanNumber:"10",start:"192.168.10.100",end:"192.168.10.120",prefix:"24",
    gateway:"192.168.10.1",dns1:"1.1.1.1",dns2:"8.8.8.8",leaseSeconds:"86400",
-   exclusions:"192.168.10.105\n192.168.10.106",
+   exclusions:"192.168.10.105-192.168.10.106",
    reservations:"02-00-00-00-10-01 ; 192.168.10.110"
   });
   const pool=getSwitchDhcpConfig(registry,sw.id).pools[0];
