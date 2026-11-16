@@ -11,7 +11,7 @@ const opts=(list,value)=>list.map(([id,title])=>'<option value="'+esc(id)+'"'+(S
 const message=r=>r?.message||r?.reason||r?.code||"Configuration refusée";
 export function mountSwitchAdmin({root,registry,assetId}){
  if(!root||!registry?.getAsset||!registry?.listCables)throw Error("Interface ou registre réseau indisponible");
- let id=assetId,page="overview",selectedPort=null,feedback="",feedbackType="ok";
+ let id=assetId,page="overview",selectedPort=null,selectedRoutingVlan=null,feedback="",feedbackType="ok";
  const pages={overview:"Vue d’ensemble",ports:"Ports",vlans:"VLAN",management:"IPv4 de gestion",routing:"Routage inter-VLAN"};
  const get=()=>{const a=registry.getAsset(id);if(!a?.networkCapabilities?.includes("vlan"))throw Error("Commutateur administrable introuvable");return a;};
  const report=r=>{feedback=message(r);feedbackType=r?.success?"ok":"error";render();};
@@ -78,7 +78,8 @@ export function mountSwitchAdmin({root,registry,assetId}){
   }else if(page==="routing"&&l3){
    const routing=getSwitchRoutingConfig(registry,a.id);
    const configured=Object.entries(routing.interfaces).sort((a,b)=>Number(a[0])-Number(b[0]));
-   const initialVlan=vlans[0]?.number;
+   if(!vlans.some(v=>v.number===selectedRoutingVlan))selectedRoutingVlan=vlans[0]?.number;
+   const initialVlan=selectedRoutingVlan;
    const initialInterface=routing.interfaces[String(initialVlan)];
    content='<section class="admin-panel"><h3>Routage inter-VLAN</h3>'+
     '<form data-form="routing" class="routing-switch"><label class="check-label"><input type="checkbox" name="routing"'+
@@ -86,10 +87,10 @@ export function mountSwitchAdmin({root,registry,assetId}){
     '<button type="submit" class="primary">Appliquer</button></form></section>'+
     '<section class="admin-panel edit-panel"><h3>Interfaces VLAN</h3>'+
     table(["VLAN","Adresse IPv4","Préfixe","État"],configured.map(([number,i])=>
-       '<tr><td>'+esc(number)+'</td><td>'+esc(i.address)+'</td><td>/'+esc(i.prefix)+'</td><td>'+
+       '<tr class="'+(Number(number)===selectedRoutingVlan?'row-selected':'')+'"><td><button type="button" class="table-port" data-routing-vlan="'+esc(number)+'" aria-label="Modifier l’interface VLAN '+esc(number)+'">'+esc(number)+'</button></td><td>'+esc(i.address)+'</td><td>/'+esc(i.prefix)+'</td><td>'+
        (i.enabled?'Activée':'Désactivée')+'</td></tr>'))+
     '<form data-form="interface" class="form-grid routing-form">'+
-    '<label>VLAN<select name="vlan">'+opts(vlans.map(v=>[v.number,v.number+" · "+v.name]),vlans[0]?.number)+'</select></label>'+
+    '<label>VLAN<select name="vlan">'+opts(vlans.map(v=>[v.number,v.number+" · "+v.name]),initialVlan)+'</select></label>'+
     '<label>Adresse IPv4<input name="address" inputmode="decimal" required value="'+esc(initialInterface?.address??"")+'"></label>'+
     '<label>Préfixe réseau<input name="prefix" type="number" min="1" max="30" required value="'+esc(initialInterface?.prefix??"")+'"></label>'+
     '<label class="check-label"><input name="enabled" type="checkbox"'+(initialInterface?.enabled===false?'':' checked')+'>Interface activée</label>'+
@@ -122,12 +123,20 @@ export function mountSwitchAdmin({root,registry,assetId}){
  const onClick=e=>{
   const nav=e.target.closest("[data-page]");
   if(nav&&root.contains(nav)){page=nav.dataset.page;feedback="";render();return;}
+  const interfaceRow=e.target.closest("[data-routing-vlan]");
+  if(interfaceRow&&root.contains(interfaceRow)){
+   selectedRoutingVlan=Number(interfaceRow.dataset.routingVlan);
+   feedback="";render();
+   root.querySelector?.('form[data-form="interface"] input[name="enabled"]')?.focus();
+   return;
+  }
   const port=e.target.closest("[data-port]");
   if(port&&root.contains(port)){selectedPort=port.dataset.port;page="ports";feedback="";render();}
  };
  const onChange=e=>{
   const vlanSelect=e.target.closest('form[data-form="interface"] select[name="vlan"]');
   if(vlanSelect&&root.contains(vlanSelect)){
+   selectedRoutingVlan=Number(vlanSelect.value);
    const form=vlanSelect.closest("form");
    const conf=getSwitchRoutingConfig(registry,get().id)?.interfaces[String(vlanSelect.value)];
    form.elements.namedItem("address").value=conf?.address??"";
@@ -163,6 +172,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
   }else if(form.dataset.form==="routing"){
    response=setSwitchInterVlanRouting(registry,a.id,d.get("routing")==="on");
   }else if(form.dataset.form==="interface"){
+   selectedRoutingVlan=Number(d.get("vlan"));
    response=setSwitchVlanInterface(registry,a.id,Number(d.get("vlan")),String(d.get("address")??"").trim(),
       Number(d.get("prefix")),d.get("enabled")==="on");
   }else if(form.dataset.form==="management"){
@@ -177,7 +187,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
  render();
  return {
   refresh:render,
-  setAssetId(nextId){id=nextId;page="overview";selectedPort=null;feedback="";render();},
+  setAssetId(nextId){id=nextId;page="overview";selectedPort=null;selectedRoutingVlan=null;feedback="";render();},
   destroy(){root.removeEventListener("click",onClick);root.removeEventListener("change",onChange);
    root.removeEventListener("submit",onSubmit);root.replaceChildren();}
  };
