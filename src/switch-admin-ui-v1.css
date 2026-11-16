@@ -184,3 +184,41 @@
  }
  .switch-admin.v4 form[data-form="interface"]>.form-actions{grid-column:1}
 }
+
+/* Dense port administration: data columns sized for 8-port devices. */
+.switch-admin.v4 .ports-table{max-width:565px}
+.switch-admin.v4 .ports-table .table-scroll{max-width:565px}
+.switch-admin.v4 .ports-table .admin-table{width:100%;table-layout:fixed}
+.switch-admin.v4 .ports-table .admin-table th:nth-child(1),
+.switch-admin.v4 .ports-table .admin-table td:nth-child(1){width:112px}
+.switch-admin.v4 .ports-table .admin-table th:nth-child(2),
+.switch-admin.v4 .ports-table .admin-table td:nth-child(2){width:130px}
+.switch-admin.v4 .ports-table .admin-table th:nth-child(3),
+.switch-admin.v4 .ports-table .admin-table td:nth-child(3){width:155px}
+.switch-admin.v4 .ports-table .admin-table th:nth-child(4),
+.switch-admin.v4 .ports-table .admin-table td:nth-child(4){width:80px}
+.switch-admin.v4 .ports-table .admin-table td{padding-top:3px;padding-bottom:3px}
+.switch-admin.v4 .ports-table .admin-table th{padding-top:5px;padding-bottom:5px}
+.switch-admin.v4 .ports-table{margin-bottom:10px}
+.switch-admin.v4 form[data-form="port"]{
+ display:grid;
+ grid-template-columns:145px 135px;
+ column-gap:12px;
+ max-width:300px;
+}
+.switch-admin.v4 form[data-form="port"] .form-actions{grid-column:1/-1}
+.switch-admin.v4 form[data-form="vlan"]{
+ display:grid;
+ grid-template-columns:90px 205px;
+ column-gap:12px;
+ max-width:307px;
+}
+.switch-admin.v4 form[data-form="vlan"] input[name="number"]{
+ width:90px;
+}
+.switch-admin.v4 form[data-form="vlan"] .form-actions{grid-column:1/-1}
+@media(max-width:430px){
+ .switch-admin.v4 form[data-form="port"],
+ .switch-admin.v4 form[data-form="vlan"]{grid-template-columns:minmax(0,1fr);max-width:100%}
+ .switch-admin.v4 form[data-form="vlan"] input[name="number"]{width:100%;max-width:110px}
+}
