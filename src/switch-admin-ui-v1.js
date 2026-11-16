@@ -78,6 +78,8 @@ export function mountSwitchAdmin({root,registry,assetId}){
   }else if(page==="routing"&&l3){
    const routing=getSwitchRoutingConfig(registry,a.id);
    const configured=Object.entries(routing.interfaces).sort((a,b)=>Number(a[0])-Number(b[0]));
+   const initialVlan=vlans[0]?.number;
+   const initialInterface=routing.interfaces[String(initialVlan)];
    content='<section class="admin-panel"><h3>Routage inter-VLAN</h3>'+
     '<form data-form="routing" class="routing-switch"><label class="check-label"><input type="checkbox" name="routing"'+
     (routing.routingEnabled?' checked':'')+'><span>Activer le routage inter-VLAN</span></label>'+
@@ -88,9 +90,9 @@ export function mountSwitchAdmin({root,registry,assetId}){
        (i.enabled?'Activée':'Désactivée')+'</td></tr>'))+
     '<form data-form="interface" class="form-grid routing-form">'+
     '<label>VLAN<select name="vlan">'+opts(vlans.map(v=>[v.number,v.number+" · "+v.name]),vlans[0]?.number)+'</select></label>'+
-    '<label>Adresse IPv4<input name="address" inputmode="decimal" required placeholder="192.168.10.1"></label>'+
-    '<label>Préfixe réseau<input name="prefix" type="number" min="1" max="30" required placeholder="24"></label>'+
-    '<label class="check-label"><input name="enabled" type="checkbox" checked>Interface activée</label>'+
+    '<label>Adresse IPv4<input name="address" inputmode="decimal" required placeholder="192.168.10.1" value="'+esc(initialInterface?.address??"")+'"></label>'+
+    '<label>Préfixe réseau<input name="prefix" type="number" min="1" max="30" required placeholder="24" value="'+esc(initialInterface?.prefix??"")+'"></label>'+
+    '<label class="check-label"><input name="enabled" type="checkbox"'+(initialInterface?.enabled===false?'':' checked')+'>Interface activée</label>'+
     '<div class="form-actions"><button class="primary" type="submit">Appliquer</button></div></form></section>';
   }else{
    const fixed=mg.mode==="static",dns=mg.dns??[];
@@ -124,6 +126,15 @@ export function mountSwitchAdmin({root,registry,assetId}){
   if(port&&root.contains(port)){selectedPort=port.dataset.port;page="ports";feedback="";render();}
  };
  const onChange=e=>{
+  const vlanSelect=e.target.closest('form[data-form="interface"] select[name="vlan"]');
+  if(vlanSelect&&root.contains(vlanSelect)){
+   const form=vlanSelect.closest("form");
+   const conf=getSwitchRoutingConfig(registry,get().id)?.interfaces[String(vlanSelect.value)];
+   form.elements.namedItem("address").value=conf?.address??"";
+   form.elements.namedItem("prefix").value=conf?.prefix??"";
+   form.elements.namedItem("enabled").checked=conf?.enabled!==false;
+   return;
+  }
   const field=e.target.closest('select[name="mode"]');
   if(!field||!root.contains(field)||!field.closest('form[data-form="management"]'))return;
   const form=field.closest("form");
