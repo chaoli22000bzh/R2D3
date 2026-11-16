@@ -32,7 +32,8 @@ test("Interface DHCP L3 : disponibilité, deux DNS, exclusions, réservations et
  for(const label of ["DNS 1","DNS 2","Exclusions","Réservations","Bail (heures)"])
   assert.ok(root.innerHTML.includes(label),label);
  assert.match(root.innerHTML,/Adresses que le serveur ne doit pas attribuer automatiquement/);
- assert.match(root.innerHTML,/Une réservation par ligne, séparée par un point-virgule/);
+ assert.match(root.innerHTML,/Les espaces sont facultatifs/);
+ assert.match(root.innerHTML,/02-00-00-00-10-01;192\.168\.10\.130/);
  assert.match(root.innerHTML,/192\.168\.10\.120-192\.168\.10\.125/);
  const originalFormData=globalThis.FormData;
  globalThis.FormData=class {constructor(form){this.data=form.values;}get(key){return this.data[key]??null;}};
@@ -54,6 +55,7 @@ test("Interface DHCP L3 : disponibilité, deux DNS, exclusions, réservations et
   assert.deepEqual(pool.exclusions,["192.168.10.105","192.168.10.106"]);
   assert.deepEqual(pool.reservations,[{mac:"02-00-00-00-10-01",address:"192.168.10.110"}]);
   assert.equal(pool.leaseSeconds,86400);
+  assert.match(root.innerHTML,/02-00-00-00-10-01;192\.168\.10\.110/);
   assert.match(root.innerHTML,/24 h<\/td>/);
   assert.match(root.innerHTML,/name="leaseHours"[^>]*value="24"/);
   // Une durée décimale reste enregistrée en secondes dans le moteur.
