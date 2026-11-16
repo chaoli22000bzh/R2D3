@@ -98,13 +98,17 @@ export function mountSwitchAdmin({root,registry,assetId}){
        (hasHelper?'<td>'+(h?(h.enabled?'Activé':'Désactivé'):'Non configuré')+'</td><td>'+esc(h?.serverAddress??"")+'</td>':'')+
        '</tr>';
     }))+
-    '<form data-form="interface" class="form-grid routing-form">'+
-    '<label>VLAN<select name="vlan">'+opts(vlans.map(v=>[v.number,v.number+" · "+v.name]),initialVlan)+'</select></label>'+
+    '<form data-form="interface" class="routing-form grouped-routing-form">'+
+    '<div class="routing-vlan-selector"><label>VLAN<select name="vlan">'+opts(vlans.map(v=>[v.number,v.number+" · "+v.name]),initialVlan)+'</select></label></div>'+
+    '<div class="routing-field-group"><h4>Interface VLAN</h4><div class="routing-fields">'+
     '<label>Adresse IPv4<input name="address" inputmode="decimal" required value="'+esc(initialInterface?.address??"")+'"></label>'+
     '<label>Préfixe réseau<input name="prefix" type="number" min="1" max="30" required value="'+esc(initialInterface?.prefix??"")+'"></label>'+
     '<label class="check-label"><input name="enabled" type="checkbox"'+(initialInterface?.enabled===false?'':' checked')+'>Interface activée</label>'+
-    (hasHelper?'<label class="check-label"><input name="helperEnabled" type="checkbox"'+(currentHelper?.enabled?' checked':'')+'>IP Helper activé</label>'+
-    '<label>Serveur DHCP (IPv4)<input name="helperServer" inputmode="decimal" value="'+esc(currentHelper?.serverAddress??"")+'"></label>':'')+
+    '</div></div>'+
+    (hasHelper?'<div class="routing-field-group helper-field-group"><h4>Relais DHCP (IP Helper)</h4><div class="routing-fields">'+
+    '<label class="check-label"><input name="helperEnabled" type="checkbox"'+(currentHelper?.enabled?' checked':'')+'>Relais activé</label>'+
+    '<label>Serveur DHCP (IPv4)<input name="helperServer" inputmode="decimal" value="'+esc(currentHelper?.serverAddress??"")+'"></label>'+
+    '</div></div>':'')+
     '<div class="form-actions"><button class="primary" type="submit">Appliquer</button></div></form></section>';
   }else{
    const fixed=mg.mode==="static",dns=mg.dns??[];
