@@ -324,3 +324,8 @@
  .switch-admin.v4 .dhcp-fields .dhcp-vlan,.switch-admin.v4 .dhcp-fields .dhcp-ip,.switch-admin.v4 .dhcp-fields .dhcp-prefix,.switch-admin.v4 .dhcp-fields .dhcp-lease{width:calc(50% - 6px);min-width:0}
  .switch-admin.v4 .dhcp-advanced details{flex-basis:100%}
 }
+
+/* Aide contextuelle compacte : exclusions et réservations DHCP. */
+.switch-admin.v4 .dhcp-advanced .dhcp-input-help{
+ font-size:12px;line-height:1.35;color:#52646c;margin:6px 0;
+}
