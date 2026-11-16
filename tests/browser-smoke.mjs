@@ -737,7 +737,8 @@ try {
   await mailPage.locator('#ou-account button[type="submit"]').click();
   await mailPage.waitForFunction(()=>window.__mailLab.getAccounts().length===1);
   assert.equal((await mailPage.evaluate(()=>window.__mailLab.getSnapshot())).configured.length,1);
-  await mailPage.locator('[data-action="close-settings"]').last().click();
+  // Outlook referme les paramètres après validation réussie du compte.
+  await mailPage.locator(".ou-settings").waitFor({state:"detached"});
   const initial=await mailPage.evaluate(()=>window.__mailLab.getSnapshot().messages);
   assert.equal(initial.filter(x=>x.folder==="inbox").length,1);
   assert.ok(Math.abs(Date.now()-Date.parse(initial[0].date)-75*60000)<60000,"Message initial daté relativement à l’horloge du navigateur");
@@ -794,7 +795,8 @@ try {
   await serverPage.locator('#ou-account button[type="submit"]').click();
   await serverPage.waitForFunction(()=>window.__mailServerLab.getAccounts().length===1);
   assert.equal((await serverPage.evaluate(()=>window.__mailServerLab.getSnapshot())).configured.length,1);
-  await serverPage.locator('[data-action="close-settings"]').last().click();
+  // Même comportement après création et validation du compte côté serveur simulé.
+  await serverPage.locator(".ou-settings").waitFor({state:"detached"});
   await serverPage.locator("#inject").click();
   await serverPage.waitForFunction(()=>window.__mailServerLab.getSnapshot().messages.length===1);
   assert.equal((await serverPage.evaluate(()=>window.__mailServerLab.getSnapshot())).messages[0].read,false);
