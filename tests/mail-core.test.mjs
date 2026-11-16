@@ -45,6 +45,13 @@ test("envoi, réception locale et lecture restent séparés",()=>{
  e.validateAccount(form("agent@example.test"));
  const result=e.send({from:"agent@example.test",to:"agent@example.test",subject:"Test",body:"Bonjour"});
  assert.equal(result.success,true);assert.equal(result.receivedIds.length,1);assert.equal(result.delivered,undefined);
+ const sent=e.getSnapshot().messages.find(m=>m.id===result.messageId);
+ assert.equal(sent.folder,"sent");
+ assert.equal(sent.read,false);
+ assert.equal(e.markRead(sent.id).success,true);
+ assert.equal(e.getSnapshot().messages.find(m=>m.id===sent.id).read,true);
+ assert.equal(e.markRead(sent.id).success,true);
+ assert.equal(e.getSnapshot().events.filter(x=>x.type==="mail.read"&&x.messageId===sent.id).length,1);
  const unread=e.getSnapshot().messages.find(m=>m.id===result.receivedIds[0]);assert.equal(unread.read,false);
  assert.equal(e.markRead(unread.id).success,true);
  assert.equal(e.getSnapshot().messages.find(m=>m.id===unread.id).read,true);
