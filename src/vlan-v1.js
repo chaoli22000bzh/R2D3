@@ -21,6 +21,16 @@ function change(registry,assetId,operation){
 export function addSwitchVlan(registry,assetId,number,name){
  return change(registry,assetId,c=>createVlan(c,number,name));
 }
+export function updateSwitchVlan(registry,assetId,vlanId,number,name){
+ if(typeof registry?.updateAssetVlanDefinition!=="function")
+  return error("invalid_registry","Registre incompatible avec la modification VLAN");
+ return registry.updateAssetVlanDefinition(assetId,vlanId,number,name);
+}
+export function removeSwitchVlan(registry,assetId,vlanId){
+ if(typeof registry?.removeAssetVlanDefinition!=="function")
+  return error("invalid_registry","Registre incompatible avec la suppression VLAN");
+ return registry.removeAssetVlanDefinition(assetId,vlanId);
+}
 export function setSwitchAccessPort(registry,assetId,portId,vlanNumber){
  return change(registry,assetId,c=>{
   const vlan=c.vlans.find(v=>v.number===vlanNumber);
