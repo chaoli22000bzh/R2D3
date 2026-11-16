@@ -8,7 +8,7 @@ const common=["name","manufacturer","model","serialNumber","status","location","
 const supportedNetworkCapabilities=["ethernet-switching","vlan","inter-vlan-routing","ip-helper","dhcp-server","ipv4-router"];
 const empty=v=>v===undefined||v===null||v==="";
 const routerPorts=a=>a.ports.filter(p=>p.type==="ethernet-rj45"||p.type==="ethernet-fibre");
-const routerIpv4=v=>typeof v==="string"&&/^\\d{1,3}(\\.\\d{1,3}){3}$/.test(v)&&v.split(".").every(x=>Number(x)<=255);
+const routerIpv4=v=>typeof v==="string"&&/^\d{1,3}(\.\d{1,3}){3}$/.test(v)&&v.split(".").every(x=>Number(x)<=255);
 const routerDefaults=a=>({assetId:a.id,interfaces:Object.fromEntries(routerPorts(a).map((p,i)=>[p.id,{role:i===0?"wan":"lan",mode:"dhcp",address:"",prefix:null,gateway:"",respondToPing:i!==0}]))});
 const routerValid=(a,c)=>!!c&&c.assetId===a.id&&c.interfaces&&typeof c.interfaces==="object"&&!Array.isArray(c.interfaces)&&Object.keys(c.interfaces).length===routerPorts(a).length&&routerPorts(a).every(p=>{
  const i=c.interfaces[p.id];return !!i&&["wan","lan","dmz"].includes(i.role)&&["dhcp","static"].includes(i.mode)&&typeof i.respondToPing==="boolean"&&(i.mode==="dhcp"?(i.address===""&&i.prefix===null&&i.gateway===""):(routerIpv4(i.address)&&Number.isInteger(i.prefix)&&i.prefix>=0&&i.prefix<=32&&(i.gateway===""||routerIpv4(i.gateway))));
