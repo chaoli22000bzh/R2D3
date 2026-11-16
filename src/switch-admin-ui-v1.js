@@ -80,7 +80,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
    const routing=getSwitchRoutingConfig(registry,a.id);
    const hasHelper=a.networkCapabilities.includes("ip-helper");
    const helper=hasHelper?getAssetIpHelperConfig(registry,a.id):null;
-   const configured=Object.entries(routing.interfaces).sort((x,y)=>Number(x[0])-Number(y[0]));
+   const listedVlans=[...vlans].sort((x,y)=>x.number-y.number);
    if(!vlans.some(v=>v.number===selectedRoutingVlan))selectedRoutingVlan=vlans[0]?.number;
    const initialVlan=selectedRoutingVlan;
    const initialInterface=routing.interfaces[String(initialVlan)];
@@ -89,18 +89,19 @@ export function mountSwitchAdmin({root,registry,assetId}){
     '<form data-form="routing" class="routing-switch"><label class="check-label"><input type="checkbox" name="routing"'+
     (routing.routingEnabled?' checked':'')+'><span>Activer le routage inter-VLAN</span></label>'+
     '<button type="submit" class="primary">Appliquer le routage</button></form></section>'+
-    '<section class="admin-panel edit-panel"><div class="routing-heading"><h3>Interfaces VLAN</h3>'+ 
-    '<label class="routing-vlan-selector">VLAN<select name="vlan" form="switch-routing-interface">'+opts(vlans.map(v=>[v.number,v.number+" · "+v.name]),initialVlan)+'</select></label></div>'+
+    '<section class="admin-panel edit-panel"><div class="routing-heading"><h3>Interfaces VLAN</h3></div>'+
     '<p class="routing-table-hint">Sélectionnez un VLAN dans le tableau pour modifier ses paramètres ci-dessous.</p>'+
-    table(["VLAN à modifier","Adresse IPv4","Préfixe","État",...(hasHelper?["IP Helper","IP serveur DHCP"]:[])],configured.map(([number,i])=>{
+    table(["VLAN à modifier","Adresse IPv4","Préfixe","État",...(hasHelper?["IP Helper","IP serveur DHCP"]:[])],listedVlans.map(v=>{
+      const number=v.number,i=routing.interfaces[String(number)];
       const h=helper?.helpers["vlan:"+number];
       return '<tr class="routing-data-row '+(Number(number)===selectedRoutingVlan?'row-selected':'')+'" data-routing-vlan="'+esc(number)+'"><td>'+
        '<button type="button" class="table-port routing-select" data-routing-vlan="'+esc(number)+'" aria-pressed="'+(Number(number)===selectedRoutingVlan)+'" aria-label="Modifier l’interface VLAN '+esc(number)+'">'+esc(number)+' <span class="routing-select-label">'+(Number(number)===selectedRoutingVlan?'Sélectionné':'Modifier')+'</span></button></td>'+
-       '<td>'+esc(i.address)+'</td><td>/'+esc(i.prefix)+'</td><td>'+(i.enabled?'Activée':'Désactivée')+'</td>'+
+       '<td>'+(i?esc(i.address):'Non configurée')+'</td><td>'+(i?'/'+esc(i.prefix):'')+'</td><td>'+(i?(i.enabled?'Activée':'Désactivée'):'')+'</td>'+
        (hasHelper?'<td>'+(h?(h.enabled?'Activé':'Désactivé'):'Non configuré')+'</td><td>'+esc(h?.serverAddress??"")+'</td>':'')+
        '</tr>';
     }))+
     '<form id="switch-routing-interface" data-form="interface" class="routing-form grouped-routing-form">'+
+    '<input type="hidden" name="vlan" value="'+esc(initialVlan)+'">'+
     '<div class="routing-field-group"><h4>Interface VLAN</h4><div class="routing-fields">'+
     '<label class="check-label"><input name="enabled" type="checkbox"'+(initialInterface?.enabled===false?'':' checked')+'>Interface activée</label>'+
     '<label>Adresse IPv4<input name="address" inputmode="decimal" required value="'+esc(initialInterface?.address??"")+'"></label>'+
@@ -150,22 +151,6 @@ export function mountSwitchAdmin({root,registry,assetId}){
   if(port&&root.contains(port)){selectedPort=port.dataset.port;page="ports";feedback="";render();}
  };
  const onChange=e=>{
-  const vlanSelect=e.target.closest('select[name="vlan"][form="switch-routing-interface"]');
-  if(vlanSelect&&root.contains(vlanSelect)){
-   selectedRoutingVlan=Number(vlanSelect.value);
-   const form=root.querySelector('form[data-form="interface"]');
-   const conf=getSwitchRoutingConfig(registry,get().id)?.interfaces[String(vlanSelect.value)];
-   form.elements.namedItem("address").value=conf?.address??"";
-   form.elements.namedItem("prefix").value=conf?.prefix??"";
-   form.elements.namedItem("enabled").checked=conf?.enabled!==false;
-   const helper=getAssetIpHelperConfig(registry,get().id);
-   const current=helper?.helpers["vlan:"+vlanSelect.value];
-   const helperAddress=form.elements.namedItem("helperServer");
-   const helperEnabled=form.elements.namedItem("helperEnabled");
-   if(helperAddress)helperAddress.value=current?.serverAddress??"";
-   if(helperEnabled)helperEnabled.checked=current?.enabled===true;
-   return;
-  }
   const field=e.target.closest('select[name="mode"]');
   if(!field||!root.contains(field)||!field.closest('form[data-form="management"]'))return;
   const form=field.closest("form");
