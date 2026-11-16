@@ -91,10 +91,11 @@ export function mountSwitchAdmin({root,registry,assetId}){
     '<button type="submit" class="primary">Appliquer le routage</button></form></section>'+
     '<section class="admin-panel edit-panel"><div class="routing-heading"><h3>Interfaces VLAN</h3>'+ 
     '<label class="routing-vlan-selector">VLAN<select name="vlan" form="switch-routing-interface">'+opts(vlans.map(v=>[v.number,v.number+" · "+v.name]),initialVlan)+'</select></label></div>'+
-    table(["VLAN","Adresse IPv4","Préfixe","État",...(hasHelper?["IP Helper","IP serveur DHCP"]:[])],configured.map(([number,i])=>{
+    '<p class="routing-table-hint">Sélectionnez un VLAN dans le tableau pour modifier ses paramètres ci-dessous.</p>'+
+    table(["VLAN à modifier","Adresse IPv4","Préfixe","État",...(hasHelper?["IP Helper","IP serveur DHCP"]:[])],configured.map(([number,i])=>{
       const h=helper?.helpers["vlan:"+number];
-      return '<tr class="'+(Number(number)===selectedRoutingVlan?'row-selected':'')+'"><td>'+
-       '<button type="button" class="table-port" data-routing-vlan="'+esc(number)+'" aria-label="Modifier l’interface VLAN '+esc(number)+'">'+esc(number)+'</button></td>'+
+      return '<tr class="routing-data-row '+(Number(number)===selectedRoutingVlan?'row-selected':'')+'" data-routing-vlan="'+esc(number)+'"><td>'+
+       '<button type="button" class="table-port routing-select" data-routing-vlan="'+esc(number)+'" aria-pressed="'+(Number(number)===selectedRoutingVlan)+'" aria-label="Modifier l’interface VLAN '+esc(number)+'">'+esc(number)+' <span class="routing-select-label">'+(Number(number)===selectedRoutingVlan?'Sélectionné':'Modifier')+'</span></button></td>'+
        '<td>'+esc(i.address)+'</td><td>/'+esc(i.prefix)+'</td><td>'+(i.enabled?'Activée':'Désactivée')+'</td>'+
        (hasHelper?'<td>'+(h?(h.enabled?'Activé':'Désactivé'):'Non configuré')+'</td><td>'+esc(h?.serverAddress??"")+'</td>':'')+
        '</tr>';
