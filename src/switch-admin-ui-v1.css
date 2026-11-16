@@ -222,3 +222,52 @@
  .switch-admin.v4 form[data-form="vlan"]{grid-template-columns:minmax(0,1fr);max-width:100%}
  .switch-admin.v4 form[data-form="vlan"] input[name="number"]{width:100%;max-width:110px}
 }
+
+/* L3: separate the SVI and DHCP relay settings while keeping one compact form. */
+.switch-admin.v4 form[data-form="interface"].grouped-routing-form{
+ display:flex;
+ flex-direction:column;
+ align-items:flex-start;
+ gap:11px;
+ max-width:730px;
+ padding-top:10px;
+}
+.switch-admin.v4 .grouped-routing-form .routing-vlan-selector{width:150px;max-width:100%}
+.switch-admin.v4 .grouped-routing-form label{display:grid;gap:3px;font-weight:550;color:#4b5d65}
+.switch-admin.v4 .grouped-routing-form .routing-field-group{
+ border-top:1px solid #dbe4e7;
+ width:100%;
+ padding-top:9px;
+}
+.switch-admin.v4 .grouped-routing-form .routing-field-group h4{
+ margin:0 0 8px;
+ font-size:16px;
+ font-weight:700;
+ color:#344a53;
+}
+.switch-admin.v4 .grouped-routing-form .routing-fields{
+ display:flex;
+ align-items:end;
+ flex-wrap:wrap;
+ gap:11px 14px;
+}
+.switch-admin.v4 .grouped-routing-form .routing-fields label:has([name="address"]),
+.switch-admin.v4 .grouped-routing-form .routing-fields label:has([name="helperServer"]){width:195px}
+.switch-admin.v4 .grouped-routing-form .routing-fields label:has([name="prefix"]){width:110px}
+.switch-admin.v4 .grouped-routing-form .routing-fields .check-label{
+ display:flex;
+ align-items:center;
+ min-height:36px;
+ gap:7px;
+ white-space:nowrap;
+}
+.switch-admin.v4 .grouped-routing-form .form-actions{
+ display:flex;
+ align-self:flex-start;
+ margin-top:0;
+}
+@media(max-width:430px){
+ .switch-admin.v4 .grouped-routing-form .routing-fields{display:grid;grid-template-columns:minmax(0,1fr);width:100%}
+ .switch-admin.v4 .grouped-routing-form .routing-fields label:has([name="address"]),
+ .switch-admin.v4 .grouped-routing-form .routing-fields label:has([name="helperServer"]){width:100%}
+}
