@@ -90,7 +90,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
     (routing.routingEnabled?' checked':'')+'><span>Activer le routage inter-VLAN</span></label>'+
     '<button type="submit" class="primary">Appliquer</button></form></section>'+
     '<section class="admin-panel edit-panel"><h3>Interfaces VLAN</h3>'+
-    table(["VLAN","Adresse IPv4","Préfixe","État",...(hasHelper?["IP Helper","Serveur DHCP"]:[])],configured.map(([number,i])=>{
+    table(["VLAN","Adresse IPv4","Préfixe","État",...(hasHelper?["Relais DHCP","IP serveur DHCP"]:[])],configured.map(([number,i])=>{
       const h=helper?.helpers["vlan:"+number];
       return '<tr class="'+(Number(number)===selectedRoutingVlan?'row-selected':'')+'"><td>'+
        '<button type="button" class="table-port" data-routing-vlan="'+esc(number)+'" aria-label="Modifier l’interface VLAN '+esc(number)+'">'+esc(number)+'</button></td>'+
@@ -104,12 +104,12 @@ export function mountSwitchAdmin({root,registry,assetId}){
     '<label>Adresse IPv4<input name="address" inputmode="decimal" required value="'+esc(initialInterface?.address??"")+'"></label>'+
     '<label>Préfixe réseau<input name="prefix" type="number" min="1" max="30" required value="'+esc(initialInterface?.prefix??"")+'"></label>'+
     '<label class="check-label"><input name="enabled" type="checkbox"'+(initialInterface?.enabled===false?'':' checked')+'>Interface activée</label>'+
-    '</div></div>'+
+    '</div><div class="form-actions"><button class="primary" type="submit" name="applySection" value="interface">Appliquer l’interface</button></div></div>'+
     (hasHelper?'<div class="routing-field-group helper-field-group"><h4>Relais DHCP (IP Helper)</h4><div class="routing-fields">'+
     '<label class="check-label"><input name="helperEnabled" type="checkbox"'+(currentHelper?.enabled?' checked':'')+'>Relais activé</label>'+
     '<label>Serveur DHCP (IPv4)<input name="helperServer" inputmode="decimal" value="'+esc(currentHelper?.serverAddress??"")+'"></label>'+
-    '</div></div>':'')+
-    '<div class="form-actions"><button class="primary" type="submit">Appliquer</button></div></form></section>';
+    '</div><div class="form-actions"><button class="primary" type="submit" name="applySection" value="helper" formnovalidate>Appliquer le relais</button></div></div>':'')+
+    '</form></section>';
   }else{
    const fixed=mg.mode==="static",dns=mg.dns??[];
    content='<section class="admin-panel edit-panel"><h3>Configuration IPv4</h3>'+
@@ -194,20 +194,24 @@ export function mountSwitchAdmin({root,registry,assetId}){
    response=setSwitchInterVlanRouting(registry,a.id,d.get("routing")==="on");
   }else if(form.dataset.form==="interface"){
    selectedRoutingVlan=Number(d.get("vlan"));
-   const supportsHelper=a.networkCapabilities.includes("ip-helper");
-   const previously=supportsHelper?getAssetIpHelperConfig(registry,a.id)?.helpers["vlan:"+selectedRoutingVlan]:null;
-   const helperOn=d.get("helperEnabled")==="on";
-   const entered=String(d.get("helperServer")??"").trim();
-   const server=entered||(!helperOn?previously?.serverAddress:"")||"";
-   const validIp=value=>typeof value==="string"&&value.split(".").length===4&&
-     value.split(".").every(part=>/^\d{1,3}$/.test(part)&&Number(part)<=255);
-   if(supportsHelper&&(helperOn||previously||entered)&&!validIp(server)){
-    report({success:false,message:"Saisir une adresse IPv4 valide pour le serveur DHCP."});return;
-   }
-   response=setSwitchVlanInterface(registry,a.id,selectedRoutingVlan,String(d.get("address")??"").trim(),
+   const action=e.submitter?.value==="helper"?"helper":"interface";
+   if(action==="interface"){
+    response=setSwitchVlanInterface(registry,a.id,selectedRoutingVlan,String(d.get("address")??"").trim(),
       Number(d.get("prefix")),d.get("enabled")==="on");
-   if(response?.success&&supportsHelper&&(helperOn||previously||entered)){
-    response=setVlanIpHelper(registry,a.id,selectedRoutingVlan,server,helperOn);
+   }else{
+    if(!a.networkCapabilities.includes("ip-helper")){
+     report({success:false,message:"Relais DHCP indisponible sur ce switch."});return;
+    }
+    const previous=getAssetIpHelperConfig(registry,a.id)?.helpers["vlan:"+selectedRoutingVlan];
+    const active=d.get("helperEnabled")==="on";
+    const entered=String(d.get("helperServer")??"").trim();
+    const server=entered||(!active?previous?.serverAddress:"")||"";
+    const validIp=value=>typeof value==="string"&&value.split(".").length===4&&
+      value.split(".").every(part=>/^\\d{1,3}$/.test(part)&&Number(part)<=255);
+    if(!validIp(server)){
+     report({success:false,message:"Saisir une adresse IPv4 valide pour le serveur DHCP."});return;
+    }
+    response=setVlanIpHelper(registry,a.id,selectedRoutingVlan,server,active);
    }
   }else if(form.dataset.form==="management"){
    response=d.get("mode")==="dhcp"?configureSwitchManagementDhcp(registry,a.id):
