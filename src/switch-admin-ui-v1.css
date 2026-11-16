@@ -357,3 +357,20 @@
  .switch-admin.v4 form[data-form="vlan-edit"]{grid-template-columns:minmax(0,1fr);max-width:100%}
  .switch-admin.v4 form[data-form="vlan-edit"] input[name="number"]{width:100%;max-width:110px}
 }
+
+/* Préfixe VLAN/DHCP et bail DHCP : saisie numérique sans flèches d'incrémentation. */
+.switch-admin.v4 form[data-form="interface"] input[name="prefix"],
+.switch-admin.v4 form[data-form="dhcp-pool"] input[name="prefix"],
+.switch-admin.v4 form[data-form="dhcp-pool"] input[name="leaseHours"]{
+ -moz-appearance:textfield;
+ appearance:textfield;
+}
+.switch-admin.v4 form[data-form="interface"] input[name="prefix"]::-webkit-inner-spin-button,
+.switch-admin.v4 form[data-form="interface"] input[name="prefix"]::-webkit-outer-spin-button,
+.switch-admin.v4 form[data-form="dhcp-pool"] input[name="prefix"]::-webkit-inner-spin-button,
+.switch-admin.v4 form[data-form="dhcp-pool"] input[name="prefix"]::-webkit-outer-spin-button,
+.switch-admin.v4 form[data-form="dhcp-pool"] input[name="leaseHours"]::-webkit-inner-spin-button,
+.switch-admin.v4 form[data-form="dhcp-pool"] input[name="leaseHours"]::-webkit-outer-spin-button{
+ -webkit-appearance:none;
+ margin:0;
+}
