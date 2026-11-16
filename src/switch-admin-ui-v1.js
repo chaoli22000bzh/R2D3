@@ -116,9 +116,11 @@ export function mountSwitchAdmin({root,registry,assetId}){
      '</div>'+
      '<div class="dhcp-advanced">'+
      '<details><summary>Exclusions ('+esc(current?.exclusions?.length??0)+')</summary>'+
-     '<label>Une IPv4 ou plage (début-fin) par ligne<textarea name="exclusions" rows="3" spellcheck="false" placeholder="192.168.10.110">'+esc((current?.exclusions??[]).join("\n"))+'</textarea></label></details>'+
+     '<p class="dhcp-input-help">Adresses que le serveur ne doit pas attribuer automatiquement. Une adresse ou une plage par ligne, avec un tiret entre début et fin.</p>'+
+     '<label>Exclusions IPv4<textarea name="exclusions" rows="3" spellcheck="false" placeholder="192.168.10.110&#10;192.168.10.120-192.168.10.125">'+esc((current?.exclusions??[]).join("\n"))+'</textarea></label></details>'+
      '<details><summary>Réservations ('+esc(current?.reservations?.length??0)+')</summary>'+
-     '<label>Une association MAC ; IPv4 par ligne<textarea name="reservations" rows="3" spellcheck="false" placeholder="02-00-00-00-10-01 ; 192.168.10.120">'+
+     '<p class="dhcp-input-help">Associez une IPv4 précise à une adresse MAC. Une réservation par ligne, séparée par un point-virgule (;).</p>'+
+     '<label>Adresse MAC ; IPv4 réservée<textarea name="reservations" rows="3" spellcheck="false" placeholder="02-00-00-00-10-01 ; 192.168.10.130">'+
        esc((current?.reservations??[]).map(r=>r.mac+" ; "+r.address).join("\n"))+'</textarea></label></details>'+
      '</div><div class="dhcp-actions"><button class="primary" name="dhcpAction" value="save" type="submit">'+(newDhcpPool?'Ajouter la plage':'Enregistrer la plage')+'</button>'+
      (!newDhcpPool?'<button class="secondary-danger" name="dhcpAction" value="delete" type="submit" formnovalidate>Supprimer la plage</button>':'')+
