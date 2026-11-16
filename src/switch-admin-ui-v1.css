@@ -271,3 +271,7 @@
  .switch-admin.v4 .grouped-routing-form .routing-fields label:has([name="address"]),
  .switch-admin.v4 .grouped-routing-form .routing-fields label:has([name="helperServer"]){width:100%}
 }
+
+/* L3: validation indépendante de l'interface VLAN et du relais DHCP. */
+.switch-admin.v4 .grouped-routing-form .routing-field-group .form-actions{margin-top:9px}
+.switch-admin.v4 .grouped-routing-form .routing-field-group .primary{font-size:15px}
