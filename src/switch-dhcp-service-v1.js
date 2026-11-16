@@ -21,7 +21,26 @@ export function configureSwitchDhcp(registry,switchId,{enabled,pools}){
   return bad("unsupported","Service DHCP réservé aux switchs L3 compatibles");
  if(typeof enabled!=="boolean"||!Array.isArray(pools))
   return bad("invalid_config","État ou plages DHCP invalides");
- return registry.setAssetDhcpServerConfig(switchId,{assetId:switchId,enabled,pools:copy(pools)});
+ // Les plages d'exclusion sont converties en IPv4 individuelles par
+ // l'adaptateur commun, avant enregistrement et gestion des baux par le Core.
+ const normalized=copy(pools);
+ for(const pool of normalized){
+  if(!Array.isArray(pool.exclusions))continue;
+  const individual=[];
+  for(const entry of pool.exclusions){
+   if(typeof entry!=="string")return bad("invalid_exclusion","Exclusion IPv4 invalide");
+   const parts=entry.split("-").map(x=>x.trim());
+   if(parts.length===1){individual.push(entry);continue;}
+   if(parts.length!==2)return bad("invalid_exclusion","Plage d'exclusion IPv4 invalide");
+   const first=ipInt(parts[0]),last=ipInt(parts[1]);
+   if(first===null||last===null||last<first||last-first>254)
+    return bad("invalid_exclusion","Plage d'exclusion IPv4 invalide ou trop étendue");
+   for(let n=first;n<=last;n++)
+    individual.push([n>>>24,(n>>>16)&255,(n>>>8)&255,n&255].join("."));
+  }
+  pool.exclusions=individual;
+ }
+ return registry.setAssetDhcpServerConfig(switchId,{assetId:switchId,enabled,pools:normalized});
 }
 const corePools=pools=>pools.map(({vlanNumber,...pool})=>copy(pool));
 export function createSwitchDhcpCoreObject(registry,switchId){
