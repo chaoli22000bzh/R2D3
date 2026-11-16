@@ -25,6 +25,9 @@ test("Interface DHCP L3 : disponibilité, deux DNS, exclusions, réservations et
  click("[data-page]",{page:"dhcp"});
  assert.match(root.innerHTML,/Serveur DHCP local/);
  assert.match(root.innerHTML,/Aucune plage configurée/);
+ assert.match(root.innerHTML,/Créez une plage DHCP avant d.activer le serveur/);
+ assert.match(root.innerHTML,/name="enabled"[^>]*disabled/);
+ assert.match(root.innerHTML,/type="submit" disabled>Appliquer/);
  click("[data-dhcp-new]",{});
  for(const label of ["DNS 1","DNS 2","Exclusions","Réservations","Bail (secondes)"])
   assert.ok(root.innerHTML.includes(label),label);
@@ -42,6 +45,7 @@ test("Interface DHCP L3 : disponibilité, deux DNS, exclusions, réservations et
    exclusions:"192.168.10.105-192.168.10.106",
    reservations:"02-00-00-00-10-01 ; 192.168.10.110"
   });
+  assert.doesNotMatch(root.innerHTML,/name="enabled"[^>]*disabled/);
   const pool=getSwitchDhcpConfig(registry,sw.id).pools[0];
   assert.deepEqual(pool.dns,["1.1.1.1","8.8.8.8"]);
   assert.deepEqual(pool.exclusions,["192.168.10.105","192.168.10.106"]);
