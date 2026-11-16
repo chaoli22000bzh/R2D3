@@ -176,7 +176,7 @@ export function createMailEngine(scenario,savedState){
     const recipients=mail.to.split(/[;,]/).map(x=>x.trim());
     if(recipients.some(x=>!emailOk(x)))return response(false,"invalid_recipient","Adresse du destinataire incorrecte.");
     const sent={id:"mail-"+state.nextId++,folder:"sent",accountEmail:sender.email,
-      from:sender.email,to:mail.to,subject:mail.subject,body:mail.body,read:true,date:new Date().toISOString()};
+      from:sender.email,to:mail.to,subject:mail.subject,body:mail.body,read:false,date:new Date().toISOString()};
     state.messages.push(sent);event("mail.sent",{messageId:sent.id,from:sender.email,to:mail.to});
     const received=[];
     for(const recipient of new Set(recipients.map(norm))){
@@ -189,7 +189,7 @@ export function createMailEngine(scenario,savedState){
     return response(true,"sent","Message envoyé (simulation).",{messageId:sent.id,receivedIds:received});
   }
   function markRead(id){
-    const m=state.messages.find(x=>x.id===id&&x.folder==="inbox");
+    const m=state.messages.find(x=>x.id===id&&(x.folder==="inbox"||x.folder==="sent"));
     if(!m)return response(false,"message_not_found","Courriel introuvable.");
     if(!m.read){m.read=true;event("mail.read",{messageId:id,accountEmail:m.accountEmail});}
     return response(true,"read","Courriel marqué comme lu.");
