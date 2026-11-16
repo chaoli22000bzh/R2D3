@@ -29,7 +29,7 @@ test("Interface DHCP L3 : disponibilité, deux DNS, exclusions, réservations et
  assert.match(root.innerHTML,/name="enabled"[^>]*disabled/);
  assert.match(root.innerHTML,/type="submit" disabled>Appliquer/);
  click("[data-dhcp-new]",{});
- for(const label of ["DNS 1","DNS 2","Exclusions","Réservations","Bail (secondes)"])
+ for(const label of ["DNS 1","DNS 2","Exclusions","Réservations","Bail (heures)"])
   assert.ok(root.innerHTML.includes(label),label);
  const originalFormData=globalThis.FormData;
  globalThis.FormData=class {constructor(form){this.data=form.values;}get(key){return this.data[key]??null;}};
@@ -41,7 +41,7 @@ test("Interface DHCP L3 : disponibilité, deux DNS, exclusions, réservations et
   };
   submit("dhcp-pool",{
    vlanNumber:"10",start:"192.168.10.100",end:"192.168.10.120",prefix:"24",
-   gateway:"192.168.10.1",dns1:"1.1.1.1",dns2:"8.8.8.8",leaseSeconds:"86400",
+   gateway:"192.168.10.1",dns1:"1.1.1.1",dns2:"8.8.8.8",leaseHours:"24",
    exclusions:"192.168.10.105-192.168.10.106",
    reservations:"02-00-00-00-10-01 ; 192.168.10.110"
   });
@@ -51,6 +51,17 @@ test("Interface DHCP L3 : disponibilité, deux DNS, exclusions, réservations et
   assert.deepEqual(pool.exclusions,["192.168.10.105","192.168.10.106"]);
   assert.deepEqual(pool.reservations,[{mac:"02-00-00-00-10-01",address:"192.168.10.110"}]);
   assert.equal(pool.leaseSeconds,86400);
+  assert.match(root.innerHTML,/24 h<\/td>/);
+  assert.match(root.innerHTML,/name="leaseHours"[^>]*value="24"/);
+  // Une durée décimale reste enregistrée en secondes dans le moteur.
+  submit("dhcp-pool",{
+   vlanNumber:"10",start:"192.168.10.100",end:"192.168.10.120",prefix:"24",
+   gateway:"192.168.10.1",dns1:"1.1.1.1",dns2:"8.8.8.8",leaseHours:"1.5",
+   exclusions:"192.168.10.105-192.168.10.106",
+   reservations:"02-00-00-00-10-01 ; 192.168.10.110"
+  });
+  assert.equal(getSwitchDhcpConfig(registry,sw.id).pools[0].leaseSeconds,5400);
+  assert.match(root.innerHTML,/1\.5 h<\/td>/);
   submit("dhcp-service",{enabled:"on"});
   assert.equal(getSwitchDhcpConfig(registry,sw.id).enabled,true);
   submit("dhcp-pool",{},"delete");
