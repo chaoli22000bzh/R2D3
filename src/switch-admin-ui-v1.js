@@ -6,13 +6,14 @@
 import {addSwitchVlan,setSwitchAccessPort,setSwitchTrunkPort} from "./vlan-v1.js";
 import {configureSwitchManagementStatic,configureSwitchManagementDhcp} from "./switch-management-ip-v01.js";
 import {getSwitchRoutingConfig,setSwitchInterVlanRouting,setSwitchVlanInterface} from "./inter-vlan-routing-v1.js";
+import {getAssetIpHelperConfig,setVlanIpHelper} from "./ip-helper-v1.js";
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const opts=(list,value)=>list.map(([id,title])=>'<option value="'+esc(id)+'"'+(String(value)===String(id)?' selected':'')+'>'+esc(title)+'</option>').join("");
 const message=r=>r?.message||r?.reason||r?.code||"Configuration refusée";
 export function mountSwitchAdmin({root,registry,assetId}){
  if(!root||!registry?.getAsset||!registry?.listCables)throw Error("Interface ou registre réseau indisponible");
- let id=assetId,page="overview",selectedPort=null,selectedRoutingVlan=null,feedback="",feedbackType="ok";
- const pages={overview:"Vue d’ensemble",ports:"Ports",vlans:"VLAN",management:"IPv4 de gestion",routing:"Routage inter-VLAN"};
+ let id=assetId,page="overview",selectedPort=null,selectedRoutingVlan=null,selectedHelperVlan=null,feedback="",feedbackType="ok";
+ const pages={overview:"Vue d’ensemble",ports:"Ports",vlans:"VLAN",management:"IPv4 de gestion",routing:"Routage inter-VLAN",helper:"IP Helper"};
  const get=()=>{const a=registry.getAsset(id);if(!a?.networkCapabilities?.includes("vlan"))throw Error("Commutateur administrable introuvable");return a;};
  const report=r=>{feedback=message(r);feedbackType=r?.success?"ok":"error";render();};
  const portInfo=(a,p)=>{
@@ -39,7 +40,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
   const a=get(),ports=a.ports.filter(p=>p.type==="ethernet-rj45");
   const vlans=a.vlanConfig.vlans,mg=a.managementConfig,l3=a.networkCapabilities.includes("inter-vlan-routing");
   if(!ports.some(p=>p.id===selectedPort))selectedPort=ports[0]?.id??null;
-  const menu=Object.entries(pages).filter(([key])=>key!=="routing"||l3).map(([key,label])=>'<button type="button" data-page="'+key+
+  const menu=Object.entries(pages).filter(([key])=>(key!=="routing"||l3)&&(key!=="helper"||l3&&a.networkCapabilities.includes("ip-helper"))).map(([key,label])=>'<button type="button" data-page="'+key+
    '" class="menu-item'+(key===page?' active':'')+'" aria-current="'+(key===page?'page':'false')+'">'+label+'</button>').join("");
   let content="";
   if(page==="overview"){
@@ -95,6 +96,25 @@ export function mountSwitchAdmin({root,registry,assetId}){
     '<label>Préfixe réseau<input name="prefix" type="number" min="1" max="30" required value="'+esc(initialInterface?.prefix??"")+'"></label>'+
     '<label class="check-label"><input name="enabled" type="checkbox"'+(initialInterface?.enabled===false?'':' checked')+'>Interface activée</label>'+
     '<div class="form-actions"><button class="primary" type="submit">Appliquer</button></div></form></section>';
+  }else if(page==="helper"&&l3&&a.networkCapabilities.includes("ip-helper")){
+   const helper=getAssetIpHelperConfig(registry,a.id),entries=Object.entries(helper.helpers)
+    .filter(([key])=>key.startsWith("vlan:")).sort((x,y)=>Number(x[0].slice(5))-Number(y[0].slice(5)));
+   if(!vlans.some(v=>v.number===selectedHelperVlan))selectedHelperVlan=vlans[0]?.number;
+   const current=helper.helpers["vlan:"+selectedHelperVlan];
+   content='<section class="admin-panel"><h3>Relais DHCP</h3>'+
+    table(["VLAN","Serveur DHCP","État"],entries.map(([key,config])=>{
+      const number=Number(key.slice(5));
+      return '<tr class="'+(number===selectedHelperVlan?'row-selected':'')+'"><td>'+
+       '<button type="button" class="table-port" data-helper-vlan="'+esc(number)+'" aria-label="Modifier IP Helper VLAN '+esc(number)+'">'+
+       esc(number)+'</button></td><td>'+esc(config.serverAddress)+'</td><td>'+
+       (config.enabled?'Activé':'Désactivé')+'</td></tr>';
+    }))+'</section>'+
+    '<section class="admin-panel edit-panel"><h3>Configuration IP Helper</h3>'+
+    '<form data-form="helper" class="form-grid">'+
+    '<label>VLAN<select name="vlan">'+opts(vlans.map(v=>[v.number,v.number+" · "+v.name]),selectedHelperVlan)+'</select></label>'+
+    '<label>Adresse IPv4 du serveur DHCP<input name="server" inputmode="decimal" required value="'+esc(current?.serverAddress??"")+'"></label>'+
+    '<label class="check-label"><input name="enabled" type="checkbox"'+(current?.enabled===false?'':' checked')+'>Relais activé</label>'+
+    '<div class="form-actions"><button type="submit" class="primary">Appliquer</button></div></form></section>';
   }else{
    const fixed=mg.mode==="static",dns=mg.dns??[];
    content='<section class="admin-panel edit-panel"><h3>Configuration IPv4</h3>'+
@@ -130,10 +150,26 @@ export function mountSwitchAdmin({root,registry,assetId}){
    root.querySelector?.('form[data-form="interface"] input[name="enabled"]')?.focus();
    return;
   }
+  const helperRow=e.target.closest("[data-helper-vlan]");
+  if(helperRow&&root.contains(helperRow)){
+   selectedHelperVlan=Number(helperRow.dataset.helperVlan);
+   feedback="";render();
+   root.querySelector?.('form[data-form="helper"] input[name="server"]')?.focus();
+   return;
+  }
   const port=e.target.closest("[data-port]");
   if(port&&root.contains(port)){selectedPort=port.dataset.port;page="ports";feedback="";render();}
  };
  const onChange=e=>{
+  const helperSelect=e.target.closest('form[data-form="helper"] select[name="vlan"]');
+  if(helperSelect&&root.contains(helperSelect)){
+   selectedHelperVlan=Number(helperSelect.value);
+   const conf=getAssetIpHelperConfig(registry,get().id)?.helpers["vlan:"+selectedHelperVlan];
+   const form=helperSelect.closest("form");
+   form.elements.namedItem("server").value=conf?.serverAddress??"";
+   form.elements.namedItem("enabled").checked=conf?.enabled!==false;
+   return;
+  }
   const vlanSelect=e.target.closest('form[data-form="interface"] select[name="vlan"]');
   if(vlanSelect&&root.contains(vlanSelect)){
    selectedRoutingVlan=Number(vlanSelect.value);
@@ -175,6 +211,9 @@ export function mountSwitchAdmin({root,registry,assetId}){
    selectedRoutingVlan=Number(d.get("vlan"));
    response=setSwitchVlanInterface(registry,a.id,Number(d.get("vlan")),String(d.get("address")??"").trim(),
       Number(d.get("prefix")),d.get("enabled")==="on");
+  }else if(form.dataset.form==="helper"){
+   selectedHelperVlan=Number(d.get("vlan"));
+   response=setVlanIpHelper(registry,a.id,selectedHelperVlan,String(d.get("server")??"").trim(),d.get("enabled")==="on");
   }else if(form.dataset.form==="management"){
    response=d.get("mode")==="dhcp"?configureSwitchManagementDhcp(registry,a.id):
     configureSwitchManagementStatic(registry,a.id,String(d.get("address")??"").trim(),
@@ -187,7 +226,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
  render();
  return {
   refresh:render,
-  setAssetId(nextId){id=nextId;page="overview";selectedPort=null;selectedRoutingVlan=null;feedback="";render();},
+  setAssetId(nextId){id=nextId;page="overview";selectedPort=null;selectedRoutingVlan=null;selectedHelperVlan=null;feedback="";render();},
   destroy(){root.removeEventListener("click",onClick);root.removeEventListener("change",onChange);
    root.removeEventListener("submit",onSubmit);root.replaceChildren();}
  };
