@@ -93,9 +93,9 @@ export function mountSwitchAdmin({root,registry,assetId}){
    const current=!newDhcpPool?conf.pools.find(p=>p.id===selectedDhcpPoolId):null;
    const editing=newDhcpPool||!!current;
    content='<section class="admin-panel dhcp-panel"><div class="dhcp-status-row"><h3>Serveur DHCP local</h3>'+
-    '<form data-form="dhcp-service" class="dhcp-status-form"><label class="check-label"><input type="checkbox" name="enabled"'+(conf.enabled?' checked':'')+'>Activer le serveur</label>'+
-    '<button class="primary" type="submit">Appliquer</button></form></div>'+
-    '<p class="dhcp-note">Service local du switch L3, distinct du relais IP Helper.</p></section>'+
+    '<form data-form="dhcp-service" class="dhcp-status-form"><label class="check-label"><input type="checkbox" name="enabled"'+(conf.enabled?' checked':'')+(!conf.pools.length?' disabled':'')+'>Activer le serveur</label>'+
+    '<button class="primary" type="submit"'+(!conf.pools.length?' disabled':'')+'>Appliquer</button></form></div>'+
+    '<p class="dhcp-note">'+(conf.pools.length?'Service local du switch L3, distinct du relais IP Helper.':'Créez une plage DHCP avant d’activer le serveur.')+'</p></section>'+
     '<section class="admin-panel dhcp-panel"><div class="dhcp-heading"><h3>Plages DHCP</h3>'+
     '<button type="button" class="dhcp-add" data-dhcp-new>+ Nouvelle plage</button></div>'+
     (conf.pools.length?table(["VLAN","Début","Fin","Préfixe","Bail"],conf.pools.map(p=>
