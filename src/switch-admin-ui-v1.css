@@ -96,3 +96,41 @@
 .switch-admin .routing-form{padding-top:19px}
 .switch-admin .routing-form select{max-width:350px}
 @media(max-width:720px){.switch-admin .routing-switch{gap:12px}}
+
+/* Compact professional layout: narrower content, denser vertical rhythm,
+   but retain accessible text and clickable controls. */
+.switch-admin.v4 .network-topbar{height:40px;padding-inline:16px}
+.switch-admin.v4 .device-bar{padding:9px 17px}
+.switch-admin.v4 .device-glyph{width:36px;height:34px;font-size:20px}
+.switch-admin.v4 .device-ident{gap:9px}
+.switch-admin.v4 .device-label{gap:1px}
+.switch-admin.v4 .device-label h2{font-size:18px}
+.switch-admin.v4 .device-tabs{gap:18px;padding-inline:17px}
+.switch-admin.v4 .menu-item{min-height:38px;padding-block:7px 5px}
+.switch-admin.v4 .admin-content{max-width:940px;margin:0;padding:13px 17px 20px;min-height:0}
+.switch-admin.v4 .port-panel{padding:8px 12px;margin-bottom:13px}
+.switch-admin.v4 .port-panel-head{margin-bottom:4px}
+.switch-admin.v4 .port-bank{grid-auto-columns:38px;column-gap:3px;padding:2px 2px 5px}
+.switch-admin.v4 .mini-port{width:37px}
+.switch-admin.v4 .port-legend{margin-top:4px;gap:12px}
+.switch-admin.v4 .admin-panel{margin-bottom:15px}
+.switch-admin.v4 .admin-panel h3{margin-bottom:7px}
+.switch-admin.v4 .admin-table th{padding:6px 9px}
+.switch-admin.v4 .admin-table td{padding:5px 9px}
+.switch-admin.v4 .device-details{max-width:750px;gap:0 16px}
+.switch-admin.v4 .device-details>div{min-height:31px;grid-template-columns:minmax(115px,42%) 1fr}
+.switch-admin.v4 .form-grid{max-width:620px;gap:10px 15px}
+.switch-admin.v4 .form-grid label{gap:3px}
+.switch-admin.v4 input:not([type="checkbox"]),.switch-admin.v4 select{min-height:36px;padding:5px 9px}
+.switch-admin.v4 .primary{min-height:36px;padding:5px 16px}
+.switch-admin.v4 .edit-panel,.switch-admin.v4 .compact-panel{padding-top:10px}
+.switch-admin.v4 .routing-form{padding-top:11px}
+.switch-admin.v4 .routing-switch{gap:13px;padding:1px 0 5px}
+.switch-admin.v4 .feedback{padding:7px 10px;margin-bottom:10px}
+@media(max-width:720px){
+ .switch-admin.v4 .admin-content{max-width:none;padding:11px 12px 18px}
+ .switch-admin.v4 .device-bar{padding:10px 12px}
+ .switch-admin.v4 .device-tabs{padding-inline:12px;gap:13px}
+ .switch-admin.v4 .form-grid{grid-template-columns:1fr;max-width:100%}
+ .switch-admin.v4 .device-details{grid-template-columns:1fr}
+}
