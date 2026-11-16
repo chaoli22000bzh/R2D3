@@ -101,7 +101,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
     (conf.pools.length?table(["VLAN","Début","Fin","Préfixe","Bail"],conf.pools.map(p=>
       '<tr class="routing-data-row '+(!newDhcpPool&&p.id===selectedDhcpPoolId?'row-selected':'')+'" data-dhcp-pool="'+esc(p.id)+'">'+
       '<td><button type="button" class="table-port" data-dhcp-pool="'+esc(p.id)+'" aria-pressed="'+(!newDhcpPool&&p.id===selectedDhcpPoolId)+'">'+esc(p.vlanNumber)+'</button></td>'+
-      '<td>'+esc(p.start)+'</td><td>'+esc(p.end)+'</td><td>/'+esc(p.prefix)+'</td><td>'+esc(p.leaseSeconds)+' s</td></tr>')):
+      '<td>'+esc(p.start)+'</td><td>'+esc(p.end)+'</td><td>/'+esc(p.prefix)+'</td><td>'+esc(Number((p.leaseSeconds/3600).toFixed(6)))+' h</td></tr>')):
       '<p class="dhcp-note">Aucune plage configurée.</p>')+'</section>'+
     (editing?'<section class="admin-panel edit-panel dhcp-panel"><h3>'+(newDhcpPool?'Ajouter une plage':'Modifier la plage du VLAN '+esc(current.vlanNumber))+'</h3>'+
      '<form data-form="dhcp-pool" class="dhcp-pool-form"><div class="dhcp-fields">'+
@@ -112,7 +112,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
      '<label class="dhcp-ip">Passerelle<input name="gateway" inputmode="decimal" required value="'+esc(current?.gateway??'')+'"></label>'+
      '<label class="dhcp-ip">DNS 1<input name="dns1" inputmode="decimal" value="'+esc(current?.dns?.[0]??'')+'"></label>'+
      '<label class="dhcp-ip">DNS 2<input name="dns2" inputmode="decimal" value="'+esc(current?.dns?.[1]??'')+'"></label>'+
-     '<label class="dhcp-lease">Bail (secondes)<input name="leaseSeconds" type="number" min="60" max="2592000" required value="'+esc(current?.leaseSeconds??86400)+'"></label>'+
+     '<label class="dhcp-lease">Bail (heures)<input name="leaseHours" type="number" step="any" min="0.016666666666666666" max="720" required value="'+esc(Number(((current?.leaseSeconds??86400)/3600).toFixed(6)))+'"></label>'+
      '</div>'+
      '<div class="dhcp-advanced">'+
      '<details><summary>Exclusions ('+esc(current?.exclusions?.length??0)+')</summary>'+
@@ -260,7 +260,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
      end:String(d.get("end")??"").trim(),prefix:Number(d.get("prefix")),
      gateway:String(d.get("gateway")??"").trim(),
      dns:[String(d.get("dns1")??"").trim(),String(d.get("dns2")??"").trim()].filter(Boolean),
-     leaseSeconds:Number(d.get("leaseSeconds")),exclusions,reservations};
+     leaseSeconds:Math.round(Number(d.get("leaseHours"))*3600),exclusions,reservations};
     const pools=newDhcpPool?[...conf.pools,pool]:conf.pools.map(p=>p.id===selectedDhcpPoolId?pool:p);
     response=configureSwitchDhcp(registry,a.id,{enabled:conf.enabled,pools});
     if(response?.success){selectedDhcpPoolId=pool.id;newDhcpPool=false;}
