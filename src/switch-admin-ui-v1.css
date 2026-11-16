@@ -245,9 +245,9 @@
  color:#344a53;
 }
 .switch-admin.v4 .grouped-routing-form .routing-fields{
- display:flex;
+ display:grid;
+ grid-template-columns:150px 195px 110px;
  align-items:end;
- flex-wrap:wrap;
  gap:11px 14px;
 }
 .switch-admin.v4 .grouped-routing-form .routing-fields label:has([name="address"]),
@@ -371,6 +371,29 @@
 .switch-admin.v4 form[data-form="dhcp-pool"] input[name="prefix"]::-webkit-outer-spin-button,
 .switch-admin.v4 form[data-form="dhcp-pool"] input[name="leaseHours"]::-webkit-inner-spin-button,
 .switch-admin.v4 form[data-form="dhcp-pool"] input[name="leaseHours"]::-webkit-outer-spin-button{
+ -webkit-appearance:none;
+ margin:0;
+}
+
+/* Alignement des IPv4 entre les deux blocs L3, sans modifier les champs. */
+@media(max-width:600px){
+ .switch-admin.v4 .grouped-routing-form .routing-fields{
+  grid-template-columns:150px minmax(0,195px);
+ }
+}
+@media(max-width:430px){
+ .switch-admin.v4 .grouped-routing-form .routing-fields{
+  grid-template-columns:minmax(0,1fr);
+ }
+}
+
+/* IPv4 de gestion : préfixe sans contrôle d'incrémentation. */
+.switch-admin.v4 form[data-form="management"] input[name="prefix"]{
+ -moz-appearance:textfield;
+ appearance:textfield;
+}
+.switch-admin.v4 form[data-form="management"] input[name="prefix"]::-webkit-inner-spin-button,
+.switch-admin.v4 form[data-form="management"] input[name="prefix"]::-webkit-outer-spin-button{
  -webkit-appearance:none;
  margin:0;
 }
