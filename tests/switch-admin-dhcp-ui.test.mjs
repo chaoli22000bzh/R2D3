@@ -31,6 +31,9 @@ test("Interface DHCP L3 : disponibilité, deux DNS, exclusions, réservations et
  click("[data-dhcp-new]",{});
  for(const label of ["DNS 1","DNS 2","Exclusions","Réservations","Bail (heures)"])
   assert.ok(root.innerHTML.includes(label),label);
+ assert.match(root.innerHTML,/Adresses que le serveur ne doit pas attribuer automatiquement/);
+ assert.match(root.innerHTML,/Une réservation par ligne, séparée par un point-virgule/);
+ assert.match(root.innerHTML,/192\.168\.10\.120-192\.168\.10\.125/);
  const originalFormData=globalThis.FormData;
  globalThis.FormData=class {constructor(form){this.data=form.values;}get(key){return this.data[key]??null;}};
  try{
