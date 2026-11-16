@@ -142,7 +142,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
     '<button type="submit" class="primary">Appliquer le routage</button></form></section>'+
     '<section class="admin-panel edit-panel"><div class="routing-heading"><h3>Interfaces VLAN</h3></div>'+
     '<p class="routing-table-hint">Sélectionnez un VLAN dans le tableau pour modifier ses paramètres ci-dessous.</p>'+
-    table(["VLAN à modifier","Adresse IPv4","Préfixe","État",...(hasHelper?["IP Helper","IP serveur DHCP"]:[])],listedVlans.map(v=>{
+    table(["VLAN à modifier","Adresse IPv4","Préfixe","Interface VLAN",...(hasHelper?["IP Helper","IP serveur DHCP"]:[])],listedVlans.map(v=>{
       const number=v.number,i=routing.interfaces[String(number)];
       const h=helper?.helpers["vlan:"+number];
       return '<tr class="routing-data-row '+(Number(number)===selectedRoutingVlan?'row-selected':'')+'" data-routing-vlan="'+esc(number)+'"><td>'+
