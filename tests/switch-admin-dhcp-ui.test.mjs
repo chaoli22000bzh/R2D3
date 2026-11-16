@@ -77,3 +77,27 @@ test("Interface DHCP L3 : disponibilité, deux DNS, exclusions, réservations et
   assert.equal(getSwitchDhcpConfig(registry,sw.id).pools.length,0);
  } finally {globalThis.FormData=originalFormData;view.destroy();}
 });
+
+test("Port switch : libellé VLAN en Access et VLAN autorisés en Trunk",()=>{
+ const registry=createAssetRegistry(),profile=registry.createProfile("Switch L2").profile;
+ assert.equal(registry.addPortGroup(profile.id,{type:"ethernet-rj45",prefix:"P",start:1,count:2}).success,true);
+ for(const c of ["ethernet-switching","vlan"])
+  assert.equal(registry.setProfileNetworkCapability(profile.id,c,true).success,true);
+ const sw=registry.createAsset(profile.id,{name:"SW-L2"}).asset;
+ const events=new Map();
+ const root={innerHTML:"",addEventListener(type,fn){events.set(type,fn);},
+  removeEventListener(type){events.delete(type);},contains(){return true;},replaceChildren(){this.innerHTML="";}};
+ const view=mountSwitchAdmin({root,registry,assetId:sw.id});
+ try{
+  events.get("click")({target:{dataset:{page:"ports"},closest(q){return q==="[data-page]"?this:null;}}});
+  assert.match(root.innerHTML,/<span data-port-vlan-label>VLAN<\/span>/);
+  const label={textContent:"VLAN"};
+  const form={dataset:{form:"port"},querySelector(q){return q==="[data-port-vlan-label]"?label:null;}};
+  const field={value:"trunk",closest(q){return q==='select[name="mode"]'?this:q==="form"?form:null;}};
+  events.get("change")({target:field});
+  assert.equal(label.textContent,"VLAN autorisés");
+  field.value="access";
+  events.get("change")({target:field});
+  assert.equal(label.textContent,"VLAN");
+ } finally {view.destroy();}
+});

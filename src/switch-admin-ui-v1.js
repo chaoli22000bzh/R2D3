@@ -68,7 +68,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
     (p?'<section class="admin-panel edit-panel"><h3>Port '+esc(p.name)+'</h3>'+
      '<form data-form="port" class="form-grid"><input type="hidden" name="portId" value="'+esc(p.id)+'">'+
      '<label>Mode<select name="mode">'+opts([["access","Access"],["trunk","Trunk"]],state.mode)+'</select></label>'+
-     '<label>VLAN autorisés<input name="vlans" required value="'+esc(chosen.join(", "))+'"></label>'+
+     '<label><span data-port-vlan-label>'+(state.mode==="access"?'VLAN':'VLAN autorisés')+'</span><input name="vlans" required value="'+esc(chosen.join(", "))+'"></label>'+
      '<div class="form-actions"><button type="submit" class="primary">Appliquer</button></div></form></section>':'');
   }else if(page==="vlans"){
    if(!vlans.some(v=>v.id===selectedVlanId))selectedVlanId=vlans[0]?.id??null;
@@ -207,8 +207,14 @@ export function mountSwitchAdmin({root,registry,assetId}){
  };
  const onChange=e=>{
   const field=e.target.closest('select[name="mode"]');
-  if(!field||!root.contains(field)||!field.closest('form[data-form="management"]'))return;
+  if(!field||!root.contains(field))return;
   const form=field.closest("form");
+  if(form?.dataset.form==="port"){
+   const label=form.querySelector("[data-port-vlan-label]");
+   if(label)label.textContent=field.value==="access"?"VLAN":"VLAN autorisés";
+   return;
+  }
+  if(form?.dataset.form!=="management")return;
   for(const name of ["address","prefix","gateway","dns1","dns2"]){
    const input=form.elements.namedItem(name);
    if(input)input.disabled=field.value==="dhcp";
