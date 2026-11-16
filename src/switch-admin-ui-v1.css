@@ -134,3 +134,53 @@
  .switch-admin.v4 .form-grid{grid-template-columns:1fr;max-width:100%}
  .switch-admin.v4 .device-details{grid-template-columns:1fr}
 }
+
+/* Data-sized fields: same readable font, no oversized 50%-width controls. */
+.switch-admin.v4 .table-scroll{max-width:780px}
+.switch-admin.v4 .form-grid{justify-content:start;align-items:end}
+.switch-admin.v4 form[data-form="interface"].routing-form{
+ display:grid;
+ grid-template-columns:150px 195px 110px 160px;
+ gap:10px 13px;
+ max-width:100%;
+}
+.switch-admin.v4 form[data-form="interface"]>label:nth-child(5){grid-column:1}
+.switch-admin.v4 form[data-form="interface"]>label:nth-child(6){grid-column:2}
+.switch-admin.v4 form[data-form="interface"]>.form-actions{
+ grid-column:3 / span 2;
+ align-self:end;
+}
+.switch-admin.v4 form[data-form="interface"]>label.check-label{align-self:end}
+.switch-admin.v4 form[data-form="vlan"]{
+ grid-template-columns:125px 230px;
+ max-width:380px;
+}
+.switch-admin.v4 form[data-form="port"]{
+ grid-template-columns:150px 230px;
+ max-width:405px;
+}
+.switch-admin.v4 form[data-form="management"]{
+ grid-template-columns:150px 195px 105px 190px;
+ max-width:685px;
+}
+.switch-admin.v4 form[data-form="management"]>.form-actions{grid-column:1/-1}
+@media(max-width:760px){
+ .switch-admin.v4 form[data-form="interface"].routing-form{
+  grid-template-columns:minmax(135px,170px) minmax(170px,210px);
+  max-width:100%;
+ }
+ .switch-admin.v4 form[data-form="interface"]>label:nth-child(5),
+ .switch-admin.v4 form[data-form="interface"]>label:nth-child(6){grid-column:auto}
+ .switch-admin.v4 form[data-form="interface"]>.form-actions{grid-column:1/-1}
+ .switch-admin.v4 form[data-form="management"]{grid-template-columns:repeat(2,minmax(0,210px));max-width:100%}
+}
+@media(max-width:430px){
+ .switch-admin.v4 form[data-form="interface"].routing-form,
+ .switch-admin.v4 form[data-form="vlan"],
+ .switch-admin.v4 form[data-form="port"],
+ .switch-admin.v4 form[data-form="management"]{
+  grid-template-columns:minmax(0,1fr);
+  max-width:100%;
+ }
+ .switch-admin.v4 form[data-form="interface"]>.form-actions{grid-column:1}
+}
