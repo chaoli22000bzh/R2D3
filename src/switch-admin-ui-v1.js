@@ -207,7 +207,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
     const entered=String(d.get("helperServer")??"").trim();
     const server=entered||(!active?previous?.serverAddress:"")||"";
     const validIp=value=>typeof value==="string"&&value.split(".").length===4&&
-      value.split(".").every(part=>/^\\d{1,3}$/.test(part)&&Number(part)<=255);
+      value.split(".").every(part=>/^\d{1,3}$/.test(part)&&Number(part)<=255);
     if(!validIp(server)){
      report({success:false,message:"Saisir une adresse IPv4 valide pour le serveur DHCP."});return;
     }
