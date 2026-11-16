@@ -43,7 +43,7 @@ function setup(){
 }
 test("IP gestion 01 : switch L2 créé client DHCP, non administrable sans IP de gestion",()=>{
  const f=setup();
- assert.deepEqual(getSwitchManagement(f.r,f.sw.id),{assetId:f.sw.id,mode:"dhcp",address:null,prefix:null,gateway:null,lease:null});
+ assert.deepEqual(getSwitchManagement(f.r,f.sw.id),{assetId:f.sw.id,mode:"dhcp",address:null,prefix:null,gateway:null,dns:[],lease:null});
  assert.equal(getSwitchManagement(f.r,f.unmanaged.id),null);
  assert.equal(configureSwitchManagementStatic(f.r,f.unmanaged.id,"192.168.1.10",24).success,false);
 });
