@@ -26,7 +26,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
   return {linked,mode,number};
  };
  const portGrid=(a,ports)=>'<section class="port-panel" aria-label="Ports Ethernet"><div class="port-panel-head">'+
-   '<strong>Ports</strong><span>'+ports.length+' × RJ45</span></div>'+
+   '<strong>Ports</strong></div>'+
    '<div class="port-bank" role="group" aria-label="Sélection d’un port">'+ports.map((p,i)=>{
      const info=portInfo(a,p),current=selectedPort===p.id;
      return '<button type="button" class="mini-port'+(current?' chosen':'')+(info.linked?' linked':'')+
