@@ -3,7 +3,7 @@
  * Vue et commandes seulement : aucun état métier propre à l'interface.
  * Les ports, VLAN et paramètres IPv4 proviennent du registre R2 et des adaptateurs communs.
  */
-import {addSwitchVlan,setSwitchAccessPort,setSwitchTrunkPort} from "./vlan-v1.js";
+import {addSwitchVlan,updateSwitchVlan,removeSwitchVlan,setSwitchAccessPort,setSwitchTrunkPort} from "./vlan-v1.js";
 import {configureSwitchManagementStatic,configureSwitchManagementDhcp} from "./switch-management-ip-v01.js";
 import {getSwitchRoutingConfig,setSwitchInterVlanRouting,setSwitchVlanInterface} from "./inter-vlan-routing-v1.js";
 import {getAssetIpHelperConfig,setVlanIpHelper} from "./ip-helper-v1.js";
@@ -12,7 +12,7 @@ const opts=(list,value)=>list.map(([id,title])=>'<option value="'+esc(id)+'"'+(S
 const message=r=>r?.message||r?.reason||r?.code||"Configuration refusée";
 export function mountSwitchAdmin({root,registry,assetId}){
  if(!root||!registry?.getAsset||!registry?.listCables)throw Error("Interface ou registre réseau indisponible");
- let id=assetId,page="overview",selectedPort=null,selectedRoutingVlan=null,feedback="",feedbackType="ok";
+ let id=assetId,page="overview",selectedPort=null,selectedVlanId=null,selectedRoutingVlan=null,feedback="",feedbackType="ok";
  const pages={overview:"Vue d’ensemble",ports:"Ports",vlans:"VLAN",management:"IPv4 de gestion",routing:"Routage inter-VLAN"};
  const get=()=>{const a=registry.getAsset(id);if(!a?.networkCapabilities?.includes("vlan"))throw Error("Commutateur administrable introuvable");return a;};
  const report=r=>{feedback=message(r);feedbackType=r?.success?"ok":"error";render();};
@@ -70,9 +70,19 @@ export function mountSwitchAdmin({root,registry,assetId}){
      '<label>VLAN autorisés<input name="vlans" required value="'+esc(chosen.join(", "))+'"></label>'+
      '<div class="form-actions"><button type="submit" class="primary">Appliquer</button></div></form></section>':'');
   }else if(page==="vlans"){
+   if(!vlans.some(v=>v.id===selectedVlanId))selectedVlanId=vlans[0]?.id??null;
+   const current=vlans.find(v=>v.id===selectedVlanId);
    content='<section class="admin-panel"><h3>VLAN configurés</h3>'+
-    table(["Identifiant","Nom"],vlans.map(v=>'<tr><td>'+esc(v.number)+'</td><td>'+esc(v.name)+'</td></tr>'))+
-    '</section><section class="admin-panel edit-panel"><h3>Ajouter un VLAN</h3>'+
+    '<p class="routing-table-hint">Sélectionnez un VLAN pour modifier ses paramètres.</p>'+
+    table(["Identifiant","Nom"],vlans.map(v=>'<tr class="routing-data-row '+(v.id===selectedVlanId?'row-selected':'')+'" data-edit-vlan="'+esc(v.id)+'"><td><button type="button" class="table-port" data-edit-vlan="'+esc(v.id)+'" aria-pressed="'+(v.id===selectedVlanId)+'">'+esc(v.number)+'</button></td><td>'+esc(v.name)+'</td></tr>'))+
+    '</section><section class="admin-panel edit-panel"><h3>Modifier un VLAN</h3>'+
+    (current?'<form data-form="vlan-edit" class="form-grid"><input type="hidden" name="vlanId" value="'+esc(current.id)+'">'+
+     '<label>Identifiant VLAN<input type="number" name="number" min="1" max="4094" required value="'+esc(current.number)+'"'+(current.number===1?' readonly':'')+'></label>'+
+     '<label>Nom<input name="name" maxlength="50" required value="'+esc(current.name)+'"></label>'+
+     '<div class="form-actions vlan-edit-actions"><button class="primary" type="submit" name="vlanAction" value="save">Enregistrer les modifications</button>'+
+     (current.number!==1?'<button class="secondary-danger" type="submit" name="vlanAction" value="delete" formnovalidate>Supprimer ce VLAN</button>':'')+
+     '</div></form>':'')+'</section>'+
+    '<section class="admin-panel edit-panel"><h3>Ajouter un VLAN</h3>'+
     '<form data-form="vlan" class="form-grid"><label>Identifiant VLAN<input type="number" name="number" min="2" max="4094" required></label>'+
     '<label>Nom<input name="name" maxlength="50" required></label>'+
     '<div class="form-actions"><button class="primary" type="submit">Ajouter</button></div></form></section>';
@@ -147,6 +157,8 @@ export function mountSwitchAdmin({root,registry,assetId}){
    root.querySelector?.('form[data-form="interface"] input[name="enabled"]')?.focus();
    return;
   }
+  const vlanRow=e.target.closest("[data-edit-vlan]");
+  if(vlanRow&&root.contains(vlanRow)){selectedVlanId=vlanRow.dataset.editVlan;feedback="";render();return;}
   const port=e.target.closest("[data-port]");
   if(port&&root.contains(port)){selectedPort=port.dataset.port;page="ports";feedback="";render();}
  };
@@ -166,6 +178,16 @@ export function mountSwitchAdmin({root,registry,assetId}){
   const d=new FormData(form),a=get();let response;
   if(form.dataset.form==="vlan"){
    response=addSwitchVlan(registry,a.id,Number(d.get("number")),String(d.get("name")).trim());
+   if(response?.success){
+    const newlyAdded=registry.getAsset(a.id).vlanConfig.vlans.find(v=>v.number===Number(d.get("number")));
+    selectedVlanId=newlyAdded?.id??null;
+   }
+  }else if(form.dataset.form==="vlan-edit"){
+   const vlanId=String(d.get("vlanId"));
+   if(e.submitter?.value==="delete"){
+    response=removeSwitchVlan(registry,a.id,vlanId);
+    if(response?.success)selectedVlanId=null;
+   }else response=updateSwitchVlan(registry,a.id,vlanId,Number(d.get("number")),String(d.get("name")).trim());
   }else if(form.dataset.form==="port"){
    const tokens=String(d.get("vlans")).split(",").map(v=>v.trim());
    if(!tokens.length||tokens.some(v=>!/^[0-9]{1,4}$/.test(v)||Number(v)<1||Number(v)>4094)){
@@ -211,7 +233,7 @@ export function mountSwitchAdmin({root,registry,assetId}){
  render();
  return {
   refresh:render,
-  setAssetId(nextId){id=nextId;page="overview";selectedPort=null;selectedRoutingVlan=null;feedback="";render();},
+  setAssetId(nextId){id=nextId;page="overview";selectedPort=null;selectedVlanId=null;selectedRoutingVlan=null;feedback="";render();},
   destroy(){root.removeEventListener("click",onClick);root.removeEventListener("change",onChange);
    root.removeEventListener("submit",onSubmit);root.replaceChildren();}
  };

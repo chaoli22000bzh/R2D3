@@ -658,10 +658,82 @@ export function createAssetRegistry(saved){
  function setAssetVlanConfig(id,config){
   const a=getA(id);if(!a)return result(false,"not_found","Équipement introuvable.");
   if(!validVlanConfiguration(a,config))return result(false,"invalid_vlan_config","Configuration VLAN refusée sans modification.");
-  if(a.dhcpServerConfig?.pools.some(pool=>!config.vlans.some(v=>v.number===pool.vlanNumber)))
-   return result(false,"dhcp_pool_references_vlan","Supprimer d’abord la plage DHCP liée au VLAN.");
+  const candidate={...a,vlanConfig:config};
+  if(a.dhcpServerConfig&&!validAssetDhcpServer(candidate,a.dhcpServerConfig))
+   return result(false,"dhcp_pool_references_vlan","Configuration DHCP liée au VLAN.");
+  if(a.routingConfig&&!validRoutingConfiguration(candidate,a.routingConfig))
+   return result(false,"routing_references_vlan","Interface L3 liée au VLAN : utiliser la renumérotation avec report.");
+  if(a.ipHelperConfig&&!validIpHelperConfiguration(candidate,a.ipHelperConfig))
+   return result(false,"helper_references_vlan","IP Helper lié au VLAN : utiliser la renumérotation avec report.");
   a.vlanConfig=clone(config);s.revision++;
   return result(true,"vlan_config_updated","Configuration VLAN enregistrée.",{config:clone(a.vlanConfig)});
+ }
+ // Modifier un VLAN et ses références métier ensemble, ou ne rien changer.
+ function updateAssetVlanDefinition(id,vlanId,number,name){
+  const a=getA(id);
+  if(!a?.vlanConfig)return result(false,"not_found","Switch administrable introuvable.");
+  const current=a.vlanConfig.vlans.find(v=>v.id===vlanId);
+  if(!current)return result(false,"vlan_missing","VLAN introuvable.");
+  if(!Number.isInteger(number)||number<1||number>4094||
+     typeof name!=="string"||!trim(name))
+   return result(false,"invalid_vlan","Numéro ou nom de VLAN invalide.");
+  if(current.number===1&&number!==1)
+   return result(false,"default_vlan","Le VLAN 1 ne peut pas être renuméroté.");
+  if(a.vlanConfig.vlans.some(v=>v.id!==vlanId&&v.number===number))
+   return result(false,"vlan_number_exists","Ce numéro de VLAN est déjà utilisé.");
+  const oldNumber=current.number,draft=clone(a);
+  const selected=draft.vlanConfig.vlans.find(v=>v.id===vlanId);
+  selected.number=number;selected.name=trim(name);
+  if(oldNumber!==number){
+   const from=String(oldNumber),to=String(number),oldHelper="vlan:"+from,newHelper="vlan:"+to;
+   if(draft.routingConfig&&Object.hasOwn(draft.routingConfig.interfaces,from)){
+    if(Object.hasOwn(draft.routingConfig.interfaces,to))
+     return result(false,"routing_conflict","Une interface utilise déjà le nouveau numéro de VLAN.");
+    draft.routingConfig.interfaces[to]=draft.routingConfig.interfaces[from];
+    delete draft.routingConfig.interfaces[from];
+   }
+   if(draft.ipHelperConfig&&Object.hasOwn(draft.ipHelperConfig.helpers,oldHelper)){
+    if(Object.hasOwn(draft.ipHelperConfig.helpers,newHelper))
+     return result(false,"helper_conflict","Un IP Helper utilise déjà le nouveau numéro de VLAN.");
+    draft.ipHelperConfig.helpers[newHelper]=draft.ipHelperConfig.helpers[oldHelper];
+    delete draft.ipHelperConfig.helpers[oldHelper];
+   }
+   for(const pool of draft.dhcpServerConfig?.pools??[])
+    if(pool.vlanNumber===oldNumber)pool.vlanNumber=number;
+  }
+  if(!validVlanConfiguration(draft,draft.vlanConfig)||
+     draft.routingConfig&&!validRoutingConfiguration(draft,draft.routingConfig)||
+     draft.ipHelperConfig&&!validIpHelperConfiguration(draft,draft.ipHelperConfig)||
+     draft.dhcpServerConfig&&!validAssetDhcpServer(draft,draft.dhcpServerConfig))
+   return result(false,"vlan_update_invalid","Modification VLAN refusée sans changement.");
+  a.vlanConfig=draft.vlanConfig;
+  if(draft.routingConfig)a.routingConfig=draft.routingConfig;
+  if(draft.ipHelperConfig)a.ipHelperConfig=draft.ipHelperConfig;
+  if(draft.dhcpServerConfig)a.dhcpServerConfig=draft.dhcpServerConfig;
+  s.revision++;
+  return result(true,"vlan_updated","VLAN mis à jour et références associées conservées.",{vlan:clone(selected)});
+ }
+ function removeAssetVlanDefinition(id,vlanId){
+  const a=getA(id);
+  if(!a?.vlanConfig)return result(false,"not_found","Switch administrable introuvable.");
+  const v=a.vlanConfig.vlans.find(x=>x.id===vlanId);
+  if(!v)return result(false,"vlan_missing","VLAN introuvable.");
+  if(v.number===1)return result(false,"default_vlan","Le VLAN 1 ne peut pas être supprimé.");
+  if(Object.values(a.vlanConfig.ports).some(p=>
+    p.mode==="access"?p.vlanId===v.id:p.allowedVlanIds?.includes(v.id)))
+   return result(false,"vlan_used_by_ports","VLAN utilisé par un port : modifier d’abord son affectation.");
+  if(a.routingConfig&&Object.hasOwn(a.routingConfig.interfaces,String(v.number)))
+   return result(false,"vlan_used_by_routing","VLAN utilisé par une interface IPv4 L3.");
+  if(a.ipHelperConfig&&Object.hasOwn(a.ipHelperConfig.helpers,"vlan:"+v.number))
+   return result(false,"vlan_used_by_helper","VLAN utilisé par IP Helper.");
+  if(a.dhcpServerConfig?.pools.some(pool=>pool.vlanNumber===v.number))
+   return result(false,"vlan_used_by_dhcp","VLAN utilisé par une plage DHCP.");
+  const next=clone(a.vlanConfig);
+  next.vlans=next.vlans.filter(x=>x.id!==v.id);
+  if(!validVlanConfiguration({...a,vlanConfig:next},next))
+   return result(false,"invalid_vlan_config","Suppression VLAN refusée.");
+  a.vlanConfig=next;s.revision++;
+  return result(true,"vlan_removed","VLAN supprimé.",{vlanId});
  }
  function setAssetRoutingConfig(id,config){
   const asset=getA(id);
@@ -705,7 +777,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,setAssetDhcpServerConfig,setAssetManagementConfig,setAssetVlanConfig,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,updateAsset,
+ return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,setAssetDhcpServerConfig,setAssetManagementConfig,setAssetVlanConfig,updateAssetVlanDefinition,removeAssetVlanDefinition,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,updateAsset,
  listWallOutlets:()=>clone(s.wallOutlets),listPanels:()=>clone(s.panels),getPanel:id=>clone(s.panels.find(p=>p.id===id)||null),listCables:()=>clone(s.cables),getCable:id=>clone(s.cables.find(x=>x.id===id)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);

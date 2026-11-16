@@ -287,3 +287,8 @@
 .switch-admin.v4 .routing-select{white-space:nowrap}
 .switch-admin.v4 .routing-select-label{font-size:13px;font-weight:500;color:#60737b;margin-left:5px;text-decoration:none}
 .switch-admin.v4 .routing-data-row.row-selected .routing-select-label{color:#087b5e;font-weight:650}
+
+/* Gestion des VLAN : modification compacte et suppression clairement distincte. */
+.switch-admin.v4 .vlan-edit-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.switch-admin.v4 .secondary-danger{font:inherit;font-size:15px;min-height:36px;padding:5px 13px;border:1px solid #b84b40;border-radius:4px;color:#a3362c;background:#fff;cursor:pointer}
+.switch-admin.v4 .secondary-danger:hover{background:#fff2ef}
