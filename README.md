@@ -17,4 +17,10 @@ Le moteur de simulation fonctionnel se trouve dans `src/r2d3-core.js`. Il est in
 
 **Démo autonome :** https://chaoli22000bzh.github.io/C2-Lab/r2d3-v1/
 
-Le démonstrateur C2-Lab embarque une copie du même fichier métier. Il ne conserve aucune donnée dans le navigateur après rechargement. Périmètre technique limité à un LAN Ethernet avec IPv4 statiques, deux câbles et ping simulé.
+Le laboratoire C2-Lab héberge des démonstrateurs autonomes de plusieurs moteurs et interfaces R2D3 ; les copies du code commun doivent rester synchronisées avec les sources de ce dépôt. Les pages de test ne constituent pas une intégration de production.
+
+**Administration des switchs L2/L3 :** composant partagé `src/switch-admin-ui-v1.js` et `src/switch-admin-ui-v1.css`, utilisant le registre d'actifs et les modules VLAN, IPv4 de gestion, routage inter-VLAN, IP Helper et DHCP L3. [Interface de recette C2-Lab](https://chaoli22000bzh.github.io/C2-Lab/r2d3-v1/switch-admin-ui-v1.html?v=6.11).
+
+**État d'intégration :** R2D3 est développé et testé indépendamment de C² ; **le raccordement de R2D3 à C² n'a pas commencé**. Aucune compatibilité de production, persistance des séances ni évaluation C² n'a été recettée.
+
+Pour les spécifications et le statut des recettes, utiliser uniquement les références officielles [C2/docs](https://github.com/chaoli22000bzh/C2/tree/main/docs), notamment `CAHIER_DES_CHARGES_R2D3.md` et `PLAN_REALISATION_RECETTE_R2D3.md`.
