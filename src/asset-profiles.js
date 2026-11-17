@@ -9,8 +9,9 @@ const supportedNetworkCapabilities=["ethernet-switching","vlan","inter-vlan-rout
 const empty=v=>v===undefined||v===null||v==="";
 const routerPorts=a=>a.ports.filter(p=>p.type==="ethernet-rj45"||p.type==="ethernet-fibre");
 const routerIpv4=v=>typeof v==="string"&&/^\d{1,3}(\.\d{1,3}){3}$/.test(v)&&v.split(".").every(x=>Number(x)<=255);
-const routerDefaults=a=>({assetId:a.id,interfaces:Object.fromEntries(routerPorts(a).map((p,i)=>[p.id,{role:i===0?"wan":"lan",mode:"dhcp",address:"",prefix:null,gateway:"",respondToPing:i!==0}]))});
-const routerValid=(a,c)=>!!c&&c.assetId===a.id&&c.interfaces&&typeof c.interfaces==="object"&&!Array.isArray(c.interfaces)&&Object.keys(c.interfaces).length===routerPorts(a).length&&routerPorts(a).every(p=>{
+const routerDefaults=a=>({assetId:a.id,patRules:[],interfaces:Object.fromEntries(routerPorts(a).map((p,i)=>[p.id,{role:i===0?"wan":"lan",mode:"dhcp",address:"",prefix:null,gateway:"",respondToPing:i!==0}]))});
+const validPatRules=(a,c)=>c.patRules===undefined||(Array.isArray(c.patRules)&&new Set(c.patRules.map(r=>r.id)).size===c.patRules.length&&c.patRules.every(r=>r&&typeof r.id==="string"&&r.id.length>0&&typeof r.wanPortId==="string"&&a.ports.some(p=>p.id===r.wanPortId)&&c.interfaces?.[r.wanPortId]?.role==="wan"&&["tcp","udp"].includes(r.protocol)&&Number.isInteger(r.externalPort)&&r.externalPort>=1&&r.externalPort<=65535&&routerIpv4(r.internalAddress)&&Number.isInteger(r.internalPort)&&r.internalPort>=1&&r.internalPort<=65535&&typeof r.enabled==="boolean")&&new Set(c.patRules.map(r=>r.wanPortId+":"+r.protocol+":"+r.externalPort)).size===c.patRules.length);
+const routerValid=(a,c)=>!!c&&c.assetId===a.id&&validPatRules(a,c)&&c.interfaces&&typeof c.interfaces==="object"&&!Array.isArray(c.interfaces)&&Object.keys(c.interfaces).length===routerPorts(a).length&&routerPorts(a).every(p=>{
  const i=c.interfaces[p.id];return !!i&&["wan","lan","dmz"].includes(i.role)&&["dhcp","static"].includes(i.mode)&&typeof i.respondToPing==="boolean"&&(i.mode==="dhcp"?(i.address===""&&i.prefix===null&&i.gateway===""):(routerIpv4(i.address)&&Number.isInteger(i.prefix)&&i.prefix>=0&&i.prefix<=32&&(i.gateway===""||routerIpv4(i.gateway))));
 });
 const cableConnectors=[
