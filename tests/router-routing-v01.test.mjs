@@ -54,12 +54,12 @@ test("ROUTER-05 : réseaux qui se chevauchent => non simulé, jamais faux succè
  assert.ok(configureRouterPort(f.r,f.router.id,f.router.ports[2].id,{role:"lan",mode:"static",address:"192.168.10.2",prefix:24}).success);
  const o=f.ping();assert.equal(o.status,"unavailable");assert.equal(o.success,false);
 });
-test("ROUTER-06 : interface sans IP statique, DMZ, PC éteint, pas de faux succès",()=>{
+test("ROUTER-06 : interface sans IP statique, DMZ autorisée, PC éteint",()=>{
  const f=fixture();
  assert.ok(configureRouterPort(f.r,f.router.id,f.router.ports[2].id,{role:"lan",mode:"dhcp"}).success);
  assert.equal(f.ping().success,false);
  assert.ok(configureRouterPort(f.r,f.router.id,f.router.ports[2].id,{role:"dmz",mode:"static",address:"192.168.20.1",prefix:24}).success);
- assert.equal(f.ping().status,"unavailable");
+ assert.equal(f.ping().success,true);
  assert.ok(f.r.updateAsset(f.pc1.id,{status:"Hors service"}).success);
  assert.equal(f.ping().success,false);
 });
