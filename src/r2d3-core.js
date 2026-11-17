@@ -116,7 +116,7 @@ function validDnsConfig(c) {
 
 // États pédagogiques explicites d'AD DS et SMB : aucun service n'est supposé actif.
 // Les clés sont l'identité du service ; la configuration demeure sur la machine réseau.
-const applicationServiceNames=new Set(["ad-ds","smb"]);
+const applicationServiceNames=new Set(["ad-ds","smb","http","https"]);
 const validApplicationServices=value=>value===undefined || (isObj(value)&&
  Object.entries(value).every(([name,enabled])=>applicationServiceNames.has(name)&&typeof enabled==="boolean"));
 
