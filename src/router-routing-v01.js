@@ -1,7 +1,7 @@
 /*
  * Routeur générique V0.1 - ping entre deux interfaces directement raccordées.
  * Topologie exclusivement issue du registre R2 et vérifiée par le moteur ping commun.
- * Ce lot ne modélise ni NAT, ni DMZ, ni transport à travers un switch.
+ * Aucun NAT, PAT ou transport à travers un switch. DMZ : politique pédagogique minimale.
  */
 import {createEngine} from "./r2d3-core.js";
 const fail=(reason,status="ok")=>({status,success:false,reason});
@@ -52,8 +52,15 @@ export function observeRouterPing(registry,routerId,sourceId,targetId,addresses)
  if(pair.some(p=>!p.interface||p.interface.mode!=="static"))
   return fail("Interface du routeur sans IPv4 statique");
  const roles=pair.map(p=>p.interface.role);
- if(roles.some(role=>!["lan","wan"].includes(role)))
-  return unsupported("Lot 2 : les réseaux DMZ ne sont pas encore pris en charge");
+ if(roles.some(role=>!["lan","wan","dmz"].includes(role)))
+  return unsupported("Rôle d'interface non pris en charge");
+ const dmz=roles.includes("dmz");
+ if(dmz&&roles.includes("wan"))
+  return unsupported("WAN vers DMZ exige un service publié ; non simulé par un ping direct");
+ if(dmz&&roles[0]==="dmz")
+  return fail("Politique DMZ : les communications initiées depuis la DMZ vers le LAN sont interdites");
+ if(dmz&&roles[0]!=="lan")
+  return unsupported("Seul le trafic LAN vers DMZ est pris en charge dans ce lot");
  if(roles[0]==="wan"&&roles[1]==="wan")
   return unsupported("Lot 2 : deux interfaces WAN non prises en charge");
  const hasWan=roles.includes("wan");
@@ -73,5 +80,5 @@ export function observeRouterPing(registry,routerId,sourceId,targetId,addresses)
   const observed=corePing(p.asset,p.clientPort,p.client,router,p.port,p.interface,true);
   if(!observed.success)return {status:observed.status||"ok",success:false,reason:"PC et passerelle non joignables : "+(observed.reason||"échec réseau")};
  }
- return {status:"ok",success:true,reason:hasWan?"Routage IPv4 direct opérationnel entre LAN et WAN (sans NAT ni pare-feu simulé)":"Routage IPv4 direct opérationnel entre les deux réseaux LAN"};
+ return {status:"ok",success:true,reason:dmz?"Accès LAN vers DMZ autorisé (politique pédagogique simplifiée)":hasWan?"Routage IPv4 direct opérationnel entre LAN et WAN (sans NAT ni pare-feu simulé)":"Routage IPv4 direct opérationnel entre les deux réseaux LAN"};
 }

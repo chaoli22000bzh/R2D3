@@ -54,12 +54,12 @@ test("ROUTER-05 : réseaux qui se chevauchent => non simulé, jamais faux succè
  assert.ok(configureRouterPort(f.r,f.router.id,f.router.ports[2].id,{role:"lan",mode:"static",address:"192.168.10.2",prefix:24}).success);
  const o=f.ping();assert.equal(o.status,"unavailable");assert.equal(o.success,false);
 });
-test("ROUTER-06 : interface sans IP statique, DMZ, PC éteint, pas de faux succès",()=>{
+test("ROUTER-06 : interface sans IP statique, DMZ autorisée, PC éteint",()=>{
  const f=fixture();
  assert.ok(configureRouterPort(f.r,f.router.id,f.router.ports[2].id,{role:"lan",mode:"dhcp"}).success);
  assert.equal(f.ping().success,false);
  assert.ok(configureRouterPort(f.r,f.router.id,f.router.ports[2].id,{role:"dmz",mode:"static",address:"192.168.20.1",prefix:24}).success);
- assert.equal(f.ping().status,"unavailable");
+ assert.equal(f.ping().success,true);
  assert.ok(f.r.updateAsset(f.pc1.id,{status:"Hors service"}).success);
  assert.equal(f.ping().success,false);
 });
@@ -91,4 +91,35 @@ test("ROUTER-09 : mauvaise passerelle WAN ou coupure de câble",()=>{
  f.addresses[f.pc2.id].gateway="192.168.20.1";
  assert.ok(f.r.disconnectCableEnd(f.c2.id,1).success);
  assert.equal(f.ping().success,false);
+});
+
+test("ROUTER-10 : LAN vers DMZ autorisé mais DMZ vers LAN refusé",()=>{
+ const f=fixture();
+ assert.ok(configureRouterPort(f.r,f.router.id,f.router.ports[2].id,{role:"dmz",mode:"static",address:"192.168.20.1",prefix:24}).success);
+ const forward=f.ping();
+ assert.equal(forward.success,true);
+ assert.match(forward.reason,/LAN vers DMZ/);
+ const reverse=observeRouterPing(f.r,f.router.id,f.pc2.id,f.pc1.id,f.addresses);
+ assert.equal(reverse.success,false);
+ assert.match(reverse.reason,/DMZ.*LAN/);
+});
+test("ROUTER-11 : LAN vers DMZ suit les défauts physiques et IPv4",()=>{
+ const f=fixture();
+ assert.ok(configureRouterPort(f.r,f.router.id,f.router.ports[2].id,{role:"dmz",mode:"static",address:"192.168.20.1",prefix:24}).success);
+ assert.equal(f.ping().success,true);
+ f.addresses[f.pc1.id].gateway="192.168.10.254";
+ assert.equal(f.ping().success,false);
+ f.addresses[f.pc1.id].gateway="192.168.10.1";
+ assert.ok(f.r.disconnectCableEnd(f.c2.id,1).success);
+ assert.equal(f.ping().success,false);
+});
+test("ROUTER-12 : WAN vers DMZ non simulé par ping direct",()=>{
+ const f=fixture();
+ assert.ok(f.r.disconnectCableEnd(f.c1.id,1).success);
+ assert.ok(f.r.connectCableEnd(f.c1.id,1,f.router.ports[0].id).success);
+ assert.ok(configureRouterPort(f.r,f.router.id,f.router.ports[0].id,{role:"wan",mode:"static",address:"192.168.10.1",prefix:24}).success);
+ assert.ok(configureRouterPort(f.r,f.router.id,f.router.ports[2].id,{role:"dmz",mode:"static",address:"192.168.20.1",prefix:24}).success);
+ const observed=f.ping();
+ assert.equal(observed.status,"unavailable");
+ assert.equal(observed.success,false);
 });
