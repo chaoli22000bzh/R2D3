@@ -47,7 +47,7 @@ test("PAT-04 mauvais port externe, mauvais protocole et service arrêté",()=>{
  const f=fixture();assert.ok(addRouterPatRule(f.r,f.router.id,f.rule).success);
  assert.equal(observeInboundPat(f.r,f.router.id,f.outside.id,f.server.id,f.ips,{...f.request,port:8081},f.engine).success,false);
  assert.equal(observeInboundPat(f.r,f.router.id,f.outside.id,f.server.id,f.ips,{...f.request,protocol:"udp"},f.engine).success,false);
- const d=f.engine.dispatch({id:"stop-http",type:"network.setApplicationService",targetId:f.server.id,params:{service:"http",enabled:false}});
+ const d=f.engine.dispatch({commandVersion:1,id:"stop-http",type:"network.setApplicationService",targetId:f.server.id,params:{service:"http",enabled:false}});
  assert.equal(d.status,"applied");assert.equal(f.probe().success,false);
 });
 test("PAT-05 câblage, passerelle et réseau interne ont un effet",()=>{
