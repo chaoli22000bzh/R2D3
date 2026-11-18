@@ -34,7 +34,7 @@ button{cursor:pointer}button.primary{background:var(--accent);color:white;border
 <label>Niveau RAID<select id="level"><option value="0">RAID 0</option><option value="1">RAID 1</option><option value="5" selected>RAID 5</option><option value="6">RAID 6</option><option value="10">RAID 10</option><option value="01">RAID 01</option></select></label>
 <button type="button" class="primary" id="add">+ Ajouter un disque</button>
 <button type="button" id="reset">Réinitialiser</button>
-</div><div class="disks" id="disks"></div><p class="small">Un disque de secours n'augmente pas la capacité utile. Il n'est pas activé automatiquement dans cet exercice.</p></section>
+</div><div class="disks" id="disks"></div><p class="small">Un spare n'augmente pas la capacité utile. Il n'est pas activé automatiquement dans cet exercice.</p></section>
 <section class="panel" aria-live="polite"><h2>2. Résultats</h2><p id="message" role="status"></p>
 <div class="results" id="results"></div><div class="bar" id="bar" role="img" aria-label="Répartition des capacités"></div>
 <div class="legend"><span><i class="usable"></i>Données</span><span><i class="redundancy"></i>Redondance / parité</span><span><i class="unused"></i>Non utilisé</span><span><i class="sparebar"></i>Secours</span></div><p id="groups"></p><p id="tolerance" class="note"></p>
@@ -58,7 +58,7 @@ function render(){
   const cap=document.createElement("input");cap.type="number";cap.min="0.01";cap.step="0.25";cap.value=d.capacityTB;cap.setAttribute("aria-label","Capacité de "+d.id);
   cap.addEventListener("input",()=>{d.capacityTB=Number(cap.value);calculate()});capLabel.append(cap);
   const role=document.createElement("select");role.setAttribute("aria-label","Rôle de "+d.id);
-  for(const [v,t] of [["active","Actif"],["spare","Disque de secours"]]){const o=new Option(t,v);role.add(o)}
+  for(const [v,t] of [["active","Actif"],["spare","Spare"]]){const o=new Option(t,v);role.add(o)}
   role.value=d.role;role.addEventListener("change",()=>{d.role=role.value;render()});
   const remove=document.createElement("button");remove.textContent="Retirer";remove.setAttribute("aria-label","Retirer le disque "+d.id);
   remove.addEventListener("click",()=>{disks=disks.filter(x=>x!==d);render()});
@@ -72,7 +72,7 @@ function calculate(){
  if(!response.ok){$("message").className="error";$("message").textContent=response.errors[0].message;return}
  $("message").className="small";$("message").textContent="Configuration valide";
  const r=response.value,c=r.capacitiesTB;
- for(const [title,num] of [["Capacité brute",c.rawTotal],["Données utilisables",c.usable],["Redondance / parité",c.redundancy],["Espace non utilisé",c.unused],["Disques de secours",c.spare]]){
+ for(const [title,num] of [["Capacité brute",c.rawTotal],["Données utilisables",c.usable],["Redondance / parité",c.redundancy],["Espace non utilisé",c.unused],["Spares",c.spare]]){
   const m=document.createElement("div");m.className="metric";const v=document.createElement("strong");v.textContent=fmt(num);
   const label=document.createElement("span");label.textContent=title;m.append(v,label);result.append(m);
  }
