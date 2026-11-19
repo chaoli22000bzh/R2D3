@@ -147,7 +147,7 @@ export function observeRemoteVpnPing(registry,session,targetId,addresses){
  */
 export function observeRemoteVpnPingName(registry,session,name,targetId,addresses,{dnsEngine,dnsClientId,dnsAssetId}={}){
  const valid=validateRemoteVpnSession(registry,session);
- if(!valid.success)return valid;
+ if(!valid.success&&["account_revoked","disconnected"].includes(valid.code))return valid;
  const servers=session.dnsServers??(session.dnsServer?[session.dnsServer]:[]);
  if(!servers.length)return fail("dns_not_configured","Aucun DNS fourni par le VPN");
  if(!dnsEngine?.query||!dnsClientId)return fail("dns_engine_missing","Moteur DNS non disponible");
