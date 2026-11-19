@@ -27,7 +27,7 @@ export function mountRemoteVpnClient({root,registry,routerId,clientId,addresses,
    '<button type="button" data-vpn-action="disconnect">Se déconnecter</button></div></form>'+
    '<p>État : <strong>'+ (connected()?"Connecté":"Déconnecté")+'</strong></p>'+
    '<p>IPv4 VPN : <strong>'+esc(connected()?session.vpnAddress:"Aucune")+'</strong></p>'+
-   '<p>DNS reçu : <strong>'+esc(connected()?(session.dnsServer||"Aucun"):"Aucun")+'</strong></p>'+
+   '<p>DNS reçu : <strong>'+esc(connected()?((session.dnsServers??(session.dnsServer?[session.dnsServer]:[])).join(" / ")||"Aucun"):"Aucun")+'</strong></p>'+
    (targetId?'<form data-vpn="ping" style="display:grid;gap:8px">'+
     '<label>Machine à tester<select name="mode"><option value="ipv4">Par adresse IPv4</option><option value="name">Par nom DNS</option></select></label>'+
     '<label>Nom DNS<input name="name" placeholder="srv-local.entreprise.test" style="width:100%"></label>'+
