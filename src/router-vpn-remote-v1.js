@@ -97,6 +97,22 @@ export function connectRemoteVpn(registry,routerId,clientId,addresses,{serverAdd
  return {success:true,session:{routerId,clientId,username,serverAddress,vpnAddress:ipText(assigned),
   dnsServer:dnsServers[0]||"",dnsServers:[...dnsServers],connected:true}};
 }
+/*
+ * Vérification de validité à chaque usage du tunnel.
+ * Ne dépend pas de l'interface : même un ancien objet session devient inutilisable
+ * quand l'administrateur bloque ou supprime son compte.
+ */
+export function validateRemoteVpnSession(registry,session){
+ if(!session?.connected)return fail("disconnected","VPN déconnecté");
+ const r=router(registry,session.routerId),cfg=configOf(r);
+ if(!r||!cfg||!cfg.enabled)return fail("vpn_off","VPN désactivé");
+ if(r.status!=="En service")return fail("router_down","Routeur arrêté");
+ if(registry?.getAsset?.(session.clientId)?.status!=="En service")return fail("device_down","PC arrêté");
+ const accounts=cfg.accounts??(cfg.username?[{username:cfg.username,password:cfg.password,enabled:true}]:[]);
+ if(typeof session.username!=="string"||!accounts.some(a=>a.username===session.username&&a.enabled!==false))
+  return fail("account_revoked","Compte VPN bloqué ou supprimé");
+ return {success:true};
+}
 export function disconnectRemoteVpn(session){
  return {...(session||{}),connected:false};
 }
@@ -104,10 +120,9 @@ export function disconnectRemoteVpn(session){
  * Le tunnel autorise l'accès ; le routage et le ping sont vérifiés séparément.
  */
 export function observeRemoteVpnPing(registry,session,targetId,addresses){
- if(!session?.connected)return fail("disconnected","VPN déconnecté");
+ const valid=validateRemoteVpnSession(registry,session);
+ if(!valid.success)return valid;
  const r=router(registry,session.routerId),cfg=configOf(r);
- if(!r||!cfg||!cfg.enabled)return fail("vpn_off","VPN désactivé");
- if(r.status!=="En service")return fail("router_down","Routeur arrêté");
  const target=registry?.getAsset?.(targetId);
  if(!target||target.status!=="En service")return fail("target_down","Machine distante arrêtée");
  if(cfg.wanPortId===cfg.lanPortId||iface(r,cfg.wanPortId)?.address!==session.serverAddress)
@@ -131,7 +146,8 @@ export function observeRemoteVpnPing(registry,session,targetId,addresses){
  * à l'enregistrement A.
  */
 export function observeRemoteVpnPingName(registry,session,name,targetId,addresses,{dnsEngine,dnsClientId,dnsAssetId}={}){
- if(!session?.connected)return fail("disconnected","VPN déconnecté");
+ const valid=validateRemoteVpnSession(registry,session);
+ if(!valid.success)return valid;
  const servers=session.dnsServers??(session.dnsServer?[session.dnsServer]:[]);
  if(!servers.length)return fail("dns_not_configured","Aucun DNS fourni par le VPN");
  if(!dnsEngine?.query||!dnsClientId)return fail("dns_engine_missing","Moteur DNS non disponible");
