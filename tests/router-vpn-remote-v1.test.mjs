@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {createEngine} from "../src/r2d3-core.js";
 import {createAssetRegistry,restoreAssetRegistry} from "../src/asset-profiles.js";
 import {createRouter,configureRouterPort} from "../src/router-interfaces-v1.js";
-import {configureRemoteVpn,getRemoteVpnConfig,setRemoteVpnEnabled,connectRemoteVpn,disconnectRemoteVpn,observeRemoteVpnPing,observeRemoteVpnPingName} from "../src/router-vpn-remote-v1.js";
+import {configureRemoteVpn,getRemoteVpnConfig,setRemoteVpnEnabled,connectRemoteVpn,disconnectRemoteVpn,observeRemoteVpnPing,observeRemoteVpnPingName,validateRemoteVpnSession} from "../src/router-vpn-remote-v1.js";
 
 function fixture(){
  const registry=createAssetRegistry(),router=createRouter(registry,{name:"RTR-01"}).asset;
@@ -155,4 +155,39 @@ test("VPN-ACCOUNTS02 : comptes en doublon et plus de 100 refusés",()=>{
  const f=fixture(),user={username:"alice",password:"demo",enabled:true};
  assert.equal(configureRemoteVpn(f.registry,f.router.id,{...f.settings,accounts:[user,{...user,username:"ALICE"}]}).success,false);
  assert.equal(configureRemoteVpn(f.registry,f.router.id,{...f.settings,accounts:Array.from({length:101},(_,i)=>({...user,username:"u"+i}))}).success,false);
+});
+
+test("VPN-REVOKE01 : bloquer un compte invalide la session déjà ouverte",()=>{
+ const f=fixture(),accounts=[
+  {username:"alice",password:"a1",enabled:true},
+  {username:"bob",password:"b2",enabled:true}
+ ];
+ const config=(users)=>configureRemoteVpn(f.registry,f.router.id,{...f.settings,accounts:users,dnsServers:["192.168.10.10"]});
+ assert.equal(config(accounts).success,true);
+ const alice=f.connect({...f.credentials,username:"alice",password:"a1"}).session;
+ const bob=f.connect({...f.credentials,username:"bob",password:"b2"}).session;
+ assert.equal(observeRemoteVpnPing(f.registry,alice,f.server.id,f.addresses).success,true);
+ assert.equal(observeRemoteVpnPing(f.registry,bob,f.server.id,f.addresses).success,true);
+ assert.equal(config([{...accounts[0],enabled:false},accounts[1]]).success,true);
+ assert.equal(validateRemoteVpnSession(f.registry,alice).code,"account_revoked");
+ assert.equal(observeRemoteVpnPing(f.registry,alice,f.server.id,f.addresses).code,"account_revoked");
+ assert.equal(observeRemoteVpnPing(f.registry,bob,f.server.id,f.addresses).success,true);
+ assert.equal(f.connect({...f.credentials,username:"alice",password:"a1"}).success,false);
+});
+test("VPN-REVOKE02 : suppression bloque la session et le ping DNS déjà ouverts",()=>{
+ const f=fixture(),accounts=[
+  {username:"alice",password:"a1",enabled:true},
+  {username:"bob",password:"b2",enabled:true}
+ ];
+ const config=users=>configureRemoteVpn(f.registry,f.router.id,{...f.settings,accounts:users,dnsServers:["192.168.10.10"]});
+ assert.equal(config(accounts).success,true);
+ const alice=f.connect({...f.credentials,username:"alice",password:"a1"}).session;
+ const d=dnsCore();
+ const dnsOpts={dnsEngine:d.engine,dnsClientId:d.clientId,dnsAssetId:f.server.id};
+ assert.equal(observeRemoteVpnPingName(f.registry,alice,"srv-local.entreprise.test",f.server.id,f.addresses,dnsOpts).success,true);
+ assert.equal(config([accounts[1]]).success,true);
+ assert.equal(validateRemoteVpnSession(f.registry,alice).code,"account_revoked");
+ assert.equal(observeRemoteVpnPingName(f.registry,alice,"srv-local.entreprise.test",f.server.id,f.addresses,dnsOpts).code,"account_revoked");
+ assert.equal(f.connect({...f.credentials,username:"alice",password:"a1"}).success,false);
+ assert.equal(f.connect({...f.credentials,username:"bob",password:"b2"}).success,true);
 });
