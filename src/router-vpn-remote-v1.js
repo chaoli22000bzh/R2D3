@@ -30,7 +30,7 @@ const configOf=(r)=>r?.routerConfig?.remoteVpn||null;
 export function getRemoteVpnConfig(registry,routerId){
  const r=router(registry,routerId);return r?clone(configOf(r)):null;
 }
-export function configureRemoteVpn(registry,routerId,{wanPortId,lanPortId,vpnNetwork,vpnPrefix,username,password,enabled=false}={}){
+export function configureRemoteVpn(registry,routerId,{wanPortId,lanPortId,vpnNetwork,vpnPrefix,username,password,dnsServer="",enabled=false}={}){
  const r=router(registry,routerId);
  if(!r)return fail("router_missing","Routeur introuvable");
  const wan=iface(r,wanPortId),lan=iface(r,lanPortId);
@@ -43,9 +43,9 @@ export function configureRemoteVpn(registry,routerId,{wanPortId,lanPortId,vpnNet
   return fail("network_invalid","Réseau VPN incorrect");
  if([lanNet,wanNet].some(s=>inSubnet(vpnNetwork,s)||inSubnet(lan.address,pool)||inSubnet(wan.address,pool)))
   return fail("network_overlap","Réseaux VPN, LAN et WAN à séparer");
- if(typeof username!=="string"||!username.trim()||typeof password!=="string"||!password||typeof enabled!=="boolean")
+ if((dnsServer!==""&&ipNum(dnsServer)===null)||typeof username!=="string"||!username.trim()||typeof password!=="string"||!password||typeof enabled!=="boolean")
   return fail("credentials_invalid","Identifiant, mot de passe ou état incorrect");
- const settings={wanPortId,lanPortId,vpnNetwork,vpnPrefix,username:username.trim(),password,enabled};
+ const settings={wanPortId,lanPortId,vpnNetwork,vpnPrefix,username:username.trim(),password,dnsServer,enabled};
  const updated=clone(r.routerConfig);updated.remoteVpn=settings;
  const done=registry.setAssetRouterConfig(routerId,updated);
  return done.success?{success:true,config:clone(settings)}:fail("config_rejected",done.message||"Configuration refusée");
@@ -80,7 +80,7 @@ export function connectRemoteVpn(registry,routerId,clientId,addresses,{serverAdd
  // V1 : un seul client ; adresse .10 si utilisable, sinon première adresse.
  const first=pool.network+1, last=pool.network+(2**(32-pool.prefix))-2;
  const assigned=Math.min(first+9,last);
- return {success:true,session:{routerId,clientId,serverAddress,vpnAddress:ipText(assigned),connected:true}};
+ return {success:true,session:{routerId,clientId,serverAddress,vpnAddress:ipText(assigned),dnsServer:cfg.dnsServer||"",connected:true}};
 }
 export function disconnectRemoteVpn(session){
  return {...(session||{}),connected:false};
@@ -101,4 +101,33 @@ export function observeRemoteVpnPing(registry,session,targetId,addresses){
  if(!net||!inSubnet(ip,net))return fail("wrong_destination","Machine hors du réseau interne");
  const check=observeRouterPing(registry,session.routerId,session.clientId,targetId,addresses);
  return check.success?{success:true,status:"ok",reason:"Réponse du PC distant",vpnAddress:session.vpnAddress}:fail(check.status==="unavailable"?"unsupported":"unreachable",check.reason||"Réseau inaccessible");
+}
+
+/*
+ * DNS VPN V1 : une machine du LAN fournit le DNS, le client l'obtient à
+ * la connexion. Le Core DNS existant résout le nom ; aucun enregistrement
+ * ou réponse DNS n'est inventé ici.
+ *
+ * dnsEngine : moteur Core du scénario DNS réellement raccordé au LAN.
+ * dnsClientId : point de résolution DNS côté LAN dans ce Core, avec
+ * networkOptions.dns configuré sur le DNS poussé par le VPN.
+ * dnsAssetId : actif R2 correspondant au serveur DNS (joignabilité VPN).
+ * targetId : actif R2 de la destination dont l'IPv4 doit correspondre
+ * à l'enregistrement A.
+ */
+export function observeRemoteVpnPingName(registry,session,name,targetId,addresses,{dnsEngine,dnsClientId,dnsAssetId}={}){
+ if(!session?.connected)return fail("disconnected","VPN déconnecté");
+ if(!session.dnsServer)return fail("dns_not_configured","Aucun DNS fourni par le VPN");
+ const dnsAddress=addresses?.[dnsAssetId]?.address;
+ if(!dnsAssetId||dnsAddress!==session.dnsServer)
+  return fail("dns_server_missing","Serveur DNS introuvable");
+ const dnsPing=observeRemoteVpnPing(registry,session,dnsAssetId,addresses);
+ if(!dnsPing.success)return fail("dns_unreachable","Serveur DNS inaccessible : "+(dnsPing.message||"réseau coupé"));
+ if(!dnsEngine?.query||!dnsClientId)return fail("dns_engine_missing","Moteur DNS non disponible");
+ const answer=dnsEngine.query({type:"dns.resolve",sourceId:dnsClientId,serverAddress:session.dnsServer,name,recordType:"A"});
+ if(answer.status!=="ok")return fail("dns_error",answer.reason||"Résolution DNS impossible");
+ if(!answer.found)return fail("dns_not_found","Nom DNS inconnu");
+ if(answer.address!==addresses?.[targetId]?.address)return fail("dns_wrong_target","Le nom ne correspond pas au serveur testé");
+ const ping=observeRemoteVpnPing(registry,session,targetId,addresses);
+ return ping.success?{...ping,resolvedAddress:answer.address,dnsServer:session.dnsServer,name}:ping;
 }
