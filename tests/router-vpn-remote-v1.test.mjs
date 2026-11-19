@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {createEngine} from "../src/r2d3-core.js";
 import {createAssetRegistry,restoreAssetRegistry} from "../src/asset-profiles.js";
 import {createRouter,configureRouterPort} from "../src/router-interfaces-v1.js";
-import {configureRemoteVpn,getRemoteVpnConfig,setRemoteVpnEnabled,connectRemoteVpn,disconnectRemoteVpn,observeRemoteVpnPing} from "../src/router-vpn-remote-v1.js";
+import {configureRemoteVpn,getRemoteVpnConfig,setRemoteVpnEnabled,connectRemoteVpn,disconnectRemoteVpn,observeRemoteVpnPing,observeRemoteVpnPingName} from "../src/router-vpn-remote-v1.js";
 
 function fixture(){
  const registry=createAssetRegistry(),router=createRouter(registry,{name:"RTR-01"}).asset;
@@ -72,4 +73,67 @@ test("VPN-N06 : configuration VPN conservée après restauration du registre R2"
  const f=fixture();f.configure();
  const restored=restoreAssetRegistry(f.registry.exportState());
  assert.deepEqual(getRemoteVpnConfig(restored,f.router.id),getRemoteVpnConfig(f.registry,f.router.id));
+});
+
+
+function dnsCore({up=true,record=true,configured=true}={}){
+ const clientId="dns-proxy",serverId="dns-local";
+ return {clientId,engine:createEngine({
+  format:"r2d3-scenario",schemaVersion:1,scenarioId:"vpn-dns-tests",
+  scenarioVersion:"1.0.0",capabilities:{network:true},
+  objects:[
+   {id:clientId,kind:"ethernet-endpoint",name:"Relais DNS du LAN",ports:[{id:"eth0",type:"rj45"}],
+    config:{ipv4:{interfaceId:"eth0",mode:"static",address:"192.168.10.1",prefix:24},
+    networkOptions:{gateway:null,dns:configured?["192.168.10.10"]:[]}},runtime:{}},
+   {id:serverId,kind:"ethernet-endpoint",name:"DNS",ports:[{id:"eth0",type:"rj45"}],
+    config:{ipv4:{interfaceId:"eth0",mode:"static",address:"192.168.10.10",prefix:24},
+     dnsEnabled:up,dnsZone:{domain:"entreprise.test",negativeTtl:60,records:record?
+      [{name:"srv-local.entreprise.test",type:"A",value:"192.168.10.10",ttl:300}]:[]}},runtime:{}}
+  ],
+  links:[{id:"dns-lan",kind:"ethernet-cable",connected:true,
+   endpoints:[{objectId:clientId,portId:"eth0"},{objectId:serverId,portId:"eth0"}]}]
+ })};
+}
+test("VPN-DNS01 : serveur DNS fourni par le routeur à la connexion et ping par nom",()=>{
+ const f=fixture();f.settings.dnsServer="192.168.10.10";
+ assert.equal(f.configure().success,true);
+ const c=f.connect();assert.equal(c.success,true);
+ assert.equal(c.session.dnsServer,"192.168.10.10");
+ const d=dnsCore();
+ const result=observeRemoteVpnPingName(f.registry,c.session,"srv-local.entreprise.test",f.server.id,f.addresses,
+  {dnsEngine:d.engine,dnsClientId:d.clientId,dnsAssetId:f.server.id});
+ assert.equal(result.success,true,JSON.stringify(result));
+ assert.equal(result.resolvedAddress,"192.168.10.10");
+});
+test("VPN-DNS02 : serveur DNS arrêté et nom absent",()=>{
+ const f=fixture();f.settings.dnsServer="192.168.10.10";f.configure();const c=f.connect();
+ for(const [opts,expected] of [[{up:false},"dns_error"],[{record:false},"dns_not_found"],[{configured:false},"dns_error"]]){
+  const d=dnsCore(opts);
+  const r=observeRemoteVpnPingName(f.registry,c.session,"srv-local.entreprise.test",f.server.id,f.addresses,
+   {dnsEngine:d.engine,dnsClientId:d.clientId,dnsAssetId:f.server.id});
+  assert.equal(r.code,expected,JSON.stringify(r));
+ }
+});
+test("VPN-DNS03 : coupure du VPN ou du LAN bloque la résolution",()=>{
+ const f=fixture();f.settings.dnsServer="192.168.10.10";f.configure();const c=f.connect(),d=dnsCore();
+ const probe=()=>observeRemoteVpnPingName(f.registry,c.session,"srv-local.entreprise.test",f.server.id,f.addresses,
+  {dnsEngine:d.engine,dnsClientId:d.clientId,dnsAssetId:f.server.id});
+ assert.equal(probe().success,true);
+ f.registry.disconnectCableEnd(f.lanCable,1);
+ assert.equal(probe().code,"dns_unreachable");
+ f.registry.connectCableEnd(f.lanCable,1,f.lan);
+ assert.equal(setRemoteVpnEnabled(f.registry,f.router.id,false).success,true);
+ assert.equal(probe().code,"dns_unreachable");
+});
+test("VPN-DNS04 : DNS absent, DNS invalide et restauration",()=>{
+ const f=fixture();
+ assert.equal(f.configure().success,true);
+ const c=f.connect();assert.equal(c.session.dnsServer,"");
+ assert.equal(observeRemoteVpnPingName(f.registry,c.session,"srv-local.entreprise.test",f.server.id,f.addresses,{}).code,"dns_not_configured");
+ const before=f.registry.exportState();
+ assert.equal(configureRemoteVpn(f.registry,f.router.id,{...f.settings,dnsServer:"999.1.1.1"}).success,false);
+ assert.deepEqual(f.registry.exportState(),before);
+ assert.equal(configureRemoteVpn(f.registry,f.router.id,{...f.settings,dnsServer:"192.168.10.10"}).success,true);
+ const restored=restoreAssetRegistry(f.registry.exportState());
+ assert.equal(getRemoteVpnConfig(restored,f.router.id).dnsServer,"192.168.10.10");
 });
