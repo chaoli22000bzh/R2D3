@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>R2D3 | Intégration VPN nomade</title>
+<link rel="stylesheet" href="../src/switch-admin-ui-v1.css">
+<style>
+:root{color-scheme:light dark}*{box-sizing:border-box}body{font:14px/1.5 system-ui,Arial,sans-serif;margin:0;background:#f2f5f8;color:#213847}
+header{padding:15px max(12px,calc((100% - 980px)/2));background:#193e60;color:#fff}h1{font-size:20px;margin:0}header p{margin:3px 0;color:#d9e9f1}
+main{max-width:980px;margin:auto;padding:12px}.panel{background:#fff;border:1px solid #d2dfe6;border-radius:8px;margin-bottom:12px;padding:13px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}.panel h2{font-size:17px;margin:0 0 10px}.actions{display:flex;flex-wrap:wrap;gap:8px}
+button,input,select{font:inherit}button{cursor:pointer;padding:8px;border:1px solid #9aafbd;border-radius:5px;background:white;color:#213847}button.primary{background:#145f83;color:white;border-color:#145f83}
+input,select{padding:8px;border:1px solid #9aafbd;border-radius:5px;background:white;color:#213847}label{display:grid;gap:4px}small{color:#55717f}
+.status{background:#edf4f9;padding:9px;border-radius:5px;margin-top:8px}
+@media(max-width:680px){main{padding:7px}.cols{grid-template-columns:1fr}.panel{padding:10px}}
+@media(prefers-color-scheme:dark){body{background:#141d27;color:#e6f0f7}.panel{background:#1c2b36;border-color:#405663}button,input,select{background:#243745;color:#eaf5fa;border-color:#647d8c}.status{background:#283b4a}small{color:#bad0dc}}
+</style></head><body>
+<header><h1>R2D3 : intégration du VPN nomade</h1><p>Recette du routeur et du client PC sur le même registre R2</p></header><main>
+<section class="panel"><h2>Réseau de test</h2>
+<p>PC nomade : <strong>203.0.113.20</strong> → routeur : <strong>203.0.113.10</strong> → serveur : <strong>192.168.10.10</strong>.</p>
+<div class="actions"><button id="stop-router">Arrêter routeur</button><button id="stop-server">Arrêter serveur</button><button id="cut-wan">Couper WAN</button><button id="cut-lan">Couper LAN</button><button id="reset">Réinitialiser</button></div>
+<p id="lab-state" class="status" role="status">Initialisation du laboratoire.</p></section>
+<div class="cols">
+<section class="panel"><h2>Routeur générique R2D3</h2><div id="router-admin"></div></section>
+<section class="panel"><h2>Client PC nomade R2D3</h2><div id="vpn-client"></div><small>Serveur : 203.0.113.10 ; utilisateur : eleve ; mot de passe fictif : demo</small></section>
+</div>
+<section class="panel"><h2>Objectifs de validation</h2><p>Configurer le VPN dans l'onglet du routeur. Connecter le PC. Vérifier le ping IPv4 et DNS. Puis tester la coupure LAN, WAN et l'arrêt du routeur.</p></section>
+</main><script type="module" src="./main.js?v=1"></script></body></html>
