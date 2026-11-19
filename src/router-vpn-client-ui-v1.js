@@ -15,7 +15,11 @@ export function mountRemoteVpnClient({root,registry,routerId,clientId,addresses,
  const check=()=>{
   if(connected()&&(!running()||!active())){session=null;message="VPN coupé. Reconnecte le PC.";error=true;}
  };
- function render(){
+ function render({clearPassword=false}={}){
+  // Les formulaires sont reconstruits à chaque résultat : mémoriser les saisies.
+  const prior=root.querySelector('form[data-vpn="connect"]');
+  const values=prior?Object.fromEntries(["serverAddress","username","password"].map(
+   name=>[name,prior.elements.namedItem(name)?.value??""])):null;
   check();
   root.innerHTML='<section class="r2d3-vpn-client" style="max-width:460px;width:100%;color:inherit">'+
    '<h3>Client VPN</h3>'+
@@ -33,6 +37,12 @@ export function mountRemoteVpnClient({root,registry,routerId,clientId,addresses,
     '<label>Nom DNS<input name="name" placeholder="srv-local.entreprise.test" style="width:100%"></label>'+
     '<button type="submit">Tester le ping</button></form>':'')+
    '<p role="status" style="color:'+(error?"#ba3636":"inherit")+'">'+esc(message)+'</p></section>';
+  if(values){
+   const form=root.querySelector('form[data-vpn="connect"]');
+   for(const [name,value] of Object.entries(values)){
+    form.elements.namedItem(name).value=(name==="password"&&clearPassword)?"":value;
+   }
+  }
  }
  const doConnect=e=>{
   e.preventDefault();const f=e.target.elements;
@@ -40,7 +50,7 @@ export function mountRemoteVpnClient({root,registry,routerId,clientId,addresses,
    serverAddress:f.serverAddress.value.trim(),username:f.username.value.trim(),password:f.password.value
   });
   session=result.success?result.session:null;
-  message=result.success?"VPN connecté":result.message;error=!result.success;render();
+  message=result.success?"VPN connecté":result.message;error=!result.success;render({clearPassword:result.success});
  };
  const doPing=e=>{
   e.preventDefault();check();const f=e.target.elements;
