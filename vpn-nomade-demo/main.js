@@ -44,7 +44,7 @@ function setup(){
  configureRemoteVpn(registry,router.id,{wanPortId:ports.wan,lanPortId:ports.lan,
   vpnNetwork:"10.8.0.0",vpnPrefix:24,dnsServer:"192.168.10.10",username:"eleve",password:"demo",enabled:true});
  dnsEngine=dns();
- routerUi=mountRouterAdmin({root:$("router-admin"),registry,assetId:router.id});
+ routerUi=mountRouterAdmin({root:$("router-admin"),registry,assetId:router.id,onVpnChange:()=>clientUi?.refresh()});
  clientUi=mountRemoteVpnClient({root:$("vpn-client"),registry,routerId:router.id,clientId:pc.id,
   addresses:addressMap,targetId:server.id,dnsEngine,dnsClientId:"dns-proxy",dnsAssetId:server.id});
  for(const side of ["wan","lan"])$("cut-"+side).textContent="Couper "+side.toUpperCase();
