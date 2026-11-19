@@ -6,11 +6,12 @@ import {getRouterConfig,configureRouterPort,configureRouterWanPing} from "./rout
 import {configureRemoteVpn,getRemoteVpnConfig} from "./router-vpn-remote-v1.js";
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const opt=(id,text,selected)=>'<option value="'+esc(id)+'"'+(String(id)===String(selected)?" selected":"")+'>'+esc(text)+'</option>';
-export function mountRouterAdmin({root,registry,assetId}){
+export function mountRouterAdmin({root,registry,assetId,onVpnChange}){
  if(!root||!registry?.getAsset)throw Error("Registre ou interface manquante");
  let id=assetId,page="overview",selectedPort=null,feedback="",error=false;
  const get=()=>{const a=registry.getAsset(id);if(!a?.networkCapabilities.includes("ipv4-router"))throw Error("Routeur indisponible");return a;};
  const report=r=>{feedback=r.message||"Opération refusée";error=!r.success;render();};
+ const reportVpn=r=>{report(r);if(r.success)onVpnChange?.();};
  const connected=p=>registry.listCables().some(c=>c.ends.some(e=>e?.portId===p.id));
  const row=(k,v)=>'<div><dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd></div>';
  const ports=a=>'<section class="port-panel"><div class="port-panel-head"><strong>Ports Ethernet</strong></div><div class="port-bank">'+a.ports.map(p=>{
@@ -76,7 +77,7 @@ export function mountRouterAdmin({root,registry,assetId}){
     accounts.splice(i,1);
    }else accounts[i].enabled=!accounts[i].enabled;
    const r=saveVpn({accounts});
-   report({...r,message:r.success?"Liste mise à jour":r.message});
+   reportVpn({...r,message:r.success?"Liste mise à jour":r.message});
   }
 
  };
@@ -96,13 +97,13 @@ export function mountRouterAdmin({root,registry,assetId}){
  const submit=e=>{
   if(e.target.matches('form[data-form="vpn"]')){
    e.preventDefault();const result=saveVpn();
-   report({...result,message:result.success?"VPN enregistré":result.message});return;
+   reportVpn({...result,message:result.success?"VPN enregistré":result.message});return;
   }
   if(e.target.matches('form[data-form="vpn-add"]')){
    e.preventDefault();const f=e.target.elements,old=getRemoteVpnConfig(registry,id)||{};
    const accounts=old.accounts??(old.username?[{username:old.username,password:old.password,enabled:true}]:[]);
    const result=saveVpn({accounts:[...accounts,{username:f.username.value.trim(),password:f.password.value,enabled:true}]});
-   report({...result,message:result.success?"Nomade ajouté":result.message});return;
+   reportVpn({...result,message:result.success?"Nomade ajouté":result.message});return;
   }
   if(!e.target.matches('form[data-form="router-port"]'))return;e.preventDefault();const f=e.target.elements;
   report(configureRouterPort(registry,id,selectedPort,{role:f.role.value,mode:f.mode.value,address:f.address.value,prefix:f.prefix.value,gateway:f.gateway.value}));
