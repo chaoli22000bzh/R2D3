@@ -135,5 +135,24 @@ test("VPN-DNS04 : DNS absent, DNS invalide et restauration",()=>{
  assert.deepEqual(f.registry.exportState(),before);
  assert.equal(configureRemoteVpn(f.registry,f.router.id,{...f.settings,dnsServer:"192.168.10.10"}).success,true);
  const restored=restoreAssetRegistry(f.registry.exportState());
- assert.equal(getRemoteVpnConfig(restored,f.router.id).dnsServer,"192.168.10.10");
+ assert.deepEqual(getRemoteVpnConfig(restored,f.router.id).dnsServers,["192.168.10.10"]);
+});
+
+test("VPN-ACCOUNTS01 : plusieurs nomades, IPv4 distinctes et comptes désactivés",()=>{
+ const f=fixture();
+ const accounts=[{username:"alice",password:"a1",enabled:true},{username:"bob",password:"b2",enabled:true},{username:"carol",password:"c3",enabled:false}];
+ assert.equal(configureRemoteVpn(f.registry,f.router.id,{...f.settings,accounts,dnsServers:["192.168.10.10","192.168.10.11"]}).success,true);
+ const alice=f.connect({...f.credentials,username:"alice",password:"a1"});
+ const bob=f.connect({...f.credentials,username:"bob",password:"b2"});
+ assert.equal(alice.success,true);assert.equal(bob.success,true);
+ assert.notEqual(alice.session.vpnAddress,bob.session.vpnAddress);
+ assert.deepEqual(alice.session.dnsServers,["192.168.10.10","192.168.10.11"]);
+ assert.equal(f.connect({...f.credentials,username:"carol",password:"c3"}).code,"wrong_credentials");
+ const restored=restoreAssetRegistry(f.registry.exportState());
+ assert.equal(getRemoteVpnConfig(restored,f.router.id).accounts.length,3);
+});
+test("VPN-ACCOUNTS02 : comptes en doublon et plus de 100 refusés",()=>{
+ const f=fixture(),user={username:"alice",password:"demo",enabled:true};
+ assert.equal(configureRemoteVpn(f.registry,f.router.id,{...f.settings,accounts:[user,{...user,username:"ALICE"}]}).success,false);
+ assert.equal(configureRemoteVpn(f.registry,f.router.id,{...f.settings,accounts:Array.from({length:101},(_,i)=>({...user,username:"u"+i}))}).success,false);
 });
