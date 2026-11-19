@@ -3,7 +3,7 @@
  * Utilise le registre R2, le moteur VPN et, si fourni, le Core DNS existant.
  * Le composant conserve seulement l'état de session simulée.
  */
-import {connectRemoteVpn,disconnectRemoteVpn,observeRemoteVpnPing,observeRemoteVpnPingName} from "./router-vpn-remote-v1.js";
+import {connectRemoteVpn,disconnectRemoteVpn,observeRemoteVpnPing,observeRemoteVpnPingName,validateRemoteVpnSession} from "./router-vpn-remote-v1.js";
 const esc=value=>String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 export function mountRemoteVpnClient({root,registry,routerId,clientId,addresses,targetId,dnsEngine,dnsClientId,dnsAssetId}={}){
  if(!root||!registry?.getAsset||typeof addresses!=="function")throw Error("Client VPN : paramètres manquants");
@@ -13,7 +13,13 @@ export function mountRemoteVpnClient({root,registry,routerId,clientId,addresses,
  const active=()=>router()?.routerConfig?.remoteVpn?.enabled===true;
  const connected=()=>session?.connected===true;
  const check=()=>{
-  if(connected()&&(!running()||!active())){session=null;message="VPN coupé. Reconnecte le PC.";error=true;}
+  if(!connected())return;
+  const valid=validateRemoteVpnSession(registry,session);
+  if(!valid.success){
+   session=null;
+   message=valid.code==="account_revoked"?"Compte VPN bloqué ou supprimé. Session déconnectée.":"VPN coupé. Reconnecte le PC.";
+   error=true;
+  }
  };
  function render({clearPassword=false}={}){
   // Les formulaires sont reconstruits à chaque résultat : mémoriser les saisies.
@@ -73,7 +79,7 @@ export function mountRemoteVpnClient({root,registry,routerId,clientId,addresses,
  root.addEventListener("submit",onSubmit);root.addEventListener("click",onClick);render();
  return {
   refresh:render,
-  getSession:()=>session?{...session}:null,
+  getSession:()=>{check();return session?{...session}:null;},
   disconnect(){session=disconnectRemoteVpn(session);message="VPN déconnecté";error=false;render();},
   destroy(){root.removeEventListener("submit",onSubmit);root.removeEventListener("click",onClick);root.replaceChildren();}
  };
