@@ -3,6 +3,7 @@
  * Aucun état réseau dupliqué hors registre R2.
  */
 import {getRouterConfig,configureRouterPort,configureRouterWanPing} from "./router-interfaces-v1.js";
+import {configureRemoteVpn,getRemoteVpnConfig} from "./router-vpn-remote-v1.js";
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const opt=(id,text,selected)=>'<option value="'+esc(id)+'"'+(String(id)===String(selected)?" selected":"")+'>'+esc(text)+'</option>';
 export function mountRouterAdmin({root,registry,assetId}){
@@ -22,7 +23,7 @@ export function mountRouterAdmin({root,registry,assetId}){
   const a=get(),cfg=getRouterConfig(registry,id);
   if(!selectedPort||!cfg.interfaces[selectedPort])selectedPort=a.ports[0]?.id;
   const p=a.ports.find(p=>p.id===selectedPort),v=cfg.interfaces[selectedPort];
-  const tabs='<nav class="device-tabs">'+[['overview',"Vue d’ensemble"],['ports',"Ports et IPv4"]].map(([key,label])=>'<button type="button" class="menu-item'+(page===key?' active':'')+'" data-page="'+key+'">'+label+'</button>').join("")+'</nav>';
+  const tabs='<nav class="device-tabs">'+[['overview',"Vue d’ensemble"],['ports',"Ports et IPv4"],['vpn',"VPN nomade"]].map(([key,label])=>'<button type="button" class="menu-item'+(page===key?' active':'')+'" data-page="'+key+'">'+label+'</button>').join("")+'</nav>';
   const overview='<section class="admin-panel"><h3>Équipement</h3><dl class="device-details">'+row("Nom",a.name)+row("Type","Routeur générique")+row("Interfaces Ethernet",a.ports.length)+row("WAN",Object.values(cfg.interfaces).filter(i=>i.role==="wan").length)+row("LAN",Object.values(cfg.interfaces).filter(i=>i.role==="lan").length)+row("DMZ",Object.values(cfg.interfaces).filter(i=>i.role==="dmz").length)+'</dl></section>'+table(a);
   const editor='<section class="admin-panel"><h3>Configurer '+esc(p.name)+'</h3><form data-form="router-port" class="form-grid" style="max-width:530px;grid-template-columns:repeat(2,minmax(0,1fr))">'+
    '<label>Rôle<select name="role">'+[["wan","WAN"],["lan","LAN"],["dmz","DMZ"]].map(x=>opt(...x,v.role)).join("")+'</select></label>'+
@@ -33,7 +34,23 @@ export function mountRouterAdmin({root,registry,assetId}){
    '<div class="form-actions"><button class="primary" type="submit">Appliquer au port</button></div></form>'+
    '<div class="router-ping" style="margin-top:15px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><label style="display:flex;align-items:center;gap:8px"><input style="width:auto;min-height:auto" type="checkbox" name="respondToPing"'+(v.respondToPing?' checked':'')+(v.role==="wan"?'':' disabled')+'> Répondre au ping sur ce WAN</label>'+(v.role==="wan"?'<button class="primary" type="button" data-action="ping">Appliquer</button>':'<span>Option disponible uniquement sur les ports WAN</span>')+'</div>'+
    '</section>';
-  root.innerHTML='<div class="switch-admin v4 router-admin"><header class="device-bar"><div class="device-ident"><h2>'+esc(a.name)+'</h2><span>Routeur générique</span><span class="device-state">En service</span></div></header>'+tabs+'<main class="admin-content">'+(page==="overview"?overview:ports(a)+editor+table(a))+(feedback?'<p role="status" style="color:'+(error?'#aa2532':'#087b5e')+'">'+esc(feedback)+'</p>':'')+'</main></div>';
+  const vpn=cfg.remoteVpn||{},ifs=cfg.interfaces;
+  const wanPorts=a.ports.filter(p=>ifs[p.id].role==="wan");
+  const lanPorts=a.ports.filter(p=>ifs[p.id].role==="lan");
+  const vpnPanel='<section class="admin-panel"><h3>Serveur VPN nomade</h3>'+
+   '<p>Le client VPN reçoit une adresse VPN et un DNS. Configure les ports WAN et LAN avant d’activer le VPN.</p>'+
+   '<form data-form="vpn" class="form-grid" style="max-width:530px;grid-template-columns:repeat(2,minmax(0,1fr))">'+
+   '<label>Port WAN<select name="wanPortId">'+wanPorts.map(p=>opt(p.id,p.name,vpn.wanPortId)).join("")+'</select></label>'+
+   '<label>Port LAN<select name="lanPortId">'+lanPorts.map(p=>opt(p.id,p.name,vpn.lanPortId)).join("")+'</select></label>'+
+   '<label>Réseau VPN<input name="vpnNetwork" value="'+esc(vpn.vpnNetwork||"10.8.0.0")+'" placeholder="10.8.0.0" inputmode="decimal"></label>'+
+   '<label>Préfixe VPN<input name="vpnPrefix" type="number" min="1" max="30" value="'+esc(vpn.vpnPrefix??24)+'"></label>'+
+   '<label>DNS fourni au PC<input name="dnsServer" inputmode="decimal" placeholder="192.168.10.10" value="'+esc(vpn.dnsServer||"")+'"></label>'+
+   '<label>Identifiant<input name="username" value="'+esc(vpn.username||"")+'" autocomplete="off"></label>'+
+   '<label>Mot de passe fictif<input name="password" type="password" placeholder="'+(vpn.password?"Laisser vide pour conserver":"Mot de passe")+'" autocomplete="new-password"></label>'+
+   '<label style="display:flex;align-items:center;gap:8px"><input name="enabled" type="checkbox" style="width:auto;min-height:auto"'+(vpn.enabled?' checked':'')+'> Activer le VPN</label>'+
+   '<div class="form-actions"><button class="primary" type="submit">Enregistrer le VPN</button></div></form>'+
+   '<p>État : <strong>'+(vpn.enabled?"Activé":"Désactivé")+'</strong></p></section>';
+  root.innerHTML='<div class="switch-admin v4 router-admin"><header class="device-bar"><div class="device-ident"><h2>'+esc(a.name)+'</h2><span>Routeur générique</span><span class="device-state">En service</span></div></header>'+tabs+'<main class="admin-content">'+(page==="overview"?overview:page==="vpn"?vpnPanel:ports(a)+editor+table(a))+(feedback?'<p role="status" style="color:'+(error?'#aa2532':'#087b5e')+'">'+esc(feedback)+'</p>':'')+'</main></div>';
  }
  const click=e=>{
   const button=e.target.closest("[data-port],[data-page],[data-action]");
@@ -43,7 +60,18 @@ export function mountRouterAdmin({root,registry,assetId}){
   if(button.dataset.action==="ping"){const v=root.querySelector('[name="respondToPing"]');report(configureRouterWanPing(registry,id,selectedPort,v.checked));}
  };
  const change=e=>{if(e.target?.name==="mode"){const disabled=e.target.value==="dhcp";for(const k of ["address","prefix","gateway"]){const input=root.querySelector('[name="'+k+'"]');input.disabled=disabled;}}};
- const submit=e=>{if(!e.target.matches('form[data-form="router-port"]'))return;e.preventDefault();const f=e.target.elements;
+ const submit=e=>{
+  if(e.target.matches('form[data-form="vpn"]')){
+   e.preventDefault();const f=e.target.elements,old=getRemoteVpnConfig(registry,id);
+   const result=configureRemoteVpn(registry,id,{
+    wanPortId:f.wanPortId.value,lanPortId:f.lanPortId.value,
+    vpnNetwork:f.vpnNetwork.value.trim(),vpnPrefix:Number(f.vpnPrefix.value),
+    dnsServer:f.dnsServer.value.trim(),username:f.username.value.trim(),
+    password:f.password.value||old?.password||"",enabled:f.enabled.checked
+   });
+   report({...result,message:result.success?"VPN enregistré":result.message});return;
+  }
+  if(!e.target.matches('form[data-form="router-port"]'))return;e.preventDefault();const f=e.target.elements;
   report(configureRouterPort(registry,id,selectedPort,{role:f.role.value,mode:f.mode.value,address:f.address.value,prefix:f.prefix.value,gateway:f.gateway.value}));
  };
  root.addEventListener("click",click);root.addEventListener("change",change);root.addEventListener("submit",submit);
