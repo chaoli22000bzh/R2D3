@@ -894,6 +894,26 @@ try {
     dhcpBefore.background==="rgb(255, 255, 255)"&&dhcpBefore.colorScheme==="light"&&
     dhcpBefore.buttonWidth<115&&dhcpBefore.buttonHeight<=38,
     "Commande d'activation DHCP surdimensionnée : "+JSON.stringify(dhcpBefore));
+  await routerAdmin.locator('[data-router-dhcp-edit="lan10"]').click();
+  const poolForm=routerAdmin.locator('form[data-form="router-dhcp-pool"]');
+  const poolLayout=await poolForm.evaluate(form=>{
+   const rect=el=>el.getBoundingClientRect();
+   const textarea=form.querySelector('textarea[name="exclusions"]');
+   const styles=getComputedStyle(textarea);
+   const actions=[...form.querySelectorAll('.form-actions button')];
+   return {formWidth:rect(form).width,ipWidth:rect(form.elements.start).width,
+    textareaBackground:styles.backgroundColor,textareaColorScheme:styles.colorScheme,
+    textareaWidth:rect(textarea).width,buttonWidths:actions.map(x=>rect(x).width)};
+  });
+  assert.ok(poolLayout.formWidth<=335&&poolLayout.ipWidth<=165&&
+    poolLayout.textareaBackground==="rgb(255, 255, 255)"&&poolLayout.textareaColorScheme==="light"&&
+    poolLayout.textareaWidth<=335&&poolLayout.buttonWidths.every(x=>x<190),
+    "Formulaire DHCP trop large ou zones sombres : "+JSON.stringify(poolLayout));
+  await poolForm.locator('input[name="start"]').fill("192.168.10.105");
+  await poolForm.locator('button[value="save"]').click();
+  assert.equal(await routerAdmin.locator('[data-router-dhcp-edit="lan10"]').count(),1);
+  await routerAdmin.locator('[data-router-dhcp-edit="lan10"]').click();
+  assert.equal(await routerAdmin.locator('form[data-form="router-dhcp-pool"] input[name="start"]').inputValue(),"192.168.10.105");
   await routerAdmin.locator('form[data-form="router-dhcp-state"] input[name="enabled"]').check();
   await routerAdmin.locator('form[data-form="router-dhcp-state"] button[type="submit"]').click();
   await routerDhcpPage.locator("#test-local").click();
