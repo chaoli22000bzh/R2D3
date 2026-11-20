@@ -593,7 +593,8 @@
  font-size:14px;
  white-space:nowrap;
 }
-.switch-admin.v4 form[data-form="router-dhcp-state"] input[type="checkbox"]{
+.switch-admin.v4 form[data-form="router-dhcp-state"] input[type="checkbox"],
+.switch-admin.v4 form[data-form="router-helper"] input[type="checkbox"]{
  appearance:auto;
  color-scheme:light;
  accent-color:#0b72bb;
@@ -620,4 +621,16 @@
  padding:5px 13px;
  font-size:14px;
  line-height:1.35;
+}
+
+/* IP Helper du routeur : libellé et case d'activation compactes. */
+.switch-admin.v4 form[data-form="router-helper"] .router-check{
+ display:inline-flex;
+ align-items:center;
+ gap:7px;
+ width:max-content;
+ max-width:100%;
+ min-width:0;
+ white-space:nowrap;
+ font-size:14px;
 }
