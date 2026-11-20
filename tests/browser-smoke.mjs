@@ -900,6 +900,13 @@ try {
   assert.match(await routerDhcpPage.locator("#status").innerText(),/192\.168\.10\.100/);
   await routerAdmin.getByRole("button",{name:"IP Helper"}).click();
   await routerAdmin.locator('form[data-form="router-helper"] [name="serverAddress"]').fill("192.168.20.2");
+  const helperStyle=await routerAdmin.locator('form[data-form="router-helper"] input[name="enabled"]').evaluate(el=>{
+    const cs=getComputedStyle(el),rect=el.getBoundingClientRect();
+    return {width:rect.width,height:rect.height,colorScheme:cs.colorScheme,background:cs.backgroundColor};
+  });
+  assert.ok(helperStyle.width<=17&&helperStyle.height<=17&&
+    helperStyle.background==="rgb(255, 255, 255)"&&helperStyle.colorScheme==="light",
+    "Case IP Helper incorrecte : "+JSON.stringify(helperStyle));
   await routerAdmin.locator('form[data-form="router-helper"] [name="enabled"]').check();
   await routerAdmin.locator('form[data-form="router-helper"] button[type="submit"]').click();
   await routerDhcpPage.locator("#test-relay").click();
