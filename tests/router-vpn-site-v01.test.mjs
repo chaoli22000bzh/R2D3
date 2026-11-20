@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {createAssetRegistry,restoreAssetRegistry} from "../src/asset-profiles.js";
 import {createRouter,configureRouterPort} from "../src/router-interfaces-v1.js";
-import {configureSiteVpn,getSiteVpnConfig,observeSiteVpnPing} from "../src/router-vpn-site-v01.js";
+import {configureSiteVpn,getSiteVpnConfig,observeSiteVpnPing,observeSiteVpnPingName} from "../src/router-vpn-site-v01.js";
+import {createEngine} from "../src/r2d3-core.js";
 function fixture(){
  const registry=createAssetRegistry();
  const a=createRouter(registry,{name:"SITE-A"}).asset;
@@ -75,4 +76,51 @@ test("SITE06 : réseau distant incorrect refusé et export/restauration",()=>{
  assert.deepEqual(f.registry.exportState(),original);
  const restored=restoreAssetRegistry(original);
  assert.deepEqual(getSiteVpnConfig(restored,f.a.id),f.ca);
+});
+
+function siteDns(){
+ const engine=createEngine({format:"r2d3-scenario",schemaVersion:1,scenarioId:"site-dns-test",
+ scenarioVersion:"1.0.0",capabilities:{network:true},objects:[
+ {id:"dns-proxy",kind:"ethernet-endpoint",name:"Relais vers DNS site B",ports:[{id:"eth0",type:"rj45"}],
+  config:{ipv4:{interfaceId:"eth0",mode:"static",address:"192.168.20.1",prefix:24},
+   networkOptions:{gateway:null,dns:["192.168.20.10"]}},runtime:{}},
+ {id:"dns-server",kind:"ethernet-endpoint",name:"DNS PC B",ports:[{id:"eth0",type:"rj45"}],
+  config:{ipv4:{interfaceId:"eth0",mode:"static",address:"192.168.20.10",prefix:24},
+   dnsEnabled:true,dnsZone:{domain:"entreprise.test",negativeTtl:60,
+    records:[{name:"pc-b.entreprise.test",type:"A",value:"192.168.20.10",ttl:300}]}},runtime:{}}
+ ],links:[{id:"dns-link",kind:"ethernet-cable",connected:true,
+  endpoints:[{objectId:"dns-proxy",portId:"eth0"},{objectId:"dns-server",portId:"eth0"}]}]});
+ return {dnsEngine:engine,dnsClientId:"dns-proxy"};
+}
+test("SITE-DNS01 : ping par nom depuis le DNS du PC A, sans DNS dans le tunnel",()=>{
+ const f=fixture();f.configure();
+ f.addresses[f.pcA.id].dns=["192.168.20.10"];
+ const query=()=>observeSiteVpnPingName(f.registry,f.a.id,f.b.id,f.pcA.id,f.pcB.id,f.addresses,
+  "pc-b.entreprise.test",{...siteDns(),dnsAssetId:f.pcB.id});
+ const result=query();
+ assert.equal(result.success,true,JSON.stringify(result));
+ assert.equal(result.resolvedAddress,"192.168.20.10");
+ assert.equal(getSiteVpnConfig(f.registry,f.a.id).dnsServers,undefined);
+});
+test("SITE-DNS02 : absence ou erreur DNS sur PC A interdit la résolution sans bloquer IPv4",()=>{
+ const f=fixture();f.configure();
+ const opts={...siteDns(),dnsAssetId:f.pcB.id};
+ const query=()=>observeSiteVpnPingName(f.registry,f.a.id,f.b.id,f.pcA.id,f.pcB.id,f.addresses,"pc-b.entreprise.test",opts);
+ assert.equal(query().code,"dns_missing");
+ f.addresses[f.pcA.id].dns=["192.168.20.99"];
+ assert.equal(query().code,"dns_wrong_server");
+ assert.equal(f.ping().success,true);
+ f.addresses[f.pcA.id].dns=["192.168.20.10"];
+ assert.equal(query().success,true);
+ assert.equal(observeSiteVpnPingName(f.registry,f.a.id,f.b.id,f.pcA.id,f.pcB.id,f.addresses,"inconnu.entreprise.test",opts).code,"dns_not_found");
+});
+test("SITE-DNS03 : coupure du VPN interdit le DNS distant et sa remise en service le rétablit",()=>{
+ const f=fixture();f.configure();f.addresses[f.pcA.id].dns=["192.168.20.10"];
+ const opts={...siteDns(),dnsAssetId:f.pcB.id};
+ const query=()=>observeSiteVpnPingName(f.registry,f.a.id,f.b.id,f.pcA.id,f.pcB.id,f.addresses,"pc-b.entreprise.test",opts);
+ assert.equal(query().success,true);
+ assert.ok(configureSiteVpn(f.registry,f.b.id,{...f.cb,enabled:false}).success);
+ assert.equal(query().code,"dns_unreachable");
+ assert.ok(configureSiteVpn(f.registry,f.b.id,f.cb).success);
+ assert.equal(query().success,true);
 });
