@@ -40,5 +40,13 @@ jobs:
             sleep 1
           done
           exit 1
+      - name: Démarrer le serveur local R2D3 pour le VPN site à site
+        run: |
+          python3 -m http.server 8766 --bind 127.0.0.1 --directory . > /tmp/r2d3-site-http.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8766/vpn-site-demo/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
       - name: Exécuter la recette dans Chromium
         run: node tests/browser-smoke.mjs
