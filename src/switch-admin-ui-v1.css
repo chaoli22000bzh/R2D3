@@ -398,22 +398,66 @@
  margin:0;
 }
 
-/* Routeur VPN site à site : champs dimensionnés aux valeurs courtes.
-   Port = libellé court, IPv4 = 15 caractères max, préfixe = 2 chiffres. */
+/* VPN site à site : grille compacte et champs dimensionnés à leurs valeurs.
+   Les règles sont limitées à cet onglet du routeur. */
 .switch-admin .site-vpn-grid{
-  grid-template-columns:repeat(2,minmax(0,180px));
-  gap:10px 14px;
-  max-width:374px;
+  grid-template-columns:150px 150px;
+  column-gap:12px;
+  row-gap:7px;
+  max-width:312px;
   align-items:end;
 }
-.switch-admin .site-vpn-grid .site-vpn-port{max-width:130px}
-.switch-admin .site-vpn-grid .site-vpn-ip{max-width:180px}
-.switch-admin .site-vpn-grid .site-vpn-prefix{max-width:90px}
-.switch-admin .site-vpn-grid label{font-size:14px}
+.switch-admin .site-vpn-grid label{
+  min-width:0;
+  font-size:13px;
+  gap:3px;
+}
+.switch-admin .site-vpn-grid .site-vpn-port{width:105px;max-width:100%}
+.switch-admin .site-vpn-grid .site-vpn-ip{width:150px;max-width:100%}
+.switch-admin .site-vpn-grid .site-vpn-prefix{width:66px;max-width:100%}
 .switch-admin .site-vpn-grid input,
-.switch-admin .site-vpn-grid select{font-size:14px;min-height:34px;padding:5px 8px}
-.switch-admin .site-vpn-grid label:has(input[name="enabled"]){grid-column:1/-1}
-.switch-admin .site-vpn-grid .form-actions{grid-column:1/-1}
-@media(max-width:420px){
-  .switch-admin .site-vpn-grid{grid-template-columns:minmax(0,1fr);max-width:220px}
+.switch-admin .site-vpn-grid select{
+  width:100%;
+  min-height:32px;
+  font-size:14px;
+  padding:4px 6px;
+}
+.switch-admin .site-vpn-grid .site-vpn-prefix input{padding-right:2px}
+.switch-admin .site-vpn-grid .site-vpn-enabled{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  align-self:end;
+  min-height:32px;
+  white-space:nowrap;
+}
+.switch-admin .site-vpn-grid .site-vpn-enabled input{
+  width:16px;
+  height:16px;
+  min-height:0;
+  flex:none;
+  margin:0;
+}
+.switch-admin .site-vpn-grid .form-actions{
+  grid-column:1/-1;
+  margin-top:3px;
+}
+.switch-admin .site-vpn-grid .primary{
+  min-height:34px;
+  padding:5px 14px;
+  font-size:14px;
+}
+.switch-admin .site-vpn-note{
+  font-size:13px;
+  line-height:1.35;
+  margin:4px 0 10px;
+}
+@media(max-width:375px){
+  .switch-admin .site-vpn-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    max-width:100%;
+  }
+  .switch-admin .site-vpn-grid .site-vpn-enabled{
+    white-space:normal;
+  }
 }
