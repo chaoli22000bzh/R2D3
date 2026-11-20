@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R2D3 | Wi-Fi multi-SSID et VLAN</title>
+<style>
+:root{color-scheme:light;--bg:#eff3f7;--panel:#fff;--fg:#223846;--muted:#506878;--edge:#c4d3de;--input:#fff;--accent:#12638a;--accentText:#fff;--ok:#18714a;--bad:#bd4141}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,Arial,sans-serif;margin:0}
+header{background:#163e60;color:#fff;padding:15px max(15px,calc((100% - 920px)/2))}header h1{font-size:21px;margin:0}
+main{max-width:920px;margin:auto;padding:14px}
+section{background:var(--panel);border:1px solid var(--edge);border-radius:9px;padding:16px;margin:0 0 14px}h2{font-size:17px;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,220px));gap:10px 16px;align-items:end}
+label{display:flex;flex-direction:column;gap:4px;font-weight:550;min-width:0}input:not([type=checkbox]),select{width:100%;min-height:35px;background:var(--input);color:var(--fg);border:1px solid var(--edge);border-radius:5px;padding:6px 8px;font:inherit}
+label.check{display:flex;align-items:center;flex-direction:row;font-weight:500;gap:8px;min-height:30px}input[type=checkbox]{width:17px;height:17px;min-width:17px;accent-color:var(--accent);margin:0}
+button{background:var(--panel);color:var(--fg);border:1px solid var(--edge);padding:8px 12px;border-radius:5px;cursor:pointer;min-height:35px}button.primary{background:var(--accent);color:var(--accentText);border-color:var(--accent)}button:hover{filter:brightness(.95)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.status{margin-top:12px;padding:10px;border-radius:5px;background:var(--bg);border-left:4px solid var(--edge)}.status[data-result=ok]{border-left-color:var(--ok)}.status[data-result=fail]{border-left-color:var(--bad)}
+.note{color:var(--muted);font-size:13px;margin:6px 0}.diagram{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}.diagram span{padding:8px;background:var(--bg);border:1px solid var(--edge);border-radius:6px;text-align:center}
+@media(max-width:450px){.grid{grid-template-columns:minmax(0,1fr)}}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#131d27;--panel:#202f3c;--fg:#e6eff6;--muted:#b8cad7;--edge:#546c7d;--input:#25394a;--accent:#277da8;--ok:#4bbf86;--bad:#ef7474}}
+</style></head><body>
+<header><h1>R2D3 : Wi-Fi multi-SSID et VLAN</h1><p>Lot 3, laboratoire autonome, thèmes clair et sombre</p></header>
+<main>
+<section><h2>Topologie</h2>
+<div class="diagram"><span>PC Wi-Fi</span> ⇄ <span>AP-CIEL<br>SSID 10 / 20</span> ⇄ <span>Trunk RJ45<br>VLAN 10 / 20</span> ⇄ <span>Switch L3<br>DHCP local</span></div>
+<p class="note">LYCEE-CIEL → VLAN 10 → 192.168.10.0/24. LYCEE-INVITES → VLAN 20 → 192.168.20.0/24. Les associations Wi-Fi n'ajoutent aucun câble physique au registre R2D3.</p></section>
+<section><h2>Configurer la borne Wi-Fi</h2>
+<div class="grid">
+<label>SSID interne<input id="ssid-10" value="LYCEE-CIEL" maxlength="32"></label>
+<label>VLAN du SSID interne<input id="vlan-10" type="number" min="1" max="4094" value="10"></label>
+<label>SSID invités<input id="ssid-20" value="LYCEE-INVITES" maxlength="32"></label>
+<label>VLAN du SSID invités<input id="vlan-20" type="number" min="1" max="4094" value="20"></label>
+<label class="check"><input type="checkbox" id="isolation" checked>Isolation mode (invités)</label>
+</div>
+<div class="actions"><button class="primary" id="save">Enregistrer les SSID</button><button id="reset">Réinitialiser</button></div>
+<div class="status" id="ap-status" aria-live="polite">Borne en service.</div></section>
+<section><h2>Switch et serveur DHCP</h2>
+<div class="grid">
+<label>VLAN autorisés sur le Trunk
+<select id="trunk"><option value="10,20">10 et 20</option><option value="10">10 seulement</option><option value="20">20 seulement</option></select></label>
+<label class="check"><input type="checkbox" id="dhcp" checked>Activer le DHCP du switch L3</label>
+</div>
+<div class="actions"><button id="link">Couper le câble Ethernet</button></div>
+<div class="status" id="switch-status" aria-live="polite">Trunk actif, VLAN 10 et 20 autorisés, DHCP actif.</div></section>
+<section><h2>Client Wi-Fi simulé</h2>
+<div class="grid">
+<label>Réseau à rejoindre
+<select id="client-ssid"><option value="ssid-10">LYCEE-CIEL (VLAN 10)</option><option value="ssid-20">LYCEE-INVITES (VLAN 20)</option></select></label>
+<label>Mot de passe du client<input id="client-password" value="Ciel2026!" autocomplete="off"></label>
+</div>
+<div class="actions"><button class="primary" id="request">Se connecter et demander une IPv4</button></div>
+<div class="status" id="client-status" aria-live="polite">Client prêt.</div>
+<p class="note">Le test distingue le mot de passe, le câble, les VLAN autorisés sur le Trunk et la réponse DHCP. Chaque demande utilise un scénario Core frais : le renouvellement d'un bail en session longue n'est pas testé ici.</p></section>
+</main><script type="module" src="./main.js"></script></body></html>
