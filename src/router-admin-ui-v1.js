@@ -5,11 +5,13 @@
 import {getRouterConfig,configureRouterPort,configureRouterWanPing} from "./router-interfaces-v1.js";
 import {configureRemoteVpn,getRemoteVpnConfig} from "./router-vpn-remote-v1.js";
 import {configureSiteVpn,getSiteVpnConfig} from "./router-vpn-site-v01.js";
+import {getRouterDhcpConfig,configureRouterDhcp} from "./router-dhcp-service-v1.js";
+import {getAssetIpHelperConfig,setInterfaceIpHelper} from "./ip-helper-v1.js";
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const opt=(id,text,selected)=>'<option value="'+esc(id)+'"'+(String(id)===String(selected)?" selected":"")+'>'+esc(text)+'</option>';
 export function mountRouterAdmin({root,registry,assetId,onVpnChange}){
  if(!root||!registry?.getAsset)throw Error("Registre ou interface manquante");
- let id=assetId,page="overview",selectedPort=null,feedback="",error=false;
+ let id=assetId,page="overview",selectedPort=null,selectedDhcpPool=null,newDhcpPool=false,selectedHelperPort=null,feedback="",error=false;
  const get=()=>{const a=registry.getAsset(id);if(!a?.networkCapabilities.includes("ipv4-router"))throw Error("Routeur indisponible");return a;};
  const report=r=>{feedback=r.message||"Opération refusée";error=!r.success;render();};
  const reportVpn=r=>{report(r);if(r.success)onVpnChange?.();};
@@ -25,7 +27,7 @@ export function mountRouterAdmin({root,registry,assetId,onVpnChange}){
   const a=get(),cfg=getRouterConfig(registry,id);
   if(!selectedPort||!cfg.interfaces[selectedPort])selectedPort=a.ports[0]?.id;
   const p=a.ports.find(p=>p.id===selectedPort),v=cfg.interfaces[selectedPort];
-  const tabs='<nav class="device-tabs">'+[['overview',"Vue d’ensemble"],['ports',"Ports et IPv4"],['vpn',"VPN nomade"],['site-vpn',"VPN site à site"]].map(([key,label])=>'<button type="button" class="menu-item'+(page===key?' active':'')+'" data-page="'+key+'">'+label+'</button>').join("")+'</nav>';
+  const tabs='<nav class="device-tabs">'+[['overview',"Vue d’ensemble"],['ports',"Ports et IPv4"],['dhcp',"Serveur DHCP"],['helper',"IP Helper"],['vpn',"VPN nomade"],['site-vpn',"VPN site à site"]].filter(([key])=>key!=="dhcp"||a.networkCapabilities.includes("dhcp-server")).filter(([key])=>key!=="helper"||a.networkCapabilities.includes("ip-helper")).map(([key,label])=>'<button type="button" class="menu-item'+(page===key?' active':'')+'" data-page="'+key+'">'+label+'</button>').join("")+'</nav>';
   const overview='<section class="admin-panel"><h3>Équipement</h3><dl class="device-details">'+row("Nom",a.name)+row("Type","Routeur générique")+row("Interfaces Ethernet",a.ports.length)+row("WAN",Object.values(cfg.interfaces).filter(i=>i.role==="wan").length)+row("LAN",Object.values(cfg.interfaces).filter(i=>i.role==="lan").length)+row("DMZ",Object.values(cfg.interfaces).filter(i=>i.role==="dmz").length)+'</dl></section>'+table(a);
   const editor='<section class="admin-panel"><h3>Configurer '+esc(p.name)+'</h3><form data-form="router-port" class="form-grid" style="max-width:530px;grid-template-columns:repeat(2,minmax(0,1fr))">'+
    '<label>Rôle<select name="role">'+[["wan","WAN"],["lan","LAN"],["dmz","DMZ"]].map(x=>opt(...x,v.role)).join("")+'</select></label>'+
@@ -73,12 +75,62 @@ export function mountRouterAdmin({root,registry,assetId,onVpnChange}){
    '<label style="display:flex;align-items:center;gap:8px"><input name="enabled" type="checkbox" style="width:auto;min-height:auto"'+(site.enabled?' checked':'')+'> Activer le VPN</label>'+
    '<div class="form-actions"><button class="primary" type="submit">Enregistrer</button></div></form>'+
    '<p class="site-vpn-note">Le routeur distant doit avoir une configuration compatible.</p></section>';
-  root.innerHTML='<div class="switch-admin v4 router-admin"><header class="device-bar"><div class="device-ident"><h2>'+esc(a.name)+'</h2><span>Routeur générique</span><span class="device-state">En service</span></div></header>'+tabs+'<main class="admin-content">'+(page==="overview"?overview:page==="vpn"?vpnPanel:page==="site-vpn"?sitePanel:ports(a)+editor+table(a))+(feedback?'<p role="status" style="color:'+(error?'#aa2532':'#087b5e')+'">'+esc(feedback)+'</p>':'')+'</main></div>';
+  const eligiblePorts=a.ports.filter(p=>["lan","dmz"].includes(ifs[p.id]?.role)&&ifs[p.id]?.mode==="static");
+  const confDhcp=getRouterDhcpConfig(registry,id);
+  const allPools=confDhcp?.pools??[];
+  if(!allPools.some(p=>p.id===selectedDhcpPool)&&!newDhcpPool)selectedDhcpPool=null;
+  const currentPool=allPools.find(p=>p.id===selectedDhcpPool);
+  const editingPool=newDhcpPool||!!currentPool;
+  const dhcpPanel='<section class="admin-panel"><h3>Serveur DHCP du routeur</h3>'+
+   '<form data-form="router-dhcp-state" class="router-dhcp-status">'+
+   '<label class="router-check"><input type="checkbox" name="enabled"'+(confDhcp?.enabled?' checked':'')+(!allPools.length?' disabled':'')+'> Activer le serveur</label>'+
+   '<button class="primary" type="submit"'+(!allPools.length?' disabled':'')+'>Appliquer</button></form>'+
+   '<p>Le DHCP est local au routeur. Chaque plage est associée à une interface LAN ou DMZ.</p>'+
+   '<h3>Plages configurées</h3><button type="button" data-router-dhcp-new>+ Nouvelle plage</button>'+
+   (allPools.length?'<div class="table-scroll"><table class="admin-table"><thead><tr><th>Interface</th><th>Début</th><th>Fin</th><th>Bail</th></tr></thead><tbody>'+
+    allPools.map(pool=>'<tr><td><button type="button" class="table-port" data-router-dhcp-edit="'+esc(pool.id)+'">'+
+      esc(a.ports.find(p=>p.id===pool.portId)?.name??pool.portId)+'</button></td><td>'+esc(pool.start)+'</td><td>'+esc(pool.end)+
+      '</td><td>'+esc(Number((pool.leaseSeconds/3600).toFixed(4)))+' h</td></tr>').join("")+
+    '</tbody></table></div>':'<p>Aucune plage configurée.</p>')+'</section>'+
+   (editingPool?'<section class="admin-panel"><h3>'+(newDhcpPool?'Ajouter une plage':'Modifier la plage')+'</h3>'+
+    '<form data-form="router-dhcp-pool" class="form-grid router-dhcp-grid">'+
+    '<label>Interface<select name="portId" required>'+
+      eligiblePorts.map(p=>opt(p.id,p.name+' ('+ifs[p.id].role.toUpperCase()+')',currentPool?.portId)).join("")+'</select></label>'+
+    '<label>Identifiant de plage<input name="poolId" required value="'+esc(currentPool?.id??'lan1')+'"'+(!newDhcpPool?' readonly':'')+'></label>'+
+    '<label>Première IPv4<input name="start" required value="'+esc(currentPool?.start??'')+'"></label>'+
+    '<label>Dernière IPv4<input name="end" required value="'+esc(currentPool?.end??'')+'"></label>'+
+    '<label>Préfixe<input name="prefix" type="number" min="1" max="30" required value="'+esc(currentPool?.prefix??24)+'"></label>'+
+    '<label>Passerelle<input name="gateway" required value="'+esc(currentPool?.gateway??'')+'"></label>'+
+    '<label>DNS 1<input name="dns1" value="'+esc(currentPool?.dns?.[0]??'')+'"></label>'+
+    '<label>DNS 2<input name="dns2" value="'+esc(currentPool?.dns?.[1]??'')+'"></label>'+
+    '<label>Bail (heures)<input name="leaseHours" type="number" min="0.0166667" max="720" step="any" required value="'+
+      esc(Number(((currentPool?.leaseSeconds??86400)/3600).toFixed(5)))+'"></label>'+
+    '<label>Exclusions (une IPv4 ou plage par ligne)<textarea name="exclusions" rows="3">'+
+     esc((currentPool?.exclusions??[]).join("\\n"))+'</textarea></label>'+
+    '<label>Réservations (MAC;IPv4 par ligne)<textarea name="reservations" rows="3">'+
+     esc((currentPool?.reservations??[]).map(r=>r.mac+";"+r.address).join("\\n"))+'</textarea></label>'+
+    '<div class="form-actions"><button class="primary" type="submit" name="action" value="save">Enregistrer la plage</button>'+
+      (!newDhcpPool?'<button type="submit" name="action" value="delete" formnovalidate>Supprimer la plage</button>':'')+
+    '</div></form></section>':'');
+  const helper=getAssetIpHelperConfig(registry,id);
+  const helperPorts=a.ports.filter(p=>["lan","dmz"].includes(ifs[p.id]?.role));
+  if(!helperPorts.some(p=>p.id===selectedHelperPort))selectedHelperPort=helperPorts[0]?.id??null;
+  const selectedHelper=helper?.helpers["interface:"+selectedHelperPort];
+  const helperPanel='<section class="admin-panel"><h3>IP Helper</h3>'+
+   '<p>Le relais DHCP se configure sur l’interface qui reçoit les demandes du client. Il utilise le moteur DHCP commun.</p>'+
+   '<form data-form="router-helper" class="form-grid router-helper-grid">'+
+   '<label>Interface LAN/DMZ<select name="portId">'+helperPorts.map(p=>opt(p.id,p.name+' ('+ifs[p.id].role.toUpperCase()+')',selectedHelperPort)).join("")+'</select></label>'+
+   '<label>IPv4 du serveur DHCP<input name="serverAddress" required placeholder="192.168.20.2" value="'+esc(selectedHelper?.serverAddress??'')+'"></label>'+
+   '<label class="router-check"><input type="checkbox" name="enabled"'+(selectedHelper?.enabled?' checked':'')+'> Activer IP Helper</label>'+
+   '<div class="form-actions"><button class="primary" type="submit">Enregistrer</button></div></form></section>';
+  root.innerHTML='<div class="switch-admin v4 router-admin"><header class="device-bar"><div class="device-ident"><h2>'+esc(a.name)+'</h2><span>Routeur générique</span><span class="device-state">En service</span></div></header>'+tabs+'<main class="admin-content">'+(page==="overview"?overview:page==="vpn"?vpnPanel:page==="site-vpn"?sitePanel:page==="dhcp"?dhcpPanel:page==="helper"?helperPanel:ports(a)+editor+table(a))+(feedback?'<p role="status" style="color:'+(error?'#aa2532':'#087b5e')+'">'+esc(feedback)+'</p>':'')+'</main></div>';
  }
  const click=e=>{
-  const button=e.target.closest("[data-port],[data-page],[data-action],[data-vpn-user-action]");
+  const button=e.target.closest("[data-port],[data-page],[data-action],[data-vpn-user-action],[data-router-dhcp-new],[data-router-dhcp-edit]");
   if(!button||!root.contains(button))return;
   if(button.dataset.page){page=button.dataset.page;feedback="";render();}
+  if(button.hasAttribute("data-router-dhcp-new")){newDhcpPool=true;selectedDhcpPool=null;feedback="";render();}
+  if(button.dataset.routerDhcpEdit){newDhcpPool=false;selectedDhcpPool=button.dataset.routerDhcpEdit;feedback="";render();}
   if(button.dataset.port){selectedPort=button.dataset.port;page="ports";feedback="";render();}
   if(button.dataset.action==="ping"){const v=root.querySelector('[name="respondToPing"]');report(configureRouterWanPing(registry,id,selectedPort,v.checked));}
   if(button.dataset.vpnUserAction){
@@ -94,7 +146,11 @@ export function mountRouterAdmin({root,registry,assetId,onVpnChange}){
   }
 
  };
- const change=e=>{if(e.target?.name==="mode"){const disabled=e.target.value==="dhcp";for(const k of ["address","prefix","gateway"]){const input=root.querySelector('[name="'+k+'"]');input.disabled=disabled;}}};
+ const change=e=>{
+  if(e.target?.name==="portId"&&e.target.closest('form[data-form="router-helper"]')){
+   selectedHelperPort=e.target.value;feedback="";render();return;
+  }
+  if(e.target?.name==="mode"){const disabled=e.target.value==="dhcp";for(const k of ["address","prefix","gateway"]){const input=root.querySelector('[name="'+k+'"]');input.disabled=disabled;}}};
  const saveVpn=(overrides={})=>{
   const old=getRemoteVpnConfig(registry,id)||{},panel=root.querySelector('form[data-form="vpn"]');
   const f=panel?.elements;
@@ -108,6 +164,37 @@ export function mountRouterAdmin({root,registry,assetId,onVpnChange}){
   });
  };
  const submit=e=>{
+  if(e.target.matches('form[data-form="router-dhcp-state"]')){
+   e.preventDefault();const conf=getRouterDhcpConfig(registry,id),enabled=e.target.elements.enabled.checked;
+   report(configureRouterDhcp(registry,id,{enabled,pools:conf.pools}));return;
+  }
+  if(e.target.matches('form[data-form="router-dhcp-pool"]')){
+   e.preventDefault();
+   const f=e.target.elements,conf=getRouterDhcpConfig(registry,id),old=conf.pools;
+   const deleting=e.submitter?.value==="delete";
+   if(deleting){
+    const pools=old.filter(p=>p.id!==selectedDhcpPool);
+    const result=configureRouterDhcp(registry,id,{enabled:conf.enabled&&pools.length>0,pools});
+    if(result.success){selectedDhcpPool=null;newDhcpPool=false;}
+    report({...result,message:result.success?"Plage supprimée":result.message});return;
+   }
+   const lines=value=>value.split(/\\r?\\n/).map(x=>x.trim()).filter(Boolean);
+   const reservations=lines(f.reservations.value).map(x=>{const parts=x.split(";").map(v=>v.trim());return {mac:parts[0]??"",address:parts[1]??""};});
+   const pool={id:f.poolId.value.trim(),portId:f.portId.value,start:f.start.value.trim(),end:f.end.value.trim(),
+    prefix:Number(f.prefix.value),gateway:f.gateway.value.trim(),
+    dns:[f.dns1.value.trim(),f.dns2.value.trim()].filter(Boolean),
+    leaseSeconds:Math.round(Number(f.leaseHours.value)*3600),
+    exclusions:lines(f.exclusions.value),reservations};
+   const pools=newDhcpPool?[...old,pool]:old.map(p=>p.id===selectedDhcpPool?pool:p);
+   const result=configureRouterDhcp(registry,id,{enabled:conf.enabled,pools});
+   if(result.success){selectedDhcpPool=pool.id;newDhcpPool=false;}
+   report({...result,message:result.success?"Plage enregistrée":result.message});return;
+  }
+  if(e.target.matches('form[data-form="router-helper"]')){
+   e.preventDefault();const f=e.target.elements;
+   const result=setInterfaceIpHelper(registry,id,f.portId.value,f.serverAddress.value.trim(),f.enabled.checked);
+   report({...result,message:result.success?"IP Helper enregistré":result.message});return;
+  }
   if(e.target.matches('form[data-form="site-vpn"]')){
    e.preventDefault();
    const f=e.target.elements;
