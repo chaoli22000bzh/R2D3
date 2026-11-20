@@ -10,19 +10,9 @@ const ipInt=x=>typeof x==="string"&&x.split(".").length===4&&x.split(".").every(
 const subnet=(a,b,p)=>{const x=ipInt(a),y=ipInt(b);if(x===null||y===null||!Number.isInteger(p)||p<1||p>30)return false;
  const mask=(0xffffffff<<(32-p))>>>0;return (x&mask)===(y&mask);};
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
-export function getSwitchDhcpConfig(registry,switchId){
- const sw=registry?.getAsset?.(switchId);
- return sw?.networkCapabilities?.includes("dhcp-server")?copy(sw.dhcpServerConfig):null;
-}
-export function configureSwitchDhcp(registry,switchId,{enabled,pools}){
- const sw=registry?.getAsset?.(switchId);
- if(!sw||!sw.networkCapabilities?.includes("inter-vlan-routing")||
-    !sw.networkCapabilities.includes("dhcp-server"))
-  return bad("unsupported","Service DHCP réservé aux switchs L3 compatibles");
- if(typeof enabled!=="boolean"||!Array.isArray(pools))
-  return bad("invalid_config","État ou plages DHCP invalides");
- // Les plages d'exclusion sont converties en IPv4 individuelles par
- // l'adaptateur commun, avant enregistrement et gestion des baux par le Core.
+// Normalisation partagée entre serveur DHCP de switch L3 et routeur.
+export function normalizeDhcpExclusions(pools){
+ if(!Array.isArray(pools))return bad("invalid_config","Plages DHCP invalides");
  const normalized=copy(pools);
  for(const pool of normalized){
   if(!Array.isArray(pool.exclusions))continue;
@@ -40,6 +30,22 @@ export function configureSwitchDhcp(registry,switchId,{enabled,pools}){
   }
   pool.exclusions=individual;
  }
+ return {success:true,pools:normalized};
+}
+export function getSwitchDhcpConfig(registry,switchId){
+ const sw=registry?.getAsset?.(switchId);
+ return sw?.networkCapabilities?.includes("dhcp-server")?copy(sw.dhcpServerConfig):null;
+}
+export function configureSwitchDhcp(registry,switchId,{enabled,pools}){
+ const sw=registry?.getAsset?.(switchId);
+ if(!sw||!sw.networkCapabilities?.includes("inter-vlan-routing")||
+    !sw.networkCapabilities.includes("dhcp-server"))
+  return bad("unsupported","Service DHCP réservé aux switchs L3 compatibles");
+ if(typeof enabled!=="boolean"||!Array.isArray(pools))
+  return bad("invalid_config","État ou plages DHCP invalides");
+ const norm=normalizeDhcpExclusions(pools);
+ if(!norm.success)return norm;
+ const normalized=norm.pools;
  return registry.setAssetDhcpServerConfig(switchId,{assetId:switchId,enabled,pools:normalized});
 }
 const corePools=pools=>pools.map(({vlanNumber,...pool})=>copy(pool));
