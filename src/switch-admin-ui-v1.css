@@ -398,6 +398,31 @@
  margin:0;
 }
 
+/* Les formulaires du routeur ne doivent pas hériter de la largeur/padding
+   des champs PC du laboratoire. Une checkbox garde son rendu natif. */
+.switch-admin.v4 form[data-form="vpn"] input[type="checkbox"],
+.switch-admin.v4 form[data-form="site-vpn"] input[type="checkbox"]{
+  appearance:auto;
+  box-sizing:border-box;
+  width:16px;
+  height:16px;
+  min-width:16px;
+  min-height:16px;
+  padding:0;
+  margin:0;
+  border:0;
+  background:transparent;
+  flex:none;
+}
+.switch-admin.v4 form[data-form="vpn"] label:has(input[name="enabled"]){
+  grid-column:1/-1;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  width:max-content;
+  max-width:100%;
+}
+
 /* VPN site à site : grille compacte et champs dimensionnés à leurs valeurs.
    Les règles sont limitées à cet onglet du routeur. */
 .switch-admin .site-vpn-grid{
@@ -460,4 +485,36 @@
   .switch-admin .site-vpn-grid .site-vpn-enabled{
     white-space:normal;
   }
+}
+
+/* Précédence nécessaire sur .switch-admin.v4 .form-grid, y compris
+   les règles mobiles du composant partagé. */
+.switch-admin.v4 form[data-form="site-vpn"].site-vpn-grid{
+  display:grid;
+  grid-template-columns:150px 150px;
+  width:min(100%,312px);
+  max-width:312px;
+  gap:7px 12px;
+  align-items:end;
+}
+.switch-admin.v4 form[data-form="site-vpn"].site-vpn-grid .site-vpn-port{width:105px}
+.switch-admin.v4 form[data-form="site-vpn"].site-vpn-grid .site-vpn-ip{width:150px}
+.switch-admin.v4 form[data-form="site-vpn"].site-vpn-grid .site-vpn-prefix{width:66px}
+.switch-admin.v4 form[data-form="site-vpn"].site-vpn-grid .site-vpn-enabled{
+  grid-column:2;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  white-space:nowrap;
+  align-self:end;
+  min-height:32px;
+}
+.switch-admin.v4 form[data-form="site-vpn"].site-vpn-grid .form-actions{grid-column:1/-1}
+@media(max-width:375px){
+  .switch-admin.v4 form[data-form="site-vpn"].site-vpn-grid{
+    grid-template-columns:minmax(0,1fr);
+    width:100%;
+    max-width:220px;
+  }
+  .switch-admin.v4 form[data-form="site-vpn"].site-vpn-grid .site-vpn-enabled{grid-column:1}
 }
