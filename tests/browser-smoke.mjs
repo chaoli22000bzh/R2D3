@@ -942,6 +942,36 @@ try {
   console.log("PASS ROUTER DHCP UI : activation, bail local, relais IP Helper et coupure serveur");
   passed++;
 
+  for(const colorScheme of ["light","dark"]){
+    const wifiPage=await browser.newPage({viewport:{width:390,height:844},colorScheme});
+    const wifiErrors=[];
+    wifiPage.on("pageerror",e=>wifiErrors.push(e.message));
+    const wifiResponse=await wifiPage.goto("http://127.0.0.1:8766/wifi-ap-demo/",{waitUntil:"networkidle"});
+    assert.equal(wifiResponse.status(),200);
+    await wifiPage.locator("#save").click();
+    assert.match(await wifiPage.locator("#ap-status").innerText(),/enregistrée/);
+    const theme=await wifiPage.evaluate(()=>{
+      const b=getComputedStyle(document.body),i=getComputedStyle(document.querySelector("#ssid")),c=document.querySelector("#enabled").getBoundingClientRect();
+      return {bodyBackground:b.backgroundColor,bodyColor:b.color,inputBackground:i.backgroundColor,inputColor:i.color,
+        checkboxWidth:c.width,checkboxHeight:c.height,
+        overflow:document.documentElement.scrollWidth>innerWidth};
+    });
+    const expected=colorScheme==="dark"?{body:"rgb(19, 29, 39)",input:"rgb(37, 57, 74)"}:{body:"rgb(239, 243, 247)",input:"rgb(255, 255, 255)"};
+    assert.equal(theme.bodyBackground,expected.body,"Fond thème Wi-Fi "+colorScheme);
+    assert.equal(theme.inputBackground,expected.input,"Champ thème Wi-Fi "+colorScheme);
+    assert.ok(!theme.overflow&&theme.checkboxWidth<=18&&theme.checkboxHeight<=18,
+      "Débordement ou case surdimensionnée Wi-Fi "+colorScheme+": "+JSON.stringify(theme));
+    await wifiPage.locator("#connect").click();
+    assert.match(await wifiPage.locator("#client-status").innerText(),/associé/);
+    await wifiPage.locator("#client-password").fill("fauxsecret");
+    await wifiPage.locator("#connect").click();
+    assert.match(await wifiPage.locator("#client-status").innerText(),/incorrect/);
+    assert.deepEqual(wifiErrors,[],"Erreurs navigateur Wi-Fi "+colorScheme);
+    await wifiPage.close();
+    console.log("PASS WI-FI "+colorScheme+" : thème adaptatif, configuration et association");
+    passed++;
+  }
+
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
   await browser.close();
