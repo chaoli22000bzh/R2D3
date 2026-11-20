@@ -64,12 +64,12 @@ export function mountRouterAdmin({root,registry,assetId,onVpnChange}){
   const site=getSiteVpnConfig(registry,id)||{};
   const sitePanel='<section class="admin-panel"><h3>VPN site à site</h3>'+
    '<p>Connexion entre deux réseaux. Les DNS sont configurés sur les PC et serveurs, pas ici.</p>'+
-   '<form data-form="site-vpn" class="form-grid" style="max-width:530px;grid-template-columns:repeat(2,minmax(0,1fr))">'+
-   '<label>Interface WAN<select name="wanPortId" required>'+wanPorts.map(p=>opt(p.id,p.name,site.wanPortId)).join("")+'</select></label>'+
-   '<label>Interface LAN<select name="lanPortId" required>'+lanPorts.map(p=>opt(p.id,p.name,site.lanPortId)).join("")+'</select></label>'+
-   '<label>Adresse du routeur distant<input name="peerAddress" inputmode="decimal" placeholder="203.0.113.2" value="'+esc(site.peerAddress||"")+'" required></label>'+
-   '<label>Réseau distant<input name="remoteNetwork" inputmode="decimal" placeholder="192.168.20.0" value="'+esc(site.remoteNetwork||"")+'" required></label>'+
-   '<label>Préfixe distant<input name="remotePrefix" type="number" min="1" max="30" value="'+esc(site.remotePrefix??24)+'" required></label>'+
+   '<form data-form="site-vpn" class="form-grid site-vpn-grid">'+
+   '<label class="site-vpn-port">Interface WAN<select name="wanPortId" required>'+wanPorts.map(p=>opt(p.id,p.name,site.wanPortId)).join("")+'</select></label>'+
+   '<label class="site-vpn-port">Interface LAN<select name="lanPortId" required>'+lanPorts.map(p=>opt(p.id,p.name,site.lanPortId)).join("")+'</select></label>'+
+   '<label class="site-vpn-ip">Adresse du routeur distant<input name="peerAddress" inputmode="decimal" placeholder="203.0.113.2" value="'+esc(site.peerAddress||"")+'" required></label>'+
+   '<label class="site-vpn-ip">Réseau distant<input name="remoteNetwork" inputmode="decimal" placeholder="192.168.20.0" value="'+esc(site.remoteNetwork||"")+'" required></label>'+
+   '<label class="site-vpn-prefix">Préfixe distant<input name="remotePrefix" type="number" min="1" max="30" value="'+esc(site.remotePrefix??24)+'" required></label>'+
    '<label style="display:flex;align-items:center;gap:8px"><input name="enabled" type="checkbox" style="width:auto;min-height:auto"'+(site.enabled?' checked':'')+'> Activer le VPN site à site</label>'+
    '<div class="form-actions"><button class="primary" type="submit">Enregistrer le VPN site à site</button></div></form>'+
    '<p>La connexion nécessite une configuration compatible sur le routeur distant.</p></section>';
