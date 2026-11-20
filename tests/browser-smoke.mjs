@@ -849,6 +849,16 @@ try {
   assert.match(await sitePage.locator("#status").innerText(),/pc-b\.entreprise\.test : réussi/);
   await siteA.getByRole("button",{name:"VPN nomade"}).click();
   await siteA.locator('form[data-form="vpn"]').waitFor();
+  // Case nomade décochée : fond clair garanti, même si le navigateur utilise le mode sombre.
+  const nomadToggle=siteA.locator('form[data-form="vpn"] input[name="enabled"]');
+  await nomadToggle.uncheck();
+  const uncheckedStyle=await nomadToggle.evaluate(el=>{
+   const cs=getComputedStyle(el);
+   return {colorScheme:cs.colorScheme,background:cs.backgroundColor};
+  });
+  assert.equal(uncheckedStyle.colorScheme,"light");
+  assert.equal(uncheckedStyle.background,"rgb(255, 255, 255)");
+
   const nomadSizes=await siteA.locator('form[data-form="vpn"]').evaluate(form=>{
    const w=name=>Math.round(form.elements[name].getBoundingClientRect().width);
    return {wan:w("wanPortId"),lan:w("lanPortId"),network:w("vpnNetwork"),
