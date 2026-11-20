@@ -403,6 +403,8 @@
 .switch-admin.v4 form[data-form="vpn"] input[type="checkbox"],
 .switch-admin.v4 form[data-form="site-vpn"] input[type="checkbox"]{
   appearance:auto;
+  color-scheme:light;
+  accent-color:#0b72bb;
   box-sizing:border-box;
   width:16px;
   height:16px;
@@ -410,8 +412,8 @@
   min-height:16px;
   padding:0;
   margin:0;
-  border:0;
-  background:transparent;
+  border:1px solid #8d9ea7;
+  background:#fff;
   flex:none;
 }
 .switch-admin.v4 form[data-form="vpn"] label:has(input[name="enabled"]){
