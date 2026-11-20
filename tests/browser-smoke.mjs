@@ -816,6 +816,38 @@ try {
   console.log("PASS MAIL-SERVER : boîte créée, configuration Outlook, réception d'un message");
   passed++;
 
+  // VPN site à site : les deux vrais composants d'administration du routeur
+  // doivent configurer le même registre que le moteur ping/DNS du laboratoire.
+  const sitePage=await browser.newPage({viewport:{width:1200,height:850}});
+  const siteErrors=[];
+  sitePage.on("pageerror",err=>siteErrors.push(err.message));
+  const siteResponse=await sitePage.goto("http://127.0.0.1:8765/vpn-site-demo/",{waitUntil:"networkidle"});
+  assert.equal(siteResponse.status(),200);
+  const siteA=sitePage.locator("#admin-a"),siteB=sitePage.locator("#admin-b");
+  await siteA.getByRole("button",{name:"VPN site à site"}).click();
+  await siteB.getByRole("button",{name:"VPN site à site"}).click();
+  assert.equal(await siteA.locator('form[data-form="site-vpn"] [name="peerAddress"]').inputValue(),"203.0.113.2");
+  assert.equal(await siteB.locator('form[data-form="site-vpn"] [name="peerAddress"]').inputValue(),"203.0.113.1");
+  assert.equal(await siteA.locator('form[data-form="site-vpn"] [name="remoteNetwork"]').inputValue(),"192.168.20.0");
+  assert.equal(await siteA.locator('form[data-form="site-vpn"] [name="enabled"]').isChecked(),true);
+  assert.equal(await siteA.locator('form[data-form="site-vpn"] [name="dns1"]').count(),0);
+  await sitePage.locator("#test-ping").click();
+  assert.match(await sitePage.locator("#status").innerText(),/Ping PC A vers PC B : réussi/);
+  await siteB.locator('form[data-form="site-vpn"] [name="enabled"]').uncheck();
+  await siteB.locator('form[data-form="site-vpn"] button[type="submit"]').click();
+  await sitePage.locator("#test-ping").click();
+  assert.match(await sitePage.locator("#status").innerText(),/échec/);
+  await siteB.locator('form[data-form="site-vpn"] [name="enabled"]').check();
+  await siteB.locator('form[data-form="site-vpn"] button[type="submit"]').click();
+  await sitePage.locator("#test-ping-name").click();
+  assert.match(await sitePage.locator("#status").innerText(),/pc-b\.entreprise\.test : réussi/);
+  await siteA.getByRole("button",{name:"VPN nomade"}).click();
+  await siteA.locator('form[data-form="vpn"]').waitFor();
+  assert.deepEqual(siteErrors,[]);
+  await sitePage.close();
+  console.log("PASS VPN SITE UI : deux onglets routeur partagés, activation et ping par nom");
+  passed++;
+
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
   await browser.close();
