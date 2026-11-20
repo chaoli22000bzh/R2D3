@@ -634,3 +634,95 @@
  white-space:nowrap;
  font-size:14px;
 }
+
+
+/* Routeur DHCP : champs dimensionnés selon leurs données, sans modifier le switch L3. */
+.switch-admin.v4 form[data-form="router-dhcp-pool"].router-dhcp-grid{
+ display:grid;
+ grid-template-columns:160px 160px;
+ width:min(100%,332px);
+ max-width:332px;
+ gap:9px 12px;
+ justify-content:start;
+ align-items:end;
+}
+.switch-admin.v4 form[data-form="router-dhcp-pool"].router-dhcp-grid label{
+ display:grid;
+ min-width:0;
+ gap:3px;
+ font-size:13px;
+ line-height:1.35;
+ font-weight:550;
+ color:#465d67;
+}
+.switch-admin.v4 form[data-form="router-dhcp-pool"] input,
+.switch-admin.v4 form[data-form="router-dhcp-pool"] select,
+.switch-admin.v4 form[data-form="router-dhcp-pool"] textarea{
+ box-sizing:border-box;
+ width:100%;
+ max-width:100%;
+ min-width:0;
+ min-height:32px;
+ padding:5px 7px;
+ border:1px solid #b7c7cf;
+ border-radius:4px;
+ background:#fff;
+ color:#263b46;
+ color-scheme:light;
+ font:14px/1.35 system-ui,Arial,sans-serif;
+}
+.switch-admin.v4 form[data-form="router-dhcp-pool"] input[name="prefix"],
+.switch-admin.v4 form[data-form="router-dhcp-pool"] input[name="leaseHours"]{
+ width:78px;
+ -moz-appearance:textfield;
+ appearance:textfield;
+}
+.switch-admin.v4 form[data-form="router-dhcp-pool"] input[name="prefix"]::-webkit-inner-spin-button,
+.switch-admin.v4 form[data-form="router-dhcp-pool"] input[name="prefix"]::-webkit-outer-spin-button,
+.switch-admin.v4 form[data-form="router-dhcp-pool"] input[name="leaseHours"]::-webkit-inner-spin-button,
+.switch-admin.v4 form[data-form="router-dhcp-pool"] input[name="leaseHours"]::-webkit-outer-spin-button{
+ -webkit-appearance:none;
+ margin:0;
+}
+.switch-admin.v4 form[data-form="router-dhcp-pool"] label:has(textarea){
+ grid-column:1/-1;
+}
+.switch-admin.v4 form[data-form="router-dhcp-pool"] textarea{
+ display:block;
+ width:100%;
+ height:64px;
+ min-height:64px;
+ resize:vertical;
+ font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+ font-size:13px;
+}
+.switch-admin.v4 form[data-form="router-dhcp-pool"] .form-actions{
+ grid-column:1/-1;
+ display:flex;
+ flex-wrap:wrap;
+ align-items:center;
+ justify-content:flex-start;
+ gap:8px;
+ margin-top:4px;
+}
+.switch-admin.v4 form[data-form="router-dhcp-pool"] .form-actions button{
+ display:inline-block;
+ flex:0 0 auto;
+ width:auto;
+ min-width:0;
+ min-height:32px;
+ padding:6px 11px;
+ font-size:13px;
+ line-height:1.35;
+}
+@media(max-width:375px){
+ .switch-admin.v4 form[data-form="router-dhcp-pool"].router-dhcp-grid{
+  grid-template-columns:minmax(0,1fr);
+  width:100%;
+  max-width:290px;
+ }
+ .switch-admin.v4 form[data-form="router-dhcp-pool"] label:has(textarea),
+ .switch-admin.v4 form[data-form="router-dhcp-pool"] .form-actions{
+  grid-column:1;
+ }
+}
