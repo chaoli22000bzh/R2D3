@@ -518,3 +518,55 @@
   }
   .switch-admin.v4 form[data-form="site-vpn"].site-vpn-grid .site-vpn-enabled{grid-column:1}
 }
+
+/* VPN nomade : ports, réseau, préfixe et DNS ont des largeurs propres.
+   Exclut les formulaires de gestion des comptes. */
+.switch-admin.v4 form[data-form="vpn"].remote-vpn-grid{
+  display:grid;
+  grid-template-columns:155px 155px;
+  width:min(100%,322px);
+  max-width:322px;
+  gap:8px 12px;
+  align-items:end;
+}
+.switch-admin.v4 form[data-form="vpn"].remote-vpn-grid label{
+  min-width:0;
+  font-size:13px;
+  gap:3px;
+}
+.switch-admin.v4 form[data-form="vpn"].remote-vpn-grid .remote-vpn-port{width:110px;max-width:100%}
+.switch-admin.v4 form[data-form="vpn"].remote-vpn-grid .remote-vpn-ip{width:155px;max-width:100%}
+.switch-admin.v4 form[data-form="vpn"].remote-vpn-grid .remote-vpn-prefix{width:85px;max-width:100%}
+.switch-admin.v4 form[data-form="vpn"].remote-vpn-grid input:not([type="checkbox"]),
+.switch-admin.v4 form[data-form="vpn"].remote-vpn-grid select{
+  width:100%;
+  min-height:32px;
+  padding:4px 6px;
+  font-size:14px;
+}
+.switch-admin.v4 form[data-form="vpn"].remote-vpn-grid .remote-vpn-enabled{
+  grid-column:1/-1;
+  display:flex;
+  width:max-content;
+  max-width:100%;
+  gap:7px;
+  align-items:center;
+  min-height:30px;
+  white-space:nowrap;
+}
+.switch-admin.v4 form[data-form="vpn"].remote-vpn-grid .form-actions{
+  grid-column:1/-1;
+  margin-top:2px;
+}
+.switch-admin.v4 form[data-form="vpn"].remote-vpn-grid .primary{
+  min-height:34px;
+  padding:5px 14px;
+  font-size:14px;
+}
+@media(max-width:375px){
+  .switch-admin.v4 form[data-form="vpn"].remote-vpn-grid{
+    grid-template-columns:minmax(0,1fr);
+    width:100%;
+    max-width:220px;
+  }
+}
