@@ -48,7 +48,7 @@ export function mountRouterAdmin({root,registry,assetId,onVpnChange}){
    '<label>Préfixe VPN<input name="vpnPrefix" type="number" min="1" max="30" value="'+esc(vpn.vpnPrefix??24)+'"></label>'+
    '<label>DNS 1<input name="dns1" inputmode="decimal" placeholder="192.168.10.10" value="'+esc((vpn.dnsServers??[vpn.dnsServer||""])[0]||"")+'"></label>'+
    '<label>DNS 2<input name="dns2" inputmode="decimal" placeholder="Facultatif" value="'+esc((vpn.dnsServers??[])[1]||"")+'"></label>'+
-   '<label style="display:flex;align-items:center;gap:8px"><input name="enabled" type="checkbox" style="width:auto;min-height:auto"'+(vpn.enabled?' checked':'')+'> Activer le VPN</label>'+
+   '<label class="site-vpn-enabled"><input name="enabled" type="checkbox"'+(vpn.enabled?' checked':'')+'> Activer le VPN</label>'+
    '<div class="form-actions"><button class="primary" type="submit">Enregistrer les paramètres</button></div></form>'+
    '<h3 style="margin-top:18px">Comptes nomades ('+accounts.length+'/100)</h3>'+
    '<div style="display:grid;gap:7px;max-width:530px">'+accounts.map((u,i)=>'<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;border:1px solid #9aafb966;border-radius:6px;padding:7px">'+
@@ -63,16 +63,16 @@ export function mountRouterAdmin({root,registry,assetId,onVpnChange}){
    '<p>Un compte peut se connecter depuis un PC nomade. Les mots de passe sont fictifs.</p></section>';
   const site=getSiteVpnConfig(registry,id)||{};
   const sitePanel='<section class="admin-panel"><h3>VPN site à site</h3>'+
-   '<p>Connexion entre deux réseaux. Les DNS sont configurés sur les PC et serveurs, pas ici.</p>'+
+   '<p class="site-vpn-note">Les DNS se configurent sur les PC et serveurs.</p>'+
    '<form data-form="site-vpn" class="form-grid site-vpn-grid">'+
    '<label class="site-vpn-port">Interface WAN<select name="wanPortId" required>'+wanPorts.map(p=>opt(p.id,p.name,site.wanPortId)).join("")+'</select></label>'+
    '<label class="site-vpn-port">Interface LAN<select name="lanPortId" required>'+lanPorts.map(p=>opt(p.id,p.name,site.lanPortId)).join("")+'</select></label>'+
    '<label class="site-vpn-ip">Adresse du routeur distant<input name="peerAddress" inputmode="decimal" placeholder="203.0.113.2" value="'+esc(site.peerAddress||"")+'" required></label>'+
    '<label class="site-vpn-ip">Réseau distant<input name="remoteNetwork" inputmode="decimal" placeholder="192.168.20.0" value="'+esc(site.remoteNetwork||"")+'" required></label>'+
-   '<label class="site-vpn-prefix">Préfixe distant<input name="remotePrefix" type="number" min="1" max="30" value="'+esc(site.remotePrefix??24)+'" required></label>'+
-   '<label style="display:flex;align-items:center;gap:8px"><input name="enabled" type="checkbox" style="width:auto;min-height:auto"'+(site.enabled?' checked':'')+'> Activer le VPN site à site</label>'+
-   '<div class="form-actions"><button class="primary" type="submit">Enregistrer le VPN site à site</button></div></form>'+
-   '<p>La connexion nécessite une configuration compatible sur le routeur distant.</p></section>';
+   '<label class="site-vpn-prefix">Préfixe<input name="remotePrefix" type="number" min="1" max="30" value="'+esc(site.remotePrefix??24)+'" required></label>'+
+   '<label style="display:flex;align-items:center;gap:8px"><input name="enabled" type="checkbox" style="width:auto;min-height:auto"'+(site.enabled?' checked':'')+'> Activer le VPN</label>'+
+   '<div class="form-actions"><button class="primary" type="submit">Enregistrer</button></div></form>'+
+   '<p class="site-vpn-note">Le routeur distant doit avoir une configuration compatible.</p></section>';
   root.innerHTML='<div class="switch-admin v4 router-admin"><header class="device-bar"><div class="device-ident"><h2>'+esc(a.name)+'</h2><span>Routeur générique</span><span class="device-state">En service</span></div></header>'+tabs+'<main class="admin-content">'+(page==="overview"?overview:page==="vpn"?vpnPanel:page==="site-vpn"?sitePanel:ports(a)+editor+table(a))+(feedback?'<p role="status" style="color:'+(error?'#aa2532':'#087b5e')+'">'+esc(feedback)+'</p>':'')+'</main></div>';
  }
  const click=e=>{
