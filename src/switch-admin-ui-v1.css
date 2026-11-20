@@ -572,3 +572,52 @@
     max-width:220px;
   }
 }
+
+/* Routeur : activation DHCP, contrôle compact et case toujours lisible en mode sombre. */
+.switch-admin.v4 form[data-form="router-dhcp-state"].router-dhcp-status{
+ display:flex;
+ align-items:center;
+ justify-content:flex-start;
+ gap:12px;
+ flex-wrap:wrap;
+ width:max-content;
+ max-width:100%;
+ margin:8px 0 12px;
+}
+.switch-admin.v4 form[data-form="router-dhcp-state"] .router-check{
+ display:inline-flex;
+ align-items:center;
+ gap:7px;
+ width:auto;
+ margin:0;
+ font-size:14px;
+ white-space:nowrap;
+}
+.switch-admin.v4 form[data-form="router-dhcp-state"] input[type="checkbox"]{
+ appearance:auto;
+ color-scheme:light;
+ accent-color:#0b72bb;
+ box-sizing:border-box;
+ flex:0 0 16px;
+ width:16px;
+ height:16px;
+ min-width:16px;
+ min-height:16px;
+ max-width:16px;
+ max-height:16px;
+ margin:0;
+ padding:0;
+ border:1px solid #8d9ea7;
+ background:#fff;
+}
+.switch-admin.v4 form[data-form="router-dhcp-state"] button.primary{
+ display:inline-block;
+ flex:0 0 auto;
+ align-self:center;
+ width:auto;
+ min-width:0;
+ min-height:32px;
+ padding:5px 13px;
+ font-size:14px;
+ line-height:1.35;
+}
