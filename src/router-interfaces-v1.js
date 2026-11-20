@@ -11,8 +11,10 @@ export function createRouter(registry,{name="RTR-01",ports=4}={}){
  if(!p.success)return p;
  const g=registry.addPortGroup(p.profile.id,{type:"ethernet-rj45",prefix:"GE",start:1,count:ports});
  if(!g.success)return g;
- const cap=registry.setProfileNetworkCapability(p.profile.id,"ipv4-router",true);
- if(!cap.success)return cap;
+ for(const capability of ["ipv4-router","dhcp-server","ip-helper"]){
+  const cap=registry.setProfileNetworkCapability(p.profile.id,capability,true);
+  if(!cap.success)return cap;
+ }
  return registry.createAsset(p.profile.id,{name});
 }
 export function getRouterConfig(registry,id){
