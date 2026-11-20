@@ -26,7 +26,7 @@ export function relayDhcpViaCommonEngine({
   return fail("Moteur DHCP commun indisponible","unavailable");
  if(!clientNetwork||!net(clientNetwork.address,clientNetwork.prefix))
   return fail("Réseau client inconnu","unavailable");
- if(!transport||!["vlan","vpn","dmz"].includes(transport.kind)||
+ if(!transport||!["vlan","vpn","dmz","router"].includes(transport.kind)||
     typeof transport.reachable!=="boolean")
   return fail("État de transport non déterminé","unavailable");
  if(!transport.reachable)return fail(transport.reason||"Chemin réseau interrompu");
