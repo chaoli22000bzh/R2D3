@@ -872,6 +872,37 @@ try {
   console.log("PASS VPN SITE UI : deux onglets routeur partagés, activation et ping par nom");
   passed++;
 
+  // Nouveau service DHCP et IP Helper du routeur, dans l'interface commune.
+  const routerDhcpPage=await browser.newPage({viewport:{width:1200,height:850}});
+  const routerDhcpErrors=[];
+  routerDhcpPage.on("pageerror",e=>routerDhcpErrors.push(e.message));
+  const routerDhcpResponse=await routerDhcpPage.goto("http://127.0.0.1:8766/router-dhcp-demo/",{waitUntil:"networkidle"});
+  assert.equal(routerDhcpResponse.status(),200);
+  await routerDhcpPage.locator("#test-local").click();
+  assert.match(await routerDhcpPage.locator("#status").innerText(),/échec/);
+  const routerAdmin=routerDhcpPage.locator("#admin");
+  await routerAdmin.getByRole("button",{name:"Serveur DHCP"}).click();
+  await routerAdmin.locator('form[data-form="router-dhcp-state"] input[name="enabled"]').check();
+  await routerAdmin.locator('form[data-form="router-dhcp-state"] button[type="submit"]').click();
+  await routerDhcpPage.locator("#test-local").click();
+  assert.match(await routerDhcpPage.locator("#status").innerText(),/192\.168\.10\.100/);
+  await routerAdmin.getByRole("button",{name:"IP Helper"}).click();
+  await routerAdmin.locator('form[data-form="router-helper"] [name="serverAddress"]').fill("192.168.20.2");
+  await routerAdmin.locator('form[data-form="router-helper"] [name="enabled"]').check();
+  await routerAdmin.locator('form[data-form="router-helper"] button[type="submit"]').click();
+  await routerDhcpPage.locator("#test-relay").click();
+  assert.match(await routerDhcpPage.locator("#status").innerText(),/192\.168\.10\.120/);
+  await routerDhcpPage.locator("#server-link").click();
+  await routerDhcpPage.locator("#test-relay").click();
+  assert.match(await routerDhcpPage.locator("#status").innerText(),/échec/);
+  await routerDhcpPage.locator("#server-link").click();
+  await routerDhcpPage.locator("#test-relay").click();
+  assert.match(await routerDhcpPage.locator("#status").innerText(),/192\.168\.10\.120/);
+  assert.deepEqual(routerDhcpErrors,[]);
+  await routerDhcpPage.close();
+  console.log("PASS ROUTER DHCP UI : activation, bail local, relais IP Helper et coupure serveur");
+  passed++;
+
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
   await browser.close();
