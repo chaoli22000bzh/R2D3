@@ -19,5 +19,12 @@
 <section><h2>Client Wi-Fi simulé</h2><div class="grid">
 <label>Bande prise en charge<select id="client-band"><option value="2.4">2,4 GHz</option><option value="5" selected>5 GHz</option><option value="6">6 GHz</option></select></label>
 <label>Mot de passe saisi<input id="client-password" value="Ciel2026!" autocomplete="off"></label>
-</div><div class="actions"><button id="scan">Rechercher les réseaux</button><button id="connect" class="primary">Se connecter au Wi-Fi</button></div><div id="client-status" class="status" aria-live="polite">Client prêt.</div><p class="note">Une association réussie ne signifie pas qu'une adresse IPv4 a été attribuée. Le raccordement Ethernet et DHCP seront ajoutés aux lots suivants.</p></section>
+</div><div class="actions"><button id="scan">Rechercher les réseaux</button><button id="connect" class="primary">Se connecter au Wi-Fi</button></div><div id="client-status" class="status" aria-live="polite">Client prêt.</div><p class="note">L’association Wi-Fi ne garantit pas à elle seule un bail DHCP. Le test réseau ci-dessous vérifie également le câble et le serveur.</p></section>
+<section><h2>Raccordement Ethernet et DHCP</h2>
+<p class="note">Topologie du lot 2 : PC Wi-Fi ⇄ AP-CIEL-01 ⇄ câble RJ45 ⇄ routeur GE02 (192.168.10.1). Plage DHCP : 192.168.10.100 à 192.168.10.110.</p>
+<label class="check"><input id="dhcp-enabled" type="checkbox" checked>Activer le serveur DHCP du routeur</label>
+<div class="actions"><button id="link">Couper le câble Ethernet</button><button id="request-ip" class="primary">Demander une adresse IPv4</button></div>
+<div id="network-status" class="status" aria-live="polite">Réseau prêt.</div>
+<p class="note">Scénario initial : une seule borne, un seul réseau LAN, sans VLAN. Les VLAN et les relais IP Helper viendront dans leurs lots respectifs.</p>
+</section>
 </main><script type="module" src="./main.js"></script></body></html>
