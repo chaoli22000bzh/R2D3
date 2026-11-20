@@ -882,6 +882,18 @@ try {
   assert.match(await routerDhcpPage.locator("#status").innerText(),/échec/);
   const routerAdmin=routerDhcpPage.locator("#admin");
   await routerAdmin.getByRole("button",{name:"Serveur DHCP"}).click();
+  const dhcpBefore=await routerAdmin.locator('form[data-form="router-dhcp-state"]').evaluate(form=>{
+    const box=form.elements.enabled,button=form.querySelector('button.primary');
+    const css=getComputedStyle(box);
+    return {boxWidth:box.getBoundingClientRect().width,boxHeight:box.getBoundingClientRect().height,
+      background:css.backgroundColor,colorScheme:css.colorScheme,
+      buttonWidth:button.getBoundingClientRect().width,
+      buttonHeight:button.getBoundingClientRect().height};
+  });
+  assert.ok(dhcpBefore.boxWidth<=17&&dhcpBefore.boxHeight<=17&&
+    dhcpBefore.background==="rgb(255, 255, 255)"&&dhcpBefore.colorScheme==="light"&&
+    dhcpBefore.buttonWidth<115&&dhcpBefore.buttonHeight<=38,
+    "Commande d'activation DHCP surdimensionnée : "+JSON.stringify(dhcpBefore));
   await routerAdmin.locator('form[data-form="router-dhcp-state"] input[name="enabled"]').check();
   await routerAdmin.locator('form[data-form="router-dhcp-state"] button[type="submit"]').click();
   await routerDhcpPage.locator("#test-local").click();
