@@ -41,14 +41,14 @@ export function mountRouterAdmin({root,registry,assetId,onVpnChange}){
   const lanPorts=a.ports.filter(p=>ifs[p.id].role==="lan");
   const accounts=vpn.accounts??(vpn.username?[{username:vpn.username,password:vpn.password,enabled:true}]:[]);
   const vpnPanel='<section class="admin-panel"><h3>Serveur VPN nomade</h3>'+
-   '<form data-form="vpn" class="form-grid" style="max-width:530px;grid-template-columns:repeat(2,minmax(0,1fr))">'+
-   '<label>Port WAN<select name="wanPortId">'+wanPorts.map(p=>opt(p.id,p.name,vpn.wanPortId)).join("")+'</select></label>'+
-   '<label>Port LAN<select name="lanPortId">'+lanPorts.map(p=>opt(p.id,p.name,vpn.lanPortId)).join("")+'</select></label>'+
-   '<label>Réseau VPN<input name="vpnNetwork" value="'+esc(vpn.vpnNetwork||"10.8.0.0")+'" inputmode="decimal"></label>'+
-   '<label>Préfixe VPN<input name="vpnPrefix" type="number" min="1" max="30" value="'+esc(vpn.vpnPrefix??24)+'"></label>'+
-   '<label>DNS 1<input name="dns1" inputmode="decimal" placeholder="192.168.10.10" value="'+esc((vpn.dnsServers??[vpn.dnsServer||""])[0]||"")+'"></label>'+
-   '<label>DNS 2<input name="dns2" inputmode="decimal" placeholder="Facultatif" value="'+esc((vpn.dnsServers??[])[1]||"")+'"></label>'+
-   '<label class="site-vpn-enabled"><input name="enabled" type="checkbox"'+(vpn.enabled?' checked':'')+'> Activer le VPN</label>'+
+   '<form data-form="vpn" class="form-grid remote-vpn-grid">'+
+   '<label class="remote-vpn-port">Port WAN<select name="wanPortId">'+wanPorts.map(p=>opt(p.id,p.name,vpn.wanPortId)).join("")+'</select></label>'+
+   '<label class="remote-vpn-port">Port LAN<select name="lanPortId">'+lanPorts.map(p=>opt(p.id,p.name,vpn.lanPortId)).join("")+'</select></label>'+
+   '<label class="remote-vpn-ip">Réseau VPN<input name="vpnNetwork" value="'+esc(vpn.vpnNetwork||"10.8.0.0")+'" inputmode="decimal"></label>'+
+   '<label class="remote-vpn-prefix">Préfixe VPN<input name="vpnPrefix" type="number" min="1" max="30" value="'+esc(vpn.vpnPrefix??24)+'"></label>'+
+   '<label class="remote-vpn-ip">DNS 1<input name="dns1" inputmode="decimal" placeholder="192.168.10.10" value="'+esc((vpn.dnsServers??[vpn.dnsServer||""])[0]||"")+'"></label>'+
+   '<label class="remote-vpn-ip">DNS 2<input name="dns2" inputmode="decimal" placeholder="Facultatif" value="'+esc((vpn.dnsServers??[])[1]||"")+'"></label>'+
+   '<label class="remote-vpn-enabled"><input name="enabled" type="checkbox"'+(vpn.enabled?' checked':'')+'> Activer le VPN</label>'+
    '<div class="form-actions"><button class="primary" type="submit">Enregistrer les paramètres</button></div></form>'+
    '<h3 style="margin-top:18px">Comptes nomades ('+accounts.length+'/100)</h3>'+
    '<div style="display:grid;gap:7px;max-width:530px">'+accounts.map((u,i)=>'<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;border:1px solid #9aafb966;border-radius:6px;padding:7px">'+
