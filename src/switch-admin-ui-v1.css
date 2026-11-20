@@ -397,3 +397,23 @@
  -webkit-appearance:none;
  margin:0;
 }
+
+/* Routeur VPN site à site : champs dimensionnés aux valeurs courtes.
+   Port = libellé court, IPv4 = 15 caractères max, préfixe = 2 chiffres. */
+.switch-admin .site-vpn-grid{
+  grid-template-columns:repeat(2,minmax(0,180px));
+  gap:10px 14px;
+  max-width:374px;
+  align-items:end;
+}
+.switch-admin .site-vpn-grid .site-vpn-port{max-width:130px}
+.switch-admin .site-vpn-grid .site-vpn-ip{max-width:180px}
+.switch-admin .site-vpn-grid .site-vpn-prefix{max-width:90px}
+.switch-admin .site-vpn-grid label{font-size:14px}
+.switch-admin .site-vpn-grid input,
+.switch-admin .site-vpn-grid select{font-size:14px;min-height:34px;padding:5px 8px}
+.switch-admin .site-vpn-grid label:has(input[name="enabled"]){grid-column:1/-1}
+.switch-admin .site-vpn-grid .form-actions{grid-column:1/-1}
+@media(max-width:420px){
+  .switch-admin .site-vpn-grid{grid-template-columns:minmax(0,1fr);max-width:220px}
+}
