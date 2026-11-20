@@ -917,7 +917,7 @@ try {
   await routerAdmin.locator('form[data-form="router-dhcp-state"] input[name="enabled"]').check();
   await routerAdmin.locator('form[data-form="router-dhcp-state"] button[type="submit"]').click();
   await routerDhcpPage.locator("#test-local").click();
-  assert.match(await routerDhcpPage.locator("#status").innerText(),/192\.168\.10\.100/);
+  assert.match(await routerDhcpPage.locator("#status").innerText(),/192\.168\.10\.105/);
   await routerAdmin.getByRole("button",{name:"IP Helper"}).click();
   await routerAdmin.locator('form[data-form="router-helper"] [name="serverAddress"]').fill("192.168.20.2");
   const helperStyle=await routerAdmin.locator('form[data-form="router-helper"] input[name="enabled"]').evaluate(el=>{
