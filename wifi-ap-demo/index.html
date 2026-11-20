@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R2D3 | Recette Wi-Fi : borne et client</title>
+<style>
+:root{color-scheme:light;--bg:#eff3f7;--panel:#fff;--fg:#223846;--muted:#506878;--edge:#c4d3de;--input:#fff;--accent:#12638a;--accentText:#fff;--ok:#18714a;--bad:#bd4141}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,Arial,sans-serif;margin:0}header{background:#163e60;color:#fff;padding:15px max(15px,calc((100% - 860px)/2))}header h1{font-size:21px;margin:0}main{max-width:860px;margin:auto;padding:14px}section{background:var(--panel);border:1px solid var(--edge);border-radius:9px;padding:16px;margin:0 0 14px}h2{font-size:17px;margin:0 0 12px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,190px));gap:10px 16px;align-items:end}label{display:flex;flex-direction:column;gap:4px;font-weight:550;min-width:0}input:not([type=checkbox]),select{width:100%;max-width:100%;min-height:34px;background:var(--input);color:var(--fg);border:1px solid var(--edge);border-radius:5px;padding:6px 8px;font:inherit;color-scheme:inherit}label.check{display:flex;align-items:center;flex-direction:row;font-weight:500;gap:8px;min-height:30px}input[type=checkbox]{width:17px;height:17px;min-width:17px;min-height:17px;accent-color:var(--accent);margin:0;flex:0 0 auto}button{background:var(--panel);color:var(--fg);border:1px solid var(--edge);padding:7px 12px;border-radius:5px;cursor:pointer;min-height:34px}button.primary{background:var(--accent);color:var(--accentText);border-color:var(--accent)}button:hover{filter:brightness(.94)}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}.status{margin-top:12px;padding:10px;border-radius:5px;background:var(--bg);border-left:4px solid var(--edge)}.status[data-result=ok]{border-left-color:var(--ok)}.status[data-result=fail]{border-left-color:var(--bad)}.note{color:var(--muted);font-size:13px;margin:6px 0}.full{grid-column:1/-1}
+@media(max-width:450px){.grid{grid-template-columns:minmax(0,1fr);max-width:330px}.full{grid-column:1}}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#131d27;--panel:#202f3c;--fg:#e6eff6;--muted:#b8cad7;--edge:#546c7d;--input:#25394a;--accent:#277da8;--ok:#4bbf86;--bad:#ef7474}}
+</style></head><body>
+<header><h1>R2D3 : point d'accès Wi-Fi</h1><p>Laboratoire V1, premier lot. Compatible avec le thème clair ou sombre.</p></header><main>
+<section><h2>Configuration de la borne</h2><div class="grid">
+<label class="check full"><input id="enabled" type="checkbox" checked>Activer le point d'accès</label>
+<label>SSID<input id="ssid" maxlength="32" value="LYCEE-CIEL"></label>
+<label>Sécurité<select id="security"><option value="open">Ouvert</option><option value="wpa2-personal" selected>WPA2-Personal</option><option value="wpa3-personal">WPA3-Personal</option><option value="wpa2-wpa3-personal">WPA2/WPA3 mixte</option></select></label>
+<label>Mot de passe Wi-Fi<input id="password" type="text" value="Ciel2026!" autocomplete="off"></label>
+<label>Bande radio<select id="band"><option value="2.4">2,4 GHz</option><option value="5" selected>5 GHz</option><option value="6">6 GHz</option></select></label>
+<label class="check full"><input id="isolated" type="checkbox">Isoler les clients du SSID</label>
+</div><div class="actions"><button id="save" class="primary">Enregistrer la borne</button><button id="reset">Réinitialiser</button></div><div id="ap-status" class="status" aria-live="polite">Borne initialisée dans le registre R2D3.</div></section>
+<section><h2>Client Wi-Fi simulé</h2><div class="grid">
+<label>Bande prise en charge<select id="client-band"><option value="2.4">2,4 GHz</option><option value="5" selected>5 GHz</option><option value="6">6 GHz</option></select></label>
+<label>Mot de passe saisi<input id="client-password" value="Ciel2026!" autocomplete="off"></label>
+</div><div class="actions"><button id="scan">Rechercher les réseaux</button><button id="connect" class="primary">Se connecter au Wi-Fi</button></div><div id="client-status" class="status" aria-live="polite">Client prêt.</div><p class="note">Une association réussie ne signifie pas qu'une adresse IPv4 a été attribuée. Le raccordement Ethernet et DHCP seront ajoutés aux lots suivants.</p></section>
+</main><script type="module" src="./main.js"></script></body></html>
