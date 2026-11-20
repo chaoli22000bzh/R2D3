@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R2D3 | Wi-Fi : Isolation mode</title>
+<style>
+:root{color-scheme:light;--bg:#eff3f7;--panel:#fff;--fg:#223846;--muted:#506878;--edge:#c4d3de;--input:#fff;--accent:#12638a;--ok:#18714a;--bad:#bd4141}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,Arial,sans-serif;margin:0}
+header{background:#163e60;color:#fff;padding:16px max(14px,calc((100% - 900px)/2))}h1{font-size:21px;margin:0}main{max-width:900px;margin:auto;padding:14px}
+section{background:var(--panel);border:1px solid var(--edge);border-radius:8px;padding:15px;margin-bottom:12px}h2{font-size:17px;margin:0 0 10px}
+p{margin:7px 0}.note{font-size:13px;color:var(--muted)}.diagram{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:12px auto}
+.node{border:1px solid var(--edge);background:var(--bg);border-radius:6px;padding:11px 16px;text-align:center}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+button{font:inherit;background:var(--panel);color:var(--fg);border:1px solid var(--edge);border-radius:5px;padding:8px 12px;cursor:pointer;min-height:36px}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent}
+.check{display:flex;align-items:center;gap:8px;min-height:30px;font-weight:600}
+input[type=checkbox]{width:17px;height:17px;min-width:17px;min-height:17px;margin:0;accent-color:var(--accent)}
+.status{padding:10px 12px;border-radius:5px;border-left:4px solid var(--edge);background:var(--bg);margin:8px 0}
+.status[data-result=ok]{border-left-color:var(--ok)}.status[data-result=fail]{border-left-color:var(--bad)}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#131d27;--panel:#202f3c;--fg:#e6eff6;--muted:#b8cad7;--edge:#546c7d;--input:#25394a;--accent:#277da8;--ok:#4bbf86;--bad:#ef7474}}
+</style></head><body>
+<header><h1>R2D3 : Isolation mode</h1><p>Wi-Fi V1, lot 4, deux clients sur le même SSID</p></header>
+<main>
+<section><h2>Topologie du laboratoire</h2>
+<div class="diagram"><div class="node">PC-01<br><strong id="ip-1">Adresse en cours</strong></div> ⇄ <div class="node">AP-CIEL<br><strong>LYCEE-CIEL</strong><br>VLAN 10</div> ⇄ <div class="node">Switch L3<br><strong>192.168.10.1</strong><br>DHCP</div> ⇄ <div class="node">PC-02<br><strong id="ip-2">Adresse en cours</strong></div></div>
+<p class="note">PC-01 et PC-02 sont tous deux associés à la même borne et au même SSID. Le switch L3 délivre des adresses distinctes avec le moteur DHCP commun.</p>
+<div id="leases-status" class="status" aria-live="polite">Initialisation des clients...</div></section>
+<section><h2>Réglage de la borne</h2>
+<label class="check"><input id="isolation" type="checkbox">Isolation mode</label>
+<p class="note">Quand l'option est activée, les clients de ce SSID ne peuvent plus échanger directement. L'accès au réseau par la passerelle reste possible.</p>
+<div class="controls"><button id="reset">Réinitialiser le laboratoire</button></div>
+<div id="ap-status" class="status" aria-live="polite">Isolation mode désactivé.</div></section>
+<section><h2>Diagnostic réseau</h2>
+<div class="controls">
+<button id="peer-ping" class="primary">Ping PC-01 vers PC-02</button>
+<button id="gateway-ping">Ping PC-01 vers passerelle</button>
+</div>
+<div id="ping-status" class="status" aria-live="polite">Choisis un test ping.</div>
+<p class="note">Ce test couvre l'isolation entre clients connectés à une même borne et un même SSID. L'isolation interbornes et l'isolation du réseau invité par rapport au LAN sont des mécanismes différents, à traiter séparément.</p></section>
+</main><script type="module" src="./main.js"></script></body></html>
