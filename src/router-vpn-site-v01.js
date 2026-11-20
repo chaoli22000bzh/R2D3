@@ -107,3 +107,26 @@ export function observeSiteVpnPing(registry,routerAId,routerBId,sourceId,targetI
  }
  return {success:true,status:"ok",message:"Ping réussi entre les deux LAN par VPN site à site"};
 }
+
+/*
+ * Résolution par un DNS configuré sur le PC source, jamais sur le tunnel.
+ * L'accès au serveur DNS et à la cible doit être possible via le VPN.
+ * Le Core DNS existant fournit seul la réponse et vérifie l'enregistrement A.
+ */
+export function observeSiteVpnPingName(registry,routerAId,routerBId,sourceId,targetId,addresses,name,
+ {dnsEngine,dnsClientId,dnsAssetId}={}){
+ const sourceDns=addresses?.[sourceId]?.dns;
+ const servers=Array.isArray(sourceDns)?sourceDns:(typeof sourceDns==="string"&&sourceDns?[sourceDns]:[]);
+ if(!servers.length)return fail("dns_missing","Aucun DNS configuré sur le PC A");
+ if(!dnsAssetId||!dnsEngine?.query||!dnsClientId)return fail("dns_engine_missing","Serveur DNS non disponible");
+ const configured=servers.find(ip=>ip===addresses?.[dnsAssetId]?.address);
+ if(!configured)return fail("dns_wrong_server","Le DNS du PC A ne correspond pas au serveur disponible");
+ const reachable=observeSiteVpnPing(registry,routerAId,routerBId,sourceId,dnsAssetId,addresses);
+ if(!reachable.success)return fail("dns_unreachable","DNS inaccessible via le VPN : "+(reachable.message||"réseau interrompu"));
+ const answer=dnsEngine.query({type:"dns.resolve",sourceId:dnsClientId,serverAddress:configured,name,recordType:"A"});
+ if(answer.status!=="ok")return fail("dns_error",answer.reason||"Résolution DNS impossible");
+ if(!answer.found)return fail("dns_not_found","Nom DNS inconnu");
+ if(answer.address!==addresses?.[targetId]?.address)return fail("dns_wrong_target","Le nom ne correspond pas au PC B");
+ const ping=observeSiteVpnPing(registry,routerAId,routerBId,sourceId,targetId,addresses);
+ return ping.success?{...ping,resolvedAddress:answer.address,dnsServer:configured,name}:ping;
+}
