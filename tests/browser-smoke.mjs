@@ -1013,6 +1013,35 @@ try {
     await page.close();passed++;
     console.log("PASS Wi-Fi VLAN "+colorScheme+" : deux SSID, deux DHCP, Trunk VLAN et thème");
   }
+  for(const colorScheme of ["light","dark"]){
+    const page=await browser.newPage({viewport:{width:390,height:844},colorScheme});
+    const errors=[];page.on("pageerror",e=>errors.push(e.message));
+    const response=await page.goto("http://127.0.0.1:8766/wifi-isolation-demo/",{waitUntil:"networkidle"});
+    assert.equal(response.status(),200);
+    const theme=await page.evaluate(()=>({
+      background:getComputedStyle(document.body).backgroundColor,
+      panel:getComputedStyle(document.querySelector("section")).backgroundColor,
+      overflow:document.documentElement.scrollWidth>innerWidth
+    }));
+    assert.equal(theme.background,colorScheme==="dark"?"rgb(19, 29, 39)":"rgb(239, 243, 247)");
+    assert.equal(theme.panel,colorScheme==="dark"?"rgb(32, 47, 60)":"rgb(255, 255, 255)");
+    assert.equal(theme.overflow,false);
+    assert.equal(await page.locator("#ip-1").innerText(),"192.168.10.100");
+    assert.equal(await page.locator("#ip-2").innerText(),"192.168.10.101");
+    await page.locator("#peer-ping").click();
+    assert.match(await page.locator("#ping-status").innerText(),/Réponse ping reçue/);
+    await page.locator("#isolation").check();
+    await page.locator("#peer-ping").click();
+    assert.match(await page.locator("#ping-status").innerText(),/bloque la communication directe/);
+    await page.locator("#gateway-ping").click();
+    assert.match(await page.locator("#ping-status").innerText(),/Passerelle joignable/);
+    await page.locator("#isolation").uncheck();
+    await page.locator("#peer-ping").click();
+    assert.match(await page.locator("#ping-status").innerText(),/Réponse ping reçue/);
+    assert.deepEqual(errors,[]);
+    await page.close();passed++;
+    console.log("PASS Wi-Fi Isolation mode "+colorScheme+" : DHCP distinct, ping, blocage, passerelle et thème");
+  }
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
   await browser.close();
