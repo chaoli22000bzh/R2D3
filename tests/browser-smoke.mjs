@@ -985,6 +985,34 @@ try {
     passed++;
   }
 
+  for(const colorScheme of ["light","dark"]){
+    const page=await browser.newPage({viewport:{width:390,height:844},colorScheme});
+    const errors=[];page.on("pageerror",e=>errors.push(e.message));
+    const response=await page.goto("http://127.0.0.1:8766/wifi-vlan-demo/",{waitUntil:"networkidle"});
+    assert.equal(response.status(),200);
+    const theme=await page.evaluate(()=>({
+      background:getComputedStyle(document.body).backgroundColor,
+      input:getComputedStyle(document.getElementById("ssid-10")).backgroundColor,
+      overflow:document.documentElement.scrollWidth>innerWidth
+    }));
+    assert.equal(theme.background,colorScheme==="dark"?"rgb(19, 29, 39)":"rgb(239, 243, 247)");
+    assert.equal(theme.input,colorScheme==="dark"?"rgb(37, 57, 74)":"rgb(255, 255, 255)");
+    assert.equal(theme.overflow,false);
+    await page.locator("#request").click();
+    assert.match(await page.locator("#client-status").innerText(),/192\.168\.10\.100/);
+    await page.locator("#client-ssid").selectOption("ssid-20");
+    await page.locator("#request").click();
+    assert.match(await page.locator("#client-status").innerText(),/192\.168\.20\.100/);
+    await page.locator("#trunk").selectOption("10");
+    await page.locator("#request").click();
+    assert.match(await page.locator("#client-status").innerText(),/pas autorisé/);
+    await page.locator("#trunk").selectOption("10,20");
+    await page.locator("#request").click();
+    assert.match(await page.locator("#client-status").innerText(),/192\.168\.20\.100/);
+    assert.deepEqual(errors,[]);
+    await page.close();passed++;
+    console.log("PASS Wi-Fi VLAN "+colorScheme+" : deux SSID, deux DHCP, Trunk VLAN et thème");
+  }
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
   await browser.close();
