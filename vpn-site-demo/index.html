@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>R2D3 | VPN site à site V0.1</title>
+<link rel="stylesheet" href="../src/switch-admin-ui-v1.css">
 <style>
 :root{color-scheme:light dark}*{box-sizing:border-box}
 body{font:14px/1.55 system-ui,Arial,sans-serif;margin:0;background:#eff3f6;color:#183345}
@@ -10,12 +11,12 @@ main{max-width:960px;margin:0 auto;padding:12px}
 section{background:white;border:1px solid #cad8e0;border-radius:9px;padding:13px;margin-bottom:11px}
 h2{font-size:17px;margin:0 0 8px}p{margin:6px 0 9px}
 .columns{display:grid;grid-template-columns:1fr 1fr;gap:11px}.columns section{margin-bottom:0}
-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+
 label{display:grid;gap:4px}input{width:100%;min-width:0;padding:8px;border:1px solid #91aaba;border-radius:5px}
 label.toggle{display:flex;align-items:center;gap:8px;grid-column:1/-1}label.toggle input{width:auto}
 button{padding:9px 12px;border:1px solid #8da6b4;border-radius:5px;background:#fff;color:#183345;cursor:pointer}
 button.primary{background:#12648a;color:white;border-color:#12648a}
-form button{grid-column:1/-1}
+
 .controls{display:flex;gap:8px;flex-wrap:wrap}
 #status{padding:11px;background:#e8f1f6;border-radius:6px;min-height:43px}
 #status[data-result="ok"]{border-left:4px solid #268758}
@@ -35,20 +36,8 @@ form button{grid-column:1/-1}
 <div class="controls"><button id="lanA-link">Couper LAN A</button><button id="wan-link">Couper WAN</button><button id="lanB-link">Couper LAN B</button><button id="a-power">Arrêter routeur A</button><button id="b-power">Arrêter routeur B</button><button id="reset">Réinitialiser</button></div>
 </section>
 <div class="columns">
-<section><h2>Routeur du site A</h2><form id="a-form">
-<label>IP du routeur distant<input name="peer" inputmode="decimal" required></label>
-<label>Réseau distant<input name="remote" inputmode="decimal" required></label>
-<label>Préfixe du réseau distant<input name="prefix" type="number" min="1" max="30" required></label>
-<label class="toggle"><input name="enabled" type="checkbox"> Activer le VPN site à site</label>
-<button class="primary" type="submit">Enregistrer site A</button>
-</form></section>
-<section><h2>Routeur du site B</h2><form id="b-form">
-<label>IP du routeur distant<input name="peer" inputmode="decimal" required></label>
-<label>Réseau distant<input name="remote" inputmode="decimal" required></label>
-<label>Préfixe du réseau distant<input name="prefix" type="number" min="1" max="30" required></label>
-<label class="toggle"><input name="enabled" type="checkbox"> Activer le VPN site à site</label>
-<button class="primary" type="submit">Enregistrer site B</button>
-</form></section>
+<section><h2>Routeur du site A</h2><div id="admin-a"></div></section>
+<section><h2>Routeur du site B</h2><div id="admin-b"></div></section>
 </div>
 <section><h2>Contrôle de communication</h2>
 <div class="columns" style="margin-bottom:10px">
@@ -63,4 +52,4 @@ form button{grid-column:1/-1}
 <p id="status" role="status">Initialisation du laboratoire.</p>
 <p class="note">Un ping réussi exige deux configurations VPN miroir, des équipements en service, des adresses cohérentes et trois liaisons Ethernet opérationnelles.</p>
 </section>
-</main><script type="module" src="./main.js?v=2"></script></body></html>
+</main><script type="module" src="./main.js?v=3"></script></body></html>
