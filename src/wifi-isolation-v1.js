@@ -42,9 +42,12 @@ export function createWifiIsolationSession({registry,apId,switchId,ssidId,client
  let core;
  try{
   core=createEngine({format:"r2d3-scenario",schemaVersion:1,scenarioId:"wifi-isolation",
-    scenarioVersion:"1",capabilities:{network:true},objects:[...coreClients,coreServer],
-    links:ids.map((id,i)=>({id:"radio-client-"+i,kind:"ethernet-cable",connected:true,
-      endpoints:[{objectId:id,portId:"wifi-client"},{objectId:switchId,portId}]}))
+    scenarioVersion:"1",capabilities:{network:true},objects:[...coreClients,coreServer,{id:apId,kind:"wifi-ap",name:ap.name,
+      ports:[{id:"uplink",type:"rj45"},{id:"radio-1",type:"rj45"},{id:"radio-2",type:"rj45"}],config:{}}],
+    links:[...ids.map((id,i)=>({id:"radio-client-"+i,kind:"ethernet-cable",connected:true,
+      endpoints:[{objectId:id,portId:"wifi-client"},{objectId:apId,portId:"radio-"+(i+1)}]})),
+      {id:"ap-uplink-logical",kind:"ethernet-cable",connected:true,
+      endpoints:[{objectId:apId,portId:"uplink"},{objectId:switchId,portId}]}]
   });
  }catch(e){return fail("core_invalid",e.message);}
  for(let i=0;i<ids.length;i++){
