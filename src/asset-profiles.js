@@ -118,15 +118,18 @@ function validIpHelperConfiguration(asset,config){
 
 function validAssetDhcpServer(asset,conf){
  if(!asset.networkCapabilities?.includes("dhcp-server")||
-    !asset.networkCapabilities.includes("inter-vlan-routing")||
+    !(asset.networkCapabilities.includes("inter-vlan-routing")||asset.networkCapabilities.includes("ipv4-router"))||
     !conf||conf.assetId!==asset.id||typeof conf.enabled!=="boolean"||
     !Array.isArray(conf.pools)||(conf.enabled&&conf.pools.length===0))return false;
  const seen=new Set(),ranges=[];
  const val=x=>validIPv4(x)?x.split(".").reduce((a,n)=>(a*256+Number(n))>>>0,0):null;
  for(const p of conf.pools){
   if(!p||typeof p.id!=="string"||!/^[a-zA-Z0-9_-]+$/.test(p.id)||
-   seen.has(p.id)||!Number.isInteger(p.vlanNumber)||p.vlanNumber<1||p.vlanNumber>4094||
-   !asset.vlanConfig?.vlans.some(v=>v.number===p.vlanNumber)||
+   seen.has(p.id)||(asset.networkCapabilities.includes("ipv4-router")
+     ? typeof p.portId!=="string"||p.vlanNumber!==undefined||
+       !asset.routerConfig?.interfaces?.[p.portId]||!["lan","dmz"].includes(asset.routerConfig.interfaces[p.portId].role)
+     : !Number.isInteger(p.vlanNumber)||p.vlanNumber<1||p.vlanNumber>4094||
+       !asset.vlanConfig?.vlans.some(v=>v.number===p.vlanNumber)||p.portId!==undefined)||
    val(p.start)===null||val(p.end)===null||
    val(p.start)>val(p.end)||val(p.end)-val(p.start)>254||
    !Number.isInteger(p.prefix)||p.prefix<1||p.prefix>30||
@@ -143,6 +146,10 @@ function validAssetDhcpServer(asset,conf){
      new Set(p.reservations.map(r=>r.mac.toUpperCase())).size!==p.reservations.length||
      new Set(p.reservations.map(r=>r.address)).size!==p.reservations.length)))
    return false;
+  if(asset.networkCapabilities.includes("ipv4-router")){
+    const iface=asset.routerConfig.interfaces[p.portId];
+    if(iface.mode!=="static"||iface.address!==p.gateway||iface.prefix!==p.prefix)return false;
+  }
   if(ranges.some(r=>val(p.start)<=r.end&&r.start<=val(p.end)))return false;
   seen.add(p.id);ranges.push({start:val(p.start),end:val(p.end)});
  }
@@ -306,8 +313,11 @@ export function createAssetRegistry(saved){
    return result(false,"capability_dependency","Désactiver d’abord la capacité de routage inter-VLAN.");
   if(enabled&&capability==="ipv4-router"&&(p.networkCapabilities.includes("ethernet-switching")||p.portGroups.filter(g=>g.type==="ethernet-rj45"||g.type==="ethernet-fibre").reduce((n,g)=>n+g.count,0)<2))return result(false,"router_dependency","Un routeur exige deux ports Ethernet et ne contient pas de switch LAN intégré.");
    if(enabled&&capability==="ethernet-switching"&&p.networkCapabilities.includes("ipv4-router"))return result(false,"router_dependency","Routeur et commutation incompatibles.");
-   if(enabled&&capability==="dhcp-server"&&!p.networkCapabilities.includes("inter-vlan-routing"))
-   return result(false,"capability_dependency","Serveur DHCP nécessite un switch L3.");
+   if(enabled&&capability==="dhcp-server"&&!p.networkCapabilities.includes("inter-vlan-routing")&&
+     !p.networkCapabilities.includes("ipv4-router"))
+   return result(false,"capability_dependency","Serveur DHCP nécessite un switch L3 ou un routeur.");
+  if(!enabled&&capability==="ipv4-router"&&p.networkCapabilities.includes("dhcp-server"))
+   return result(false,"capability_dependency","Retirer d'abord le serveur DHCP du routeur.");
   if(!enabled&&capability==="inter-vlan-routing"&&p.networkCapabilities.includes("dhcp-server"))
    return result(false,"capability_dependency","Retirer d'abord la capacité serveur DHCP.");
   if(enabled&&capability==="inter-vlan-routing"&&!p.networkCapabilities.includes("vlan"))
@@ -657,6 +667,11 @@ export function createAssetRegistry(saved){
  function setAssetRouterConfig(id,config){
   const a=getA(id);if(!a?.networkCapabilities.includes("ipv4-router"))return result(false,"capability_missing","Routeur introuvable.");
   if(!routerValid(a,config))return result(false,"invalid_router_config","Configuration des interfaces refusée.");
+  const candidate={...a,routerConfig:config};
+  if(a.dhcpServerConfig&&!validAssetDhcpServer(candidate,a.dhcpServerConfig))
+   return result(false,"dhcp_pool_references_interface","Plage DHCP liée à une interface : corriger la plage avant de modifier le port.");
+  if(a.ipHelperConfig&&!validIpHelperConfiguration(candidate,a.ipHelperConfig))
+   return result(false,"helper_references_interface","IP Helper incompatible avec la nouvelle interface.");
   a.routerConfig=clone(config);s.revision++;return result(true,"router_updated","Interfaces enregistrées.",{config:clone(a.routerConfig)});
  }
  function setAssetDhcpServerConfig(id,config){
