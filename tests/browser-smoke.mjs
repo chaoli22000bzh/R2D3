@@ -1024,6 +1024,12 @@ try {
       panel:getComputedStyle(document.querySelector("section")).backgroundColor,
       overflow:document.documentElement.scrollWidth>innerWidth
     }));
+    console.log("DIAG WIFI4 THEME",colorScheme,JSON.stringify(theme),JSON.stringify(await page.evaluate(()=>({
+      mediaDark:matchMedia("(prefers-color-scheme: dark)").matches,
+      rootScheme:getComputedStyle(document.documentElement).colorScheme,
+      rootBg:getComputedStyle(document.documentElement).getPropertyValue("--bg"),
+      rules:[...document.styleSheets].flatMap(s=>{try{return [...s.cssRules].filter(r=>r.cssText.startsWith("@media")).map(r=>({text:r.conditionText,match:matchMedia(r.conditionText).matches}));}catch{return []}}),
+    }))));
     assert.equal(theme.background,colorScheme==="dark"?"rgb(19, 29, 39)":"rgb(239, 243, 247)");
     assert.equal(theme.panel,colorScheme==="dark"?"rgb(32, 47, 60)":"rgb(255, 255, 255)");
     assert.equal(theme.overflow,false);
