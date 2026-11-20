@@ -20,7 +20,7 @@ input[type=checkbox]{width:17px;height:17px;min-width:17px;min-height:17px;margi
 <header><h1>R2D3 : Isolation mode</h1><p>Wi-Fi V1, lot 4, deux clients sur le même SSID</p></header>
 <main>
 <section><h2>Topologie du laboratoire</h2>
-<div class="diagram"><div class="node">PC-01<br><strong id="ip-1">Adresse en cours</strong></div> ⇄ <div class="node">AP-CIEL<br><strong>LYCEE-CIEL</strong><br>VLAN 10</div> ⇄ <div class="node">Switch L3<br><strong>192.168.10.1</strong><br>DHCP</div> ⇄ <div class="node">PC-02<br><strong id="ip-2">Adresse en cours</strong></div></div>
+<div class="diagram"><div class="node">PC-01<br><strong id="ip-1">Adresse en cours</strong></div> ⇄ <div class="node">AP-CIEL<br><strong>LYCEE-CIEL</strong><br>VLAN 10</div> ⇄ <div class="node">PC-02<br><strong id="ip-2">Adresse en cours</strong></div></div><p class="note" style="text-align:center">AP-CIEL ⇄ câble Ethernet Trunk ⇄ Switch L3 (192.168.10.1, serveur DHCP)</p>
 <p class="note">PC-01 et PC-02 sont tous deux associés à la même borne et au même SSID. Le switch L3 délivre des adresses distinctes avec le moteur DHCP commun.</p>
 <div id="leases-status" class="status" aria-live="polite">Initialisation des clients...</div></section>
 <section><h2>Réglage de la borne</h2>
