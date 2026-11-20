@@ -821,7 +821,7 @@ try {
   const sitePage=await browser.newPage({viewport:{width:1200,height:850}});
   const siteErrors=[];
   sitePage.on("pageerror",err=>siteErrors.push(err.message));
-  const siteResponse=await sitePage.goto("http://127.0.0.1:8765/vpn-site-demo/",{waitUntil:"networkidle"});
+  const siteResponse=await sitePage.goto("http://127.0.0.1:8766/vpn-site-demo/",{waitUntil:"networkidle"});
   assert.equal(siteResponse.status(),200);
   const siteA=sitePage.locator("#admin-a"),siteB=sitePage.locator("#admin-b");
   await siteA.getByRole("button",{name:"VPN site à site"}).click();
