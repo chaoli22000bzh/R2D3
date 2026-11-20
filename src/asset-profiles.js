@@ -5,7 +5,9 @@ const result=(success,code,message,extra={})=>({success,code,message,...extra});
 const types=["text","number","boolean","select","date"];
 const common=["name","manufacturer","model","serialNumber","status","location","reservable"];
 // Capacités métier connues. Les champs descriptifs ne déclenchent jamais une simulation.
-const supportedNetworkCapabilities=["ethernet-switching","vlan","inter-vlan-routing","ip-helper","dhcp-server","ipv4-router"];
+const supportedNetworkCapabilities=["ethernet-switching","vlan","inter-vlan-routing","ip-helper","dhcp-server","ipv4-router","wifi-ap"];
+const wifiDefault=a=>({assetId:a.id,enabled:true,ssids:[{id:"ssid-1",name:"R2D3-WIFI",enabled:true,security:"open",password:"",bands:["2.4","5"],clientIsolation:false}]});
+const validWifiConfig=(a,c)=>!!a.networkCapabilities?.includes("wifi-ap")&&c?.assetId===a.id&&typeof c.enabled==="boolean"&&a.ports.some(p=>p.type==="ethernet-rj45")&&a.ports.some(p=>p.type==="wifi")&&Array.isArray(c.ssids)&&c.ssids.length<=16&&new Set(c.ssids.map(x=>x.id)).size===c.ssids.length&&c.ssids.every(x=>typeof x.id==="string"&&x.id.length>0&&typeof x.name==="string"&&x.name.length>=1&&x.name.length<=32&&typeof x.enabled==="boolean"&&["open","wpa2-personal","wpa3-personal","wpa2-wpa3-personal"].includes(x.security)&&typeof x.password==="string"&&(x.security==="open"?x.password==="":x.password===""||x.password.length>=8&&x.password.length<=63)&&typeof x.clientIsolation==="boolean"&&Array.isArray(x.bands)&&x.bands.length>0&&new Set(x.bands).size===x.bands.length&&x.bands.every(b=>["2.4","5","6"].includes(b))&&(!x.bands.includes("6")||x.security==="wpa3-personal"));
 const empty=v=>v===undefined||v===null||v==="";
 const routerPorts=a=>a.ports.filter(p=>p.type==="ethernet-rj45"||p.type==="ethernet-fibre");
 const routerIpv4=v=>typeof v==="string"&&/^\d{1,3}(\.\d{1,3}){3}$/.test(v)&&v.split(".").every(x=>Number(x)<=255);
@@ -216,6 +218,7 @@ export function createAssetRegistry(saved){
   if(!Array.isArray(p.networkCapabilities)||new Set(p.networkCapabilities).size!==p.networkCapabilities.length||
       p.networkCapabilities.some(x=>!supportedNetworkCapabilities.includes(x)))throw Error("Capacités réseau de profil invalides");
    if(p.poe&&!p.networkCapabilities.includes("ethernet-switching"))throw Error("PoE réservé à un profil switch");
+    if(p.networkCapabilities.includes("wifi-ap")&&(!p.portGroups.some(g=>g.type==="wifi")||!p.portGroups.some(g=>g.type==="ethernet-rj45")))throw Error("Profil Wi-Fi sans port Ethernet ou radio");
     if(p.networkCapabilities.includes("ipv4-router")&&(p.networkCapabilities.includes("ethernet-switching")||p.portGroups.filter(g=>g.type==="ethernet-rj45"||g.type==="ethernet-fibre").reduce((n,g)=>n+g.count,0)<2))throw Error("Profil routeur invalide");
  }
  for(const a of s.assets){
@@ -230,6 +233,9 @@ export function createAssetRegistry(saved){
    if(a.poe&&!a.networkCapabilities?.includes("ethernet-switching"))
     throw Error("PoE réservé à un switch Ethernet");
    a.networkCapabilities??=[]; // Compatibilité avec les inventaires précédents.
+    if(a.networkCapabilities.includes("wifi-ap")&&a.wifiConfig===undefined)a.wifiConfig=wifiDefault(a);
+    if(a.networkCapabilities.includes("wifi-ap")&&!validWifiConfig(a,a.wifiConfig))throw Error("Configuration de borne Wi-Fi invalide");
+    if(!a.networkCapabilities.includes("wifi-ap")&&a.wifiConfig!==undefined)throw Error("Configuration Wi-Fi sans capacité");
     if(a.networkCapabilities.includes("ipv4-router")&&!routerValid(a,a.routerConfig))throw Error("Configuration routeur invalide");
     if(!a.networkCapabilities.includes("ipv4-router")&&a.routerConfig!==undefined)throw Error("Configuration routeur sans capacité");
   if(!Array.isArray(a.networkCapabilities)||new Set(a.networkCapabilities).size!==a.networkCapabilities.length||
@@ -311,7 +317,8 @@ export function createAssetRegistry(saved){
    return result(false,"invalid_network_capability","Capacité ou état réseau invalide.");
   if(!enabled&&capability==="vlan"&&p.networkCapabilities.includes("inter-vlan-routing"))
    return result(false,"capability_dependency","Désactiver d’abord la capacité de routage inter-VLAN.");
-  if(enabled&&capability==="ipv4-router"&&(p.networkCapabilities.includes("ethernet-switching")||p.portGroups.filter(g=>g.type==="ethernet-rj45"||g.type==="ethernet-fibre").reduce((n,g)=>n+g.count,0)<2))return result(false,"router_dependency","Un routeur exige deux ports Ethernet et ne contient pas de switch LAN intégré.");
+  if(enabled&&capability==="wifi-ap"&&(!p.portGroups.some(g=>g.type==="wifi")||!p.portGroups.some(g=>g.type==="ethernet-rj45")))return result(false,"wifi_requires_ports","Un point d’accès exige un port Wi-Fi et un port Ethernet.");
+   if(enabled&&capability==="ipv4-router"&&(p.networkCapabilities.includes("ethernet-switching")||p.portGroups.filter(g=>g.type==="ethernet-rj45"||g.type==="ethernet-fibre").reduce((n,g)=>n+g.count,0)<2))return result(false,"router_dependency","Un routeur exige deux ports Ethernet et ne contient pas de switch LAN intégré.");
    if(enabled&&capability==="ethernet-switching"&&p.networkCapabilities.includes("ipv4-router"))return result(false,"router_dependency","Routeur et commutation incompatibles.");
    if(enabled&&capability==="dhcp-server"&&!p.networkCapabilities.includes("inter-vlan-routing")&&
      !p.networkCapabilities.includes("ipv4-router"))
@@ -662,7 +669,13 @@ export function createAssetRegistry(saved){
   if(a.networkCapabilities.includes("dhcp-server"))
    a.dhcpServerConfig={assetId:a.id,enabled:false,pools:[]};
   if(a.networkCapabilities.includes("ipv4-router"))a.routerConfig=routerDefaults(a);
+   if(a.networkCapabilities.includes("wifi-ap"))a.wifiConfig=wifiDefault(a);
    s.assets.push(a);s.revision++;return result(true,"asset_created","Matériel créé.",{asset:clone(a)});
+ }
+ function setAssetWifiConfig(id,config){
+  const a=getA(id);if(!a?.networkCapabilities.includes("wifi-ap"))return result(false,"capability_missing","Point d’accès Wi-Fi introuvable.");
+  if(!validWifiConfig(a,config))return result(false,"invalid_wifi_config","Configuration Wi-Fi refusée sans modification.");
+  a.wifiConfig=clone(config);s.revision++;return result(true,"wifi_config_updated","Configuration Wi-Fi enregistrée.",{config:clone(config)});
  }
  function setAssetRouterConfig(id,config){
   const a=getA(id);if(!a?.networkCapabilities.includes("ipv4-router"))return result(false,"capability_missing","Routeur introuvable.");
@@ -812,7 +825,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,setAssetRouterConfig,setAssetDhcpServerConfig,setAssetManagementConfig,setAssetVlanConfig,updateAssetVlanDefinition,removeAssetVlanDefinition,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,updateAsset,
+ return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,setAssetWifiConfig,setAssetRouterConfig,setAssetDhcpServerConfig,setAssetManagementConfig,setAssetVlanConfig,updateAssetVlanDefinition,removeAssetVlanDefinition,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,updateAsset,
  listWallOutlets:()=>clone(s.wallOutlets),listPanels:()=>clone(s.panels),getPanel:id=>clone(s.panels.find(p=>p.id===id)||null),listCables:()=>clone(s.cables),getCable:id=>clone(s.cables.find(x=>x.id===id)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);
