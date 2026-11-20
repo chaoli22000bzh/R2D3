@@ -1015,6 +1015,7 @@ try {
   }
   for(const colorScheme of ["light","dark"]){
     const page=await browser.newPage({viewport:{width:390,height:844},colorScheme});
+    // Recette du lot 4 : vérifier la palette de chaque thème et les échanges réseau.
     const errors=[];page.on("pageerror",e=>errors.push(e.message));
     const response=await page.goto("http://127.0.0.1:8766/wifi-isolation-demo/",{waitUntil:"networkidle"});
     assert.equal(response.status(),200);
