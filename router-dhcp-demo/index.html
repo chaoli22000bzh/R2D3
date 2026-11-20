@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R2D3 | DHCP et IP Helper du routeur</title>
+<link rel="stylesheet" href="../src/switch-admin-ui-v1.css?v=router-dhcp-1">
+<style>
+:root{color-scheme:light dark}*{box-sizing:border-box}
+body{font:14px/1.5 system-ui,Arial,sans-serif;margin:0;background:#eef3f6;color:#203744}
+header{background:#193e60;color:#fff;padding:14px max(12px,calc((100% - 1020px)/2))}
+header h1{margin:0;font-size:21px}
+main{max-width:1020px;margin:auto;padding:12px}
+section{background:white;border:1px solid #cad8e0;border-radius:8px;padding:12px;margin-bottom:11px}
+h2{font-size:17px;margin:0 0 7px}
+.diagram{display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap}
+.diagram span{padding:7px 12px;background:#e7edf3;border-radius:5px;text-align:center}
+button{padding:8px 11px;border:1px solid #8da6b4;border-radius:5px;background:white;color:#193e60;cursor:pointer}
+button.primary{background:#12648a;color:white}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin:9px 0}
+#status{background:#e8f1f6;padding:12px;border-radius:5px;min-height:45px}
+#status[data-result="fail"]{border-left:4px solid #bf3944}
+#status[data-result="ok"]{border-left:4px solid #268758}
+.note{font-size:13px;color:#4c6573}
+@media(prefers-color-scheme:dark){body{background:#141d27;color:#e8f0f6}
+section{background:#1d2b37;border-color:#455a68}button{background:#273b4b;color:#e8f0f6;border-color:#688092}
+.diagram span{background:#294151}#status{background:#263c4b}.note{color:#b6c9d4}}
+</style></head><body>
+<header><h1>R2D3 : DHCP et IP Helper du routeur</h1><p>Laboratoire de recette autonome, deux réseaux locaux</p></header>
+<main>
+<section><h2>Topologie</h2>
+<div class="diagram"><span>PC client<br>DHCP</span>↔ <span>LAN GE02<br>192.168.10.1</span>↔
+<span>Routeur</span>↔ <span>LAN GE03<br>192.168.20.1</span>↔
+<span>Serveur DHCP<br>192.168.20.2</span></div>
+<p class="note">Le routeur peut attribuer lui-même un bail sur GE02, ou relayer la demande vers le serveur DHCP de GE03. Ces deux fonctions sont indépendantes.</p>
+<div class="controls">
+<button id="client-link">Couper le câble PC</button>
+<button id="server-link">Couper le câble serveur</button>
+<button id="reset">Réinitialiser</button></div></section>
+<section><h2>Administration commune du routeur</h2><div id="admin"></div></section>
+<section><h2>Contrôle DHCP</h2>
+<div class="controls">
+<button id="test-local" class="primary">Demander une IPv4 au routeur</button>
+<button id="test-relay" class="primary">Demander une IPv4 via IP Helper</button>
+</div>
+<p id="status" role="status">Laboratoire prêt.</p>
+<p class="note">Le même Core DHCP traite les baux. Les changements de paramètres ou de scénario relancent une demande depuis un état client vierge.</p>
+</section>
+</main><script type="module" src="./main.js?v=1"></script></body></html>
