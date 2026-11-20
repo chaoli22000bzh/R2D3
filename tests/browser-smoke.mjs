@@ -831,6 +831,12 @@ try {
   assert.equal(await siteA.locator('form[data-form="site-vpn"] [name="remoteNetwork"]').inputValue(),"192.168.20.0");
   assert.equal(await siteA.locator('form[data-form="site-vpn"] [name="enabled"]').isChecked(),true);
   assert.equal(await siteA.locator('form[data-form="site-vpn"] [name="dns1"]').count(),0);
+  const siteSizes=await siteA.locator('form[data-form="site-vpn"]').evaluate(form=>{
+   const w=name=>Math.round(form.elements[name].getBoundingClientRect().width);
+   return {wan:w("wanPortId"),lan:w("lanPortId"),ip:w("peerAddress"),prefix:w("remotePrefix"),enabled:w("enabled")};
+  });
+  assert.ok(siteSizes.wan<=115&&siteSizes.lan<=115&&siteSizes.ip<=160&&siteSizes.prefix<=75&&siteSizes.enabled<=20,
+   "Dimensions site à site trop grandes : "+JSON.stringify(siteSizes));
   await sitePage.locator("#test-ping").click();
   assert.match(await sitePage.locator("#status").innerText(),/Ping PC A vers PC B : réussi/);
   await siteB.locator('form[data-form="site-vpn"] [name="enabled"]').uncheck();
@@ -843,6 +849,14 @@ try {
   assert.match(await sitePage.locator("#status").innerText(),/pc-b\.entreprise\.test : réussi/);
   await siteA.getByRole("button",{name:"VPN nomade"}).click();
   await siteA.locator('form[data-form="vpn"]').waitFor();
+  const nomadSizes=await siteA.locator('form[data-form="vpn"]').evaluate(form=>{
+   const w=name=>Math.round(form.elements[name].getBoundingClientRect().width);
+   return {wan:w("wanPortId"),lan:w("lanPortId"),network:w("vpnNetwork"),
+    prefix:w("vpnPrefix"),dns1:w("dns1"),dns2:w("dns2"),enabled:w("enabled")};
+  });
+  assert.ok(nomadSizes.wan<=120&&nomadSizes.lan<=120&&nomadSizes.network<=165&&
+   nomadSizes.prefix<=95&&nomadSizes.dns1<=165&&nomadSizes.dns2<=165&&nomadSizes.enabled<=20,
+   "Dimensions VPN nomade trop grandes : "+JSON.stringify(nomadSizes));
   assert.deepEqual(siteErrors,[]);
   await sitePage.close();
   console.log("PASS VPN SITE UI : deux onglets routeur partagés, activation et ping par nom");
