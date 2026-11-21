@@ -47,16 +47,22 @@ function initialize(){
  wifiAdmin=mountWifiAdmin({root:$("wifi-admin"),registry,assetId:ap.id,onChange:r=>report("ap-status",r)});
  report("leases-status",{success:true,message:"Deux baux IPv4 distincts attribués : "+session.addresses.join(" et ")+"/24."});
  report("ap-status",{success:true,message:"Isolation mode désactivé : communication directe autorisée."});
+ for(const id of ["peer-ping","gateway-ping"]){$(id).classList.remove("primary");$(id).setAttribute("aria-pressed","false");}
  animator.cancel("C:\\\\Users\\\\technicien>");
  $("ping-status").textContent="Choisis un test ping.";$("ping-status").dataset.result="";
 }
-function runPing(target,call){
+function runPing(buttonId,target,call){
+ for(const id of ["peer-ping","gateway-ping"]){
+  const selected=id===buttonId;
+  $(id).classList.toggle("primary",selected);
+  $(id).setAttribute("aria-pressed",String(selected));
+ }
  const result=call();
  report("ping-status",result);
  animator.run({sourceName:"PC-01",sourceAddress:session.addresses[0],
   targetAddress:target,targetInput:target,outcome:result});
 }
-$("peer-ping").addEventListener("click",()=>runPing(session.addresses[1],session.pingPeers));
-$("gateway-ping").addEventListener("click",()=>runPing("192.168.10.1",session.pingGateway));
+$("peer-ping").addEventListener("click",()=>runPing("peer-ping",session.addresses[1],session.pingPeers));
+$("gateway-ping").addEventListener("click",()=>runPing("gateway-ping","192.168.10.1",session.pingGateway));
 $("reset").addEventListener("click",initialize);
 initialize();
