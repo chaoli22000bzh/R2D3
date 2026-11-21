@@ -8,7 +8,7 @@ const checkpoints=[
  {id:"R+1-01",x:8,y:9,z:3},{id:"R+1-02",x:32,y:9,z:3},{id:"R+1-03",x:55,y:9,z:3},
  {id:"R+2-01",x:8,y:9,z:6},{id:"R+2-02",x:32,y:9,z:6},{id:"R+2-03",x:55,y:9,z:6}
 ];
-const initial=[{x:8,y:9,z:0},{x:32,y:9,z:3},{x:55,y:9,z:6}];
+const initial=[{x:6,y:3,z:0},{x:9,y:5,z:0},{x:5,y:4,z:3}];
 function init(){
  registry=createAssetRegistry();aps=[];
  for(let i=0;i<3;i++){
