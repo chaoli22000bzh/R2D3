@@ -58,3 +58,29 @@ test("Configuration : mauvaise configuration refusée, restauration de la sécur
  assert.equal(associateWifiClient(restored,{apId:f.ap.id,ssidId:"ssid-1",
   security:["wpa2-personal"],password:"Motdepasse2026"}).success,true);
 });
+
+test("Bandes par SSID : 6 GHz exige WPA3 et préserve l'état lors d'un refus",()=>{
+ const f=setup();
+ assert.equal(f.configure("wpa2-personal","Motdepasse2026",["2.4","5"]).success,true);
+ const before=f.registry.exportState();
+ assert.equal(f.configure("wpa2-personal","Motdepasse2026",["6"]).success,false);
+ assert.deepEqual(f.registry.exportState(),before);
+ assert.equal(f.configure("wpa3-personal","Motdepasse2026",[]).success,false);
+ assert.deepEqual(f.registry.exportState(),before);
+ assert.equal(f.configure("wpa3-personal","Motdepasse2026",["5","6"]).success,true);
+ assert.deepEqual(getWifiConfig(f.registry,f.ap.id).ssids[0].bands,["5","6"]);
+ assert.equal(scanWifiNetworks(f.registry,{bands:["6"],security:["wpa3-personal"]}).length,1);
+ assert.equal(scanWifiNetworks(f.registry,{bands:["6"],security:["wpa2-personal"]}).length,0);
+ const restored=restoreAssetRegistry(f.registry.exportState());
+ assert.deepEqual(restored.getAsset(f.ap.id).wifiConfig.ssids[0].bands,["5","6"]);
+ assert.equal(associateWifiClient(restored,{apId:f.ap.id,ssidId:"ssid-1",
+  password:"Motdepasse2026",bands:["6"],security:["wpa3-personal"]}).success,true);
+});
+test("Bandes par SSID : 2,4 et 5 GHz restent utilisables sur WPA2",()=>{
+ const f=setup();
+ assert.equal(f.configure("wpa2-personal","Motdepasse2026",["2.4","5"]).success,true);
+ for(const band of ["2.4","5"]){
+  assert.equal(f.connect(["wpa2-personal"],"Motdepasse2026",[band]).success,true);
+  assert.equal(scanWifiNetworks(f.registry,{bands:[band],security:["wpa2-personal"]}).length,1);
+ }
+});
