@@ -1,11 +1,10 @@
-import {normalizeWifiMac} from "./wifi-mac-filter-v1.js";
 /* R2D3 - Administration Wi-Fi partageable.
  * Toute configuration est lue et enregistrée dans le registre R2D3.
  * Aucun état radio, VLAN, sécurité ou DHCP parallèle dans cette interface.
  */
 import {getWifiConfig,configureWifiAp} from "./wifi-ap-v1.js";
 const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const choices=[["open","Ouvert"],["wpa2-personal","WPA2-Personal"],["wpa3-personal","WPA3-Personal"],["wpa2-wpa3-personal","WPA2/WPA3"],["wpa2-enterprise","WPA2-Enterprise"]];
+const choices=[["open","Ouvert"],["wpa2-personal","WPA2-Personal"],["wpa3-personal","WPA3-Personal"],["wpa2-wpa3-personal","WPA2/WPA3"]];
 export function mountWifiAdmin({root,registry,assetId,onChange}={}){
  if(!root||!registry?.getAsset)throw Error("Élément ou registre R2D3 absent.");
  let error="",isError=false;
@@ -15,19 +14,10 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
   root.classList.add("wifi-admin");
   root.innerHTML='<div class="wifi-admin-head"><strong>Administration Wi-Fi</strong><label><input type="checkbox" data-enabled '+(config.enabled?"checked":"")+'> Borne activée</label></div>'+
    (error?'<p role="status" class="wifi-admin-feedback '+(isError?"error":"")+'">'+esc(error)+'</p>':"")+
-   config.ssids.map((s,i)=>'<fieldset data-index="'+i+'" data-security="'+esc(s.security)+'"><legend>SSID '+(i+1)+'</legend>'+
+   config.ssids.map((s,i)=>'<fieldset data-index="'+i+'"><legend>SSID '+(i+1)+'</legend>'+
     '<label>Nom du réseau<input data-field="name" maxlength="32" value="'+esc(s.name)+'"></label>'+
     '<label>Sécurité<select data-field="security">'+choices.map(([id,label])=>'<option value="'+id+'" '+(s.security===id?"selected":"")+'>'+label+'</option>').join("")+'</select></label>'+
-    '<label>Mot de passe Wi-Fi<input data-field="password" value="'+esc(s.password||"")+'"></label>'+
-    '<div class="wifi-admin-radius"><span>Serveur RADIUS</span><div class="wifi-admin-radius-inputs">'+
-      '<label>IPv4<input data-field="radiusAddress" placeholder="192.168.10.2" value="'+esc(s.radius?.address||"")+'"></label>'+
-      '<label>Port<input type="number" min="1" max="65535" data-field="radiusPort" value="'+esc(s.radius?.port??1812)+'"></label>'+
-      '<label>Secret partagé<input data-field="radiusSecret" value="'+esc(s.radius?.secret||"")+'"></label>'+
-    '</div></div>'+
-    '<div class="wifi-admin-mac"><label>Filtrage MAC<select data-field="macMode">'+
-      [["disabled","Désactivé"],["allow","Autoriser la liste"],["deny","Refuser la liste"]].map(([v,l])=>
-       '<option value="'+v+'"'+((s.macFilter?.mode||"disabled")===v?' selected':'')+'>'+l+'</option>').join("")+
-    '</select></label><label>Adresses MAC (une par ligne)<textarea rows="2" data-field="macAddresses" placeholder="02:00:00:00:10:01">'+esc((s.macFilter?.addresses||[]).join("\\n"))+'</textarea></label></div>'+
+    '<label>Mot de passe<input data-field="password" value="'+esc(s.password||"")+'"></label>'+
     '<div class="wifi-admin-bands" role="group" aria-label="Bandes du SSID '+(i+1)+'"><span>Bandes Wi-Fi</span><div class="wifi-admin-band-options">'+
      [["2.4","2,4 GHz"],["5","5 GHz"],["6","6 GHz"]].map(([id,label])=>
       '<label class="check"><input type="checkbox" data-band="'+id+'"'+(s.bands.includes(id)?' checked':'')+'>'+label+'</label>').join("")+
@@ -66,14 +56,8 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
    const fieldset=root.querySelector('fieldset[data-index="'+i+'"]');
    const read=k=>fieldset.querySelector('[data-field="'+k+'"]');
    const raw=read("vlanNumber").value.trim();
-   const security=read("security").value;
-   const macEntries=read("macAddresses").value.split(/[\\s,;]+/).filter(Boolean);
-   return {...s,name:read("name").value.trim(),security,
-     password:security==="wpa2-enterprise"||security==="open"?"":read("password").value,
-     radius:security==="wpa2-enterprise"?{
-       address:read("radiusAddress").value.trim(),port:Number(read("radiusPort").value),
-       secret:read("radiusSecret").value}:s.radius,
-     macFilter:{mode:read("macMode").value,addresses:macEntries.map(a=>normalizeWifiMac(a)||a)},
+   return {...s,name:read("name").value.trim(),security:read("security").value,
+     password:read("password").value,
      bands:[...fieldset.querySelectorAll('input[data-band]:checked')].map(input=>input.dataset.band),
      vlanNumber:raw===""?null:Number(raw),
      enabled:read("enabled").checked,clientIsolation:read("clientIsolation").checked};
@@ -87,6 +71,5 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
   return result;
  }
  root.onclick=e=>{if(e.target.closest("[data-save]"))save();};
- root.onchange=e=>{if(e.target.matches('[data-field="security"]'))e.target.closest("fieldset").dataset.security=e.target.value;};
  render();return {render,save,getConfig:get};
 }
