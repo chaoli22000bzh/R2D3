@@ -1,5 +1,6 @@
 /* Wi-Fi R2D3 : premier lot, association simulée et capacité de borne.
    Ne remplace pas les moteurs Ethernet, DHCP, VLAN ou routage. */
+import {negotiateWifiSecurity} from "./wifi-security-v1.js";
 const fail=(code,message)=>({success:false,code,message});
 const ok=(code,message,extra={})=>({success:true,code,message,...extra});
 export function createWifiAccessPoint(registry,{name="AP-01"}={}){
@@ -25,7 +26,8 @@ export function scanWifiNetworks(registry,{bands=["2.4","5"],security=["open","w
  for(const ap of registry.listAssets().filter(a=>a.networkCapabilities?.includes("wifi-ap")&&a.wifiConfig?.enabled&&a.status==="En service")){
   for(const ssid of ap.wifiConfig.ssids.filter(s=>s.enabled)){
    const common=ssid.bands.filter(b=>bands.includes(b));
-   if(common.length&&security.includes(ssid.security))out.push({apId:ap.id,apName:ap.name,ssidId:ssid.id,ssid:ssid.name,security:ssid.security,bands:common});
+   const negotiated=common.map(b=>({band:b,result:negotiateWifiSecurity(ssid.security,security,b)})).filter(x=>x.result.success);
+   if(negotiated.length)out.push({apId:ap.id,apName:ap.name,ssidId:ssid.id,ssid:ssid.name,security:ssid.security,bands:negotiated.map(x=>x.band)});
   }
  }
  return out;
@@ -36,8 +38,14 @@ export function associateWifiClient(registry,{apId,ssidId,password="",bands=["2.
  if(ap.status!=="En service"||!ap.wifiConfig?.enabled)return fail("ap_disabled","Borne Wi-Fi désactivée.");
  const ssid=ap.wifiConfig.ssids.find(x=>x.id===ssidId);
  if(!ssid?.enabled)return fail("ssid_unavailable","Réseau Wi-Fi non disponible.");
- if(!ssid.bands.some(x=>bands.includes(x)))return fail("band_incompatible","Aucune bande radio compatible.");
- if(!security.includes(ssid.security))return fail("security_incompatible","Sécurité non prise en charge par le client.");
- if(ssid.security!=="open"&&(!ssid.password||ssid.password!==password))return fail("authentication_failed","Mot de passe incorrect ou absent.");
- return ok("associated","Client associé au Wi-Fi. L'adressage IP et la connectivité Ethernet doivent être testés séparément.",{apId:ap.id,ssid:ssid.name,ssidId:ssid.id,band:ssid.bands.find(x=>bands.includes(x)),clientIsolation:ssid.clientIsolation});
+ const commonBands=ssid.bands.filter(x=>bands.includes(x));
+ if(!commonBands.length)return fail("band_incompatible","Aucune bande radio compatible.");
+ const compatible=commonBands.map(band=>({band,negotiation:negotiateWifiSecurity(ssid.security,security,band)}))
+  .find(x=>x.negotiation.success);
+ if(!compatible)return fail("security_incompatible","Sécurité non prise en charge par le client sur cette bande.");
+ if(ssid.security!=="open"&&(!ssid.password||ssid.password!==password))
+  return fail("authentication_failed","Mot de passe incorrect ou absent.");
+ return ok("associated","Client associé au Wi-Fi. L'adressage IP et la connectivité Ethernet doivent être testés séparément.",{
+  apId:ap.id,ssid:ssid.name,ssidId:ssid.id,band:compatible.band,
+  negotiatedSecurity:compatible.negotiation.negotiatedSecurity,clientIsolation:ssid.clientIsolation});
 }
