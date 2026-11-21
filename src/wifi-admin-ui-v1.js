@@ -18,6 +18,10 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
     '<label>Nom du réseau<input data-field="name" maxlength="32" value="'+esc(s.name)+'"></label>'+
     '<label>Sécurité<select data-field="security">'+choices.map(([id,label])=>'<option value="'+id+'" '+(s.security===id?"selected":"")+'>'+label+'</option>').join("")+'</select></label>'+
     '<label>Mot de passe<input data-field="password" value="'+esc(s.password||"")+'"></label>'+
+    '<div class="wifi-admin-bands" role="group" aria-label="Bandes du SSID '+(i+1)+'"><span>Bandes Wi-Fi</span><div class="wifi-admin-band-options">'+
+     [["2.4","2,4 GHz"],["5","5 GHz"],["6","6 GHz"]].map(([id,label])=>
+      '<label class="check"><input type="checkbox" data-band="'+id+'"'+(s.bands.includes(id)?' checked':'')+'>'+label+'</label>').join("")+
+    '</div></div>'+
     '<label class="wifi-admin-vlan">VLAN<input type="text" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4" autocomplete="off" data-field="vlanNumber" value="'+esc(s.vlanNumber??"")+'"></label>'+
     '<label class="check"><input type="checkbox" data-field="enabled" '+(s.enabled?"checked":"")+'> SSID actif</label>'+
     '<label class="check"><input type="checkbox" data-field="clientIsolation" '+(s.clientIsolation?"checked":"")+'> Isolation mode</label>'+
@@ -34,12 +38,27 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
    else {const p=document.createElement("p");p.className="wifi-admin-feedback error";p.setAttribute("role","status");p.textContent=error;root.querySelector(".wifi-admin-head").after(p);}
    return {success:false,message:error};
   }
+  // La configuration de chaque SSID doit contenir au moins une bande ;
+  // sur 6 GHz le registre n'accepte actuellement que WPA3-Personal.
+  const fieldsets=[...root.querySelectorAll('fieldset[data-index]')];
+  if(fieldsets.some(fieldset=>{
+   const bands=[...fieldset.querySelectorAll('input[data-band]:checked')].map(input=>input.dataset.band);
+   return bands.length===0||(bands.includes("6")&&fieldset.querySelector('[data-field="security"]').value!=="wpa3-personal");
+  })){
+   error="Sélectionne au moins une bande. La bande 6 GHz nécessite WPA3-Personal.";
+   isError=true;
+   const existing=root.querySelector(".wifi-admin-feedback");
+   if(existing){existing.textContent=error;existing.classList.add("error");}
+   else {const p=document.createElement("p");p.className="wifi-admin-feedback error";p.setAttribute("role","status");p.textContent=error;root.querySelector(".wifi-admin-head").after(p);}
+   return {success:false,message:error};
+  }
   const ssids=prev.ssids.map((s,i)=>{
    const fieldset=root.querySelector('fieldset[data-index="'+i+'"]');
    const read=k=>fieldset.querySelector('[data-field="'+k+'"]');
    const raw=read("vlanNumber").value.trim();
    return {...s,name:read("name").value.trim(),security:read("security").value,
      password:read("password").value,
+     bands:[...fieldset.querySelectorAll('input[data-band]:checked')].map(input=>input.dataset.band),
      vlanNumber:raw===""?null:Number(raw),
      enabled:read("enabled").checked,clientIsolation:read("clientIsolation").checked};
   });
