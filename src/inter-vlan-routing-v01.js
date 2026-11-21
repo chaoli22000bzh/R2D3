@@ -98,5 +98,12 @@ export function evaluateInterVlanLogicalEndpoints(routingConfig,vlanNums,clientC
    return fail("Passerelle IPv4 du poste incorrecte");
   if(client.ip===networks[i].ip)return fail("Conflit entre l’adresse du poste et sa passerelle");
  }
+ // Les règles ne filtrent que les nouvelles communications initiées dans ce sens.
+ // La réponse à une communication initiée dans le sens autorisé est admise
+ // dans ce modèle pédagogique simplifié (pas de suivi des paquets TCP/ICMP).
+ const blocked=routingConfig.accessRules?.find(r=>
+  r.enabled&&r.action==="deny"&&r.sourceVlan===vlanNums[0]&&r.targetVlan===vlanNums[1]);
+ if(blocked)return {status:"ok",success:false,code:"access_denied",reason:
+  "Politique réseau : trafic initié du VLAN "+vlanNums[0]+" vers le VLAN "+vlanNums[1]+" interdit."};
  return {status:"ok",success:true,reason:"Routage entre VLAN "+vlanNums[0]+" et "+vlanNums[1]+" opérationnel"};
 }
