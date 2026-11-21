@@ -1,0 +1,19 @@
+/* Interface de filtrage commune à tous les scénarios R2D3. */
+.r2d3-policy-ui{color-scheme:light;color:#273d4b;background:#fff;max-width:100%;font:14px/1.4 system-ui,Arial,sans-serif}
+.r2d3-policy-ui h3{font-size:16px;margin:0 0 6px}.r2d3-policy-ui p{margin:4px 0 10px}
+.r2d3-policy-ui form{display:flex;align-items:end;gap:10px;flex-wrap:wrap}
+.r2d3-policy-ui label{display:grid;gap:4px;font-weight:550}
+.r2d3-policy-ui select{min-width:72px;width:76px;background:#fff;color:#263b46;border:1px solid #b7c7cf;border-radius:5px;padding:6px;height:34px;font:inherit}
+.r2d3-policy-ui .policy-toggle{display:flex;align-items:center;gap:7px;min-height:34px}
+.r2d3-policy-ui input[type=checkbox]{width:17px;height:17px;accent-color:#167d59}
+.r2d3-policy-ui button{background:#13724e;color:#fff;border:1px solid #13724e;padding:6px 11px;border-radius:5px;min-height:34px;font:inherit;cursor:pointer}
+.r2d3-policy-ui .policy-help{font-size:12px;color:#536978;margin-top:10px}
+.r2d3-policy-ui .policy-status{margin-top:9px;padding:8px;background:#e8f6ef;border-left:3px solid #167d59}
+.r2d3-policy-ui .policy-status.error{background:#f9e8e9;border-left-color:#c94646}
+@media(prefers-color-scheme:dark){
+ .r2d3-policy-ui{color-scheme:dark;background:#202f3c;color:#e6eff6}
+ .r2d3-policy-ui select{color-scheme:dark;background:#25394a;color:#e6eff6;border-color:#637c8a}
+ .r2d3-policy-ui .policy-help{color:#b8cbd7}
+ .r2d3-policy-ui .policy-status{background:#214d43;color:#e6eff6}
+ .r2d3-policy-ui .policy-status.error{background:#4e3036}
+}
