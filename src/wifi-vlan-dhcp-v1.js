@@ -53,7 +53,7 @@ export function requestWifiVlanDhcp({registry,apId,switchId,clientId,ssidId,pass
  try{
   engine=createEngine({format:"r2d3-scenario",schemaVersion:1,scenarioId:"wifi-vlan-l3",scenarioVersion:"1",
    capabilities:{network:true},objects:[clientObject,server],links:[{id:"wifi-bridge-logical",kind:"ethernet-cable",connected:true,
-    endpoints:[{objectId:clientId,portId:"wifi-logical"},{objectId:switchId,portId:port.id}]}]});
+    endpoints:[{objectId:clientId,portId:"wifi-logical"},{objectId:switchId,portId}]}]});
  }catch(e){return fail("core_scenario_invalid",e.message);}
  const response=engine.dispatch({commandVersion:1,id:"wifi-vlan-dhcp-request",type:"dhcp.request",
   targetId:clientId,params:{serverId:switchId,poolId:pool.id}});
