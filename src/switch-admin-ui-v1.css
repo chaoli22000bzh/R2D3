@@ -726,3 +726,38 @@
   grid-column:1;
  }
 }
+
+/* Thème sombre du composant partagé : utilisable dans tous les hôtes R2D3.
+ * En thème clair, les styles professionnels déjà recettés restent inchangés.
+ */
+@media (prefers-color-scheme: dark) {
+ .switch-admin.v4{color-scheme:dark;--line:#536775;--ink:#e6eff6;--muted:#b8cbd7;--green:#4bbf94;background:#202f3c;color:#e6eff6}
+ .switch-admin.v4 .device-bar,.switch-admin.v4 .device-tabs,
+ .switch-admin.v4 .admin-content,.switch-admin.v4 .admin-panel,
+ .switch-admin.v4 .port-panel{background:#202f3c;color:#e6eff6;border-color:#536775}
+ .switch-admin.v4 .device-ident h2,.switch-admin.v4 .device-label h2,
+ .switch-admin.v4 .port-panel-head,.switch-admin.v4 .port-panel-head strong,
+ .switch-admin.v4 .admin-panel h3,.switch-admin.v4 .check-label,
+ .switch-admin.v4 .routing-switch,.switch-admin.v4 .device-details dd,
+ .switch-admin.v4 .form-grid label,.switch-admin.v4 .router-dhcp-grid label{color:#e6eff6}
+ .switch-admin.v4 .device-label span,.switch-admin.v4 .device-details dt,
+ .switch-admin.v4 .port-legend,.switch-admin.v4 .mini-port .mini-label{color:#b8cbd7}
+ .switch-admin.v4 .menu-item{color:#b8cbd7;background:transparent}
+ .switch-admin.v4 .menu-item.active{color:#7be0b3;border-bottom-color:#4bbf94}
+ .switch-admin.v4 .device-details>div,.switch-admin.v4 .admin-table td{border-color:#445a69}
+ .switch-admin.v4 .admin-table th,.switch-admin.v4 .admin-table tbody tr,
+ .switch-admin.v4 .admin-table tbody tr:hover{background:#25394a;color:#e6eff6}
+ .switch-admin.v4 .port-panel .mini-port:hover,.switch-admin.v4 .port-panel .mini-port.chosen{background:#284f4a;border-color:#4bbf94}
+ .switch-admin.v4 input:not([type="checkbox"]),.switch-admin.v4 select,.switch-admin.v4 textarea,
+ .switch-admin.v4 form[data-form="router-dhcp-pool"] input,
+ .switch-admin.v4 form[data-form="router-dhcp-pool"] select,
+ .switch-admin.v4 form[data-form="router-dhcp-pool"] textarea{
+   color-scheme:dark;background:#25394a;color:#e6eff6;border-color:#637c8a;
+ }
+ .switch-admin.v4 input:disabled{background:#344350;color:#b4c4cd}
+ .switch-admin.v4 .feedback{background:#214d43;color:#e6eff6;border-color:#4bbf94}
+ .switch-admin.v4 .feedback.error{background:#4e3036;border-color:#ef7474}
+ .switch-admin.v4 .device-glyph{background:#25394a;color:#c9dde7;border-color:#637c8a}
+ .switch-admin.v4 .device-state{background:#214d43;color:#a2efd0}
+ .switch-admin.v4 .table-port{color:#7be0b3}
+}
