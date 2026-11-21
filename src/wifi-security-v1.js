@@ -2,7 +2,7 @@
  * Modèle pédagogique : vérification de compatibilité, pas de handshake
  * WPA ni simulation cryptographique.
  */
-export const WIFI_SECURITY_MODES=Object.freeze(["open","wpa2-personal","wpa3-personal","wpa2-wpa3-personal","wpa2-enterprise"]);
+export const WIFI_SECURITY_MODES=Object.freeze(["open","wpa2-personal","wpa3-personal","wpa2-wpa3-personal"]);
 const DEFAULT_CLIENT_MODES=["open","wpa2-personal","wpa3-personal","wpa2-wpa3-personal"];
 export function negotiateWifiSecurity(apMode,clientModes=DEFAULT_CLIENT_MODES,band="5"){
  if(!WIFI_SECURITY_MODES.includes(apMode)||!Array.isArray(clientModes))
