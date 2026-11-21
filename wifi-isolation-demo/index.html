@@ -16,23 +16,19 @@ input[type=checkbox]{width:17px;height:17px;min-width:17px;min-height:17px;margi
 .status{padding:10px 12px;border-radius:5px;border-left:4px solid var(--edge);background:var(--bg);margin:8px 0}
 .status[data-result=ok]{border-left-color:var(--ok)}.status[data-result=fail]{border-left-color:var(--bad)}
 @media (prefers-color-scheme: dark) { :root { color-scheme: dark;--bg:#131d27;--panel:#202f3c;--fg:#e6eff6;--muted:#b8cad7;--edge:#546c7d;--input:#25394a;--accent:#277da8;--ok:#4bbf86;--bad:#ef7474}}
-</style></head><body>
+</style><link rel="stylesheet" href="../src/wifi-admin-ui-v1.css"><link rel="stylesheet" href="https://chaoli22000bzh.github.io/C2-Lab/shared-ui/v1/buttons.css"></head><body class="c2-buttons">
 <header><h1>R2D3 : Isolation mode</h1><p>Wi-Fi V1, lot 4, deux clients sur le même SSID</p></header>
 <main>
 <section><h2>Topologie du laboratoire</h2>
 <div class="diagram"><div class="node">PC-01<br><strong id="ip-1">Adresse en cours</strong></div> ⇄ <div class="node">AP-CIEL<br><strong>LYCEE-CIEL</strong><br>VLAN 10</div> ⇄ <div class="node">PC-02<br><strong id="ip-2">Adresse en cours</strong></div></div><p class="note" style="text-align:center">AP-CIEL ⇄ câble Ethernet Trunk ⇄ Switch L3 (192.168.10.1, serveur DHCP)</p>
 <p class="note">PC-01 et PC-02 sont tous deux associés à la même borne et au même SSID. Le switch L3 délivre des adresses distinctes avec le moteur DHCP commun.</p>
 <div id="leases-status" class="status" aria-live="polite">Initialisation des clients...</div></section>
-<section><h2>Réglage de la borne</h2>
-<label class="check"><input id="isolation" type="checkbox">Isolation mode</label>
-<p class="note">Quand l'option est activée, les clients de ce SSID ne peuvent plus échanger directement. L'accès au réseau par la passerelle reste possible.</p>
-<div class="controls"><button id="reset">Réinitialiser le laboratoire</button></div>
-<div id="ap-status" class="status" aria-live="polite">Isolation mode désactivé.</div></section>
+<section><h2>Réglage de la borne</h2><div id="wifi-admin"></div><p class="note">Modifier « Isolation mode », puis enregistrer. L’accès à la passerelle reste possible.</p><div class="controls"><button id="reset">Réinitialiser le laboratoire</button></div><div id="ap-status" class="status" aria-live="polite"></div></section>
 <section><h2>Diagnostic réseau</h2>
 <div class="controls">
 <button id="peer-ping" class="primary">Ping PC-01 vers PC-02</button>
 <button id="gateway-ping">Ping PC-01 vers passerelle</button>
 </div>
-<div id="ping-status" class="status" aria-live="polite">Choisis un test ping.</div>
+<div id="ping-status" class="status" aria-live="polite">Choisis un test ping.</div><pre id="ping-console" aria-live="polite" style="background:#101923;color:#d5f0d9;padding:12px;border-radius:5px;white-space:pre-wrap;min-height:100px;overflow-x:auto">C:\\Users\\technicien&gt;</pre>
 <p class="note">Ce test couvre l'isolation entre clients connectés à une même borne et un même SSID. L'isolation interbornes et l'isolation du réseau invité par rapport au LAN sont des mécanismes différents, à traiter séparément.</p></section>
 </main><script type="module" src="./main.js"></script></body></html>
