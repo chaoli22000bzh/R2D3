@@ -59,7 +59,9 @@ export function requestWifiVlanDhcp({registry,apId,switchId,clientId,ssidId,pass
   targetId:clientId,params:{serverId:switchId,poolId:pool.id}});
  if(response.status!=="applied")return fail("core_rejected",response.message||response.code||"DHCP refusé.");
  const state=engine.getSnapshot(),c=state.objectsById[clientId],ip=c.config.ipv4,lease=state.runtime?.[clientId]?.dhcpStatus==="lease";
+ const gatewayPing=engine.query({type:"network.ping",sourceId:clientId,targetId:switchId});
  return {success:lease,code:lease?"lease":"apipa",message:lease?"Bail attribué par le Core DHCP du VLAN.":"Aucun bail DHCP : APIPA.",
   address:ip.address,prefix:ip.prefix,gateway:c.config.networkOptions.gateway,dns:c.config.networkOptions.dns,
-  lease:ip.lease,vlanNumber,ssid,portId};
+  lease:ip.lease,vlanNumber,ssid,portId,
+  gatewayReachable:gatewayPing.status==="ok"&&gatewayPing.success};
 }
