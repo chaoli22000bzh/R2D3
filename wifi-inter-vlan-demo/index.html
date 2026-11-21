@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R2D3 | Wi-Fi inter-VLAN</title>
+<link rel="stylesheet" href="../src/wifi-admin-ui-v1.css">
+<link rel="stylesheet" href="../src/switch-admin-ui-v1.css">
+<link rel="stylesheet" href="https://chaoli22000bzh.github.io/C2-Lab/shared-ui/v1/buttons.css">
+<style>
+:root{color-scheme:light;--bg:#eff3f7;--panel:#fff;--fg:#253a47;--muted:#576b79;--edge:#c4d3de;--accent:#12638a;--ok:#14774f;--bad:#a83737}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,"Segoe UI",Arial,sans-serif}
+header{background:#163e60;color:white;padding:12px max(14px,calc((100% - 940px)/2))}
+header h1{font-size:20px;margin:0}header p{margin:3px 0}
+main{max-width:940px;margin:auto;padding:12px}
+section{background:var(--panel);border:1px solid var(--edge);border-radius:7px;margin-bottom:12px;padding:12px}
+h2{margin:0 0 9px;font-size:17px}.note{color:var(--muted);font-size:13px}
+.diagram{display:flex;justify-content:center;align-items:center;gap:9px;flex-wrap:wrap;margin:10px 0}
+.node{border:1px solid var(--edge);border-radius:5px;background:var(--bg);padding:10px;text-align:center}
+button{font:inherit;color:var(--fg);background:var(--panel);border:1px solid var(--edge);border-radius:4px;padding:7px 11px;min-height:35px;cursor:pointer}
+button.primary{background:var(--accent);color:white;border-color:var(--accent)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.status{padding:9px;border-left:4px solid var(--edge);background:var(--bg);margin:8px 0}
+.status[data-result=ok]{border-left-color:var(--ok)}.status[data-result=fail]{border-left-color:var(--bad)}
+pre{margin:8px 0 0;background:#101923;color:#d5f0d9;border-radius:5px;white-space:pre-wrap;overflow-x:auto;min-height:100px;padding:12px}
+.switch-admin{max-width:100%;overflow:hidden}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#131d27;--panel:#202f3c;--fg:#e6eff6;--muted:#b8cad7;--edge:#546c7d;--accent:#277da8;--ok:#4bbf86;--bad:#ef7474}}
+</style></head><body class="c2-buttons">
+<header><h1>R2D3 : Wi-Fi entre deux VLAN</h1><p>Lot 5 : borne multi-SSID et routage du switch L3</p></header>
+<main>
+<section><h2>Topologie</h2>
+<div class="diagram"><div class="node">PC-01<br>LYCEE-CIEL<br>VLAN 10<br><strong id="ip-10">En cours</strong></div> ⇄ <div class="node">AP-CIEL<br>Trunk VLAN 10/20</div> ⇄ <div class="node">Switch L3<br>DHCP + routage</div> ⇄ <div class="node">PC-02<br>LYCEE-INVITES<br>VLAN 20<br><strong id="ip-20">En cours</strong></div></div>
+<p class="note">La borne est raccordée au switch par un câble RJ45 du registre R2D3. Les clients Wi-Fi sont associés à deux SSID distincts ; ils obtiennent leurs IPv4 via le Core DHCP existant.</p>
+<div id="init-status" class="status" aria-live="polite">Initialisation…</div>
+</section>
+<section><h2>Administration de la borne Wi-Fi</h2><div id="ap-admin"></div></section>
+<section><h2>Administration du switch L3</h2><p class="note">Dans le composant partagé du switch, ouvre « Routage inter-VLAN », puis active ou désactive le routage. La configuration reste dans R2D3.</p><div id="switch-admin"></div></section>
+<section><h2>Diagnostic réseau</h2>
+<div class="actions"><button id="ping" class="primary">Ping PC-01 vers PC-02</button><button id="reset">Réinitialiser la topologie</button></div>
+<div id="ping-status" class="status" aria-live="polite">Lance un diagnostic.</div>
+<pre id="ping-console" aria-live="polite">C:\Users\technicien&gt;</pre>
+<p class="note">La liaison inter-VLAN nécessite le routage L3, deux interfaces VLAN et des passerelles correctes. Le mode « Isolation mode » concerne les clients d'un même SSID ; il ne remplace pas la segmentation des réseaux invités.</p>
+</section></main>
+<script type="module" src="./main.js"></script></body></html>
