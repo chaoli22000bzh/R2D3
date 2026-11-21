@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R2D3 | Sécurité Wi-Fi V1</title>
+<link rel="stylesheet" href="../src/wifi-admin-ui-v1.css">
+<link rel="stylesheet" href="https://chaoli22000bzh.github.io/C2-Lab/shared-ui/v1/buttons.css">
+<style>
+:root{color-scheme:light;--bg:#eff3f7;--panel:#fff;--fg:#243a47;--muted:#526c7a;--edge:#c3d2db;--accent:#12638a;--ok:#13764e;--bad:#a83737}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,"Segoe UI",Arial,sans-serif}
+header{background:#163e60;color:#fff;padding:13px max(14px,calc((100% - 900px)/2))}header h1{margin:0;font-size:20px}
+main{max-width:900px;margin:auto;padding:12px}section{padding:13px;border:1px solid var(--edge);border-radius:7px;background:var(--panel);margin-bottom:12px}
+h2{font-size:17px;margin:0 0 9px}p{margin:5px 0 10px}.muted{color:var(--muted);font-size:13px}
+.form{display:flex;align-items:end;flex-wrap:wrap;gap:9px}.form label{display:grid;gap:4px;font-weight:550}
+.form input,.form select{color:var(--fg);background:var(--panel);border:1px solid var(--edge);padding:6px;border-radius:4px;min-height:34px;font:inherit}
+.form input{width:175px}.form select{min-width:116px}
+button{color:var(--fg);background:var(--panel);border:1px solid var(--edge);padding:7px 12px;border-radius:4px;cursor:pointer;min-height:36px;font:inherit}
+button.primary{color:#fff;background:var(--accent);border-color:var(--accent)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.status{padding:9px;border-left:4px solid var(--edge);background:var(--bg);margin-top:10px;white-space:pre-line}
+.status[data-result=ok]{border-left-color:var(--ok)}.status[data-result=fail]{border-left-color:var(--bad)}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#131d27;--panel:#202f3c;--fg:#e6eff6;--muted:#b8cbd7;--edge:#546c7d;--accent:#277da8;--ok:#4bbf86;--bad:#ef7474}}
+</style></head>
+<body class="c2-buttons">
+<header><h1>R2D3 : sécurité Wi-Fi</h1><p>Lot 7, modes ouvert, WPA2, WPA3 et mixte WPA2/WPA3</p></header>
+<main>
+<section><h2>Topologie</h2>
+<p>PC Wi-Fi ⇄ AP-CIEL (SSID LYCEE-CIEL, VLAN 10) ⇄ câble RJ45 Trunk GE01 ⇄ Switch L3 + DHCP.</p>
+<p class="muted">L'authentification est vérifiée par le moteur Wi-Fi partagé. Le DHCP est ensuite confié au Core R2D3 existant.</p>
+<div id="init-status" class="status" aria-live="polite">Initialisation...</div></section>
+<section><h2>Administration de la borne Wi-Fi</h2><div id="ap-admin"></div>
+<p class="muted">Pour ce lot, modifie le champ Sécurité et le mot de passe du SSID, puis enregistre les réglages. Les autres réglages restent ceux des lots précédents.</p></section>
+<section><h2>Client Wi-Fi simulé</h2><div class="form">
+<label>Capacité du client<select id="client-mode"><option value="wpa2-personal">WPA2 uniquement (ancien)</option><option value="wpa3-personal">WPA3 uniquement</option><option value="both">WPA2 + WPA3 (récent)</option><option value="open">Ouvert uniquement</option></select></label>
+<label>Bande du client<select id="client-band"><option value="5">5 GHz</option><option value="2.4">2,4 GHz</option><option value="6">6 GHz</option></select></label>
+<label>Mot de passe<input id="client-password" type="text" value="Ciel2026!" autocomplete="off"></label>
+</div>
+<div class="actions"><button id="scan" type="button">Rechercher les réseaux</button><button id="connect" type="button" class="primary">Connecter et demander une IPv4</button><button id="reset" type="button">Réinitialiser</button></div>
+<div id="result" class="status" aria-live="polite">Choisis un client puis recherche le réseau.</div>
+</section>
+</main><script type="module" src="./main.js"></script></body></html>
