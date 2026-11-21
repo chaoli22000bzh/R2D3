@@ -70,6 +70,18 @@ export function observeInterVlanPing(registry,switchId,routingConfig,sourceId,ta
   // Pas de routage pour deux clients du même VLAN : déléguer au moteur L2/IP déjà recetté.
   return observeRegisteredVlanPing(registry,sourceId,targetId,addresses);
  }
+ return evaluateInterVlanLogicalEndpoints(routingConfig,vlanNums,clientConfigs);
+}
+/* Validation L3 commune aux terminaux Ethernet Access et Wi-Fi/Trunk.
+ * L'appelant vérifie au préalable les chemins et VLAN réels dans R2.
+ * Ce contrôle ne construit aucune liaison et ne décide aucun bail DHCP.
+ */
+export function evaluateInterVlanLogicalEndpoints(routingConfig,vlanNums,clientConfigs){
+ if(!routingConfig||!Array.isArray(vlanNums)||vlanNums.length!==2||
+  !Array.isArray(clientConfigs)||clientConfigs.length!==2||vlanNums.some(n=>!Number.isInteger(n))||
+  clientConfigs.some(c=>!c||!subnet(c.address,c.prefix)))
+  return unsupported("Paramètres de routage ou clients invalides");
+ if(vlanNums[0]===vlanNums[1])return unsupported("Utiliser la commutation L2 pour le même VLAN");
  if(!routingConfig.routingEnabled)return fail("Routage inter-VLAN désactivé");
  const svi=vlanNums.map(n=>routingConfig.interfaces[String(n)]);
  if(svi.some(c=>!c||!c.enabled))return fail("Interface VLAN absente ou désactivée");
