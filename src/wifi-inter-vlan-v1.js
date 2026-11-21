@@ -19,7 +19,9 @@ export function createWifiInterVlanSession({registry,apId,switchId,clients}={}){
  const leases=clients.map(c=>requestWifiVlanDhcp({registry,apId,switchId,...c}));
  const failure=leases.find(l=>!l.success);if(failure)return failure;
  const addresses=leases.map(l=>l.address);
- const ping=()=>{
+ const ping=(sourceIndex=0)=>{
+  if(sourceIndex!==0&&sourceIndex!==1)return fail("invalid_direction","Direction du diagnostic invalide.");
+  const targetIndex=1-sourceIndex;
   // Relecture des états réels à chaque observation. Les baux déjà acquis ne
   // sont pas redemandés lorsque l'on modifie le routage du switch.
   const current=clients.map(c=>validateWifiVlanPath({registry,apId,switchId,...c}));
@@ -29,14 +31,27 @@ export function createWifiInterVlanSession({registry,apId,switchId,clients}={}){
    return fail("vlan_changed","Le VLAN du SSID a changé : reconnecter le client et renouveler son adressage.");
   const routing=getSwitchRoutingConfig(registry,switchId);
   if(!routing)return fail("routing_missing","Configuration L3 introuvable.");
-  const result=evaluateInterVlanLogicalEndpoints(routing,current.map(p=>p.vlanNumber),
-   leases.map(l=>({address:l.address,prefix:l.prefix,gateway:l.gateway})));
+  const result=evaluateInterVlanLogicalEndpoints(routing,[current[sourceIndex].vlanNumber,current[targetIndex].vlanNumber],
+   [leases[sourceIndex],leases[targetIndex]].map(l=>({address:l.address,prefix:l.prefix,gateway:l.gateway})));
   return result.success?
-   {success:true,status:"ok",code:"reply",message:result.reason,source:addresses[0],target:addresses[1]}:
-   {success:false,status:result.status,code:"routing_blocked",message:result.reason};
+   {success:true,status:"ok",code:"reply",message:result.reason,source:addresses[sourceIndex],target:addresses[targetIndex]}:
+   {success:false,status:result.status,code:result.code??"routing_blocked",message:result.reason};
+ };
+ const pingGateway=(clientIndex=1)=>{
+  if(clientIndex!==0&&clientIndex!==1)return fail("invalid_client","Client inexistant.");
+  const c=clients[clientIndex],lease=leases[clientIndex];
+  const live=validateWifiVlanPath({registry,apId,switchId,...c});
+  if(!live.success)return live;
+  if(live.vlanNumber!==lease.vlanNumber)return fail("vlan_changed","VLAN modifié : renouveler le bail.");
+  if(lease.gateway!==live.svi.address||lease.prefix!==live.svi.prefix)
+   return fail("gateway_changed","La passerelle du client et l'interface VLAN sont incompatibles.");
+  // Le DHCP et l'accessibilité initiale de la passerelle sont vérifiés par le
+  // Core lors de l'attribution ; on réévalue ici le chemin R2 courant.
+  return {success:true,status:"ok",code:"reply",message:"Passerelle VLAN "+lease.vlanNumber+
+   " accessible indépendamment des règles inter-VLAN.",source:lease.address,target:lease.gateway};
  };
  return {success:true,code:"ready",clients:clients.map((c,i)=>({
    clientId:c.clientId,ssidId:c.ssidId,ssid:leases[i].ssid,vlanNumber:leases[i].vlanNumber,
    address:leases[i].address,prefix:leases[i].prefix,gateway:leases[i].gateway
- })),ping};
+ })),ping,pingGateway};
 }
