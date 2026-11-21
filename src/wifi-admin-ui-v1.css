@@ -18,12 +18,4 @@
 .wifi-admin button{background:var(--waccent);border:1px solid var(--waccent);border-radius:4px;color:white;min-height:35px;padding:6px 12px;cursor:pointer;font:inherit}
 .wifi-admin button:focus-visible,.wifi-admin input:focus-visible,.wifi-admin select:focus-visible{outline:2px solid var(--waccent);outline-offset:2px}
 .wifi-admin-feedback{border-left:3px solid #14895b;padding:7px 10px;background:var(--winput)}.wifi-admin-feedback.error{border-color:#bb4a4a}
-.wifi-admin .wifi-admin-radius,.wifi-admin .wifi-admin-mac{display:grid;gap:5px;min-width:0;grid-column:1/-1;padding:7px;border:1px dashed var(--wline);border-radius:5px}
-.wifi-admin .wifi-admin-radius>span{font-size:13px;font-weight:600;color:var(--wmuted)}
-.wifi-admin .wifi-admin-radius-inputs{display:grid;grid-template-columns:minmax(125px,2fr) minmax(65px,.6fr) minmax(130px,2fr);gap:7px}
-.wifi-admin .wifi-admin-mac{grid-template-columns:minmax(130px,1fr) minmax(180px,2fr)}
-.wifi-admin .wifi-admin-mac textarea{color:var(--wfg);background:var(--winput);border:1px solid var(--wline);border-radius:4px;padding:5px 7px;font:inherit;width:100%;resize:vertical}
-.wifi-admin fieldset:not([data-security="wpa2-enterprise"]) .wifi-admin-radius{display:none}
-.wifi-admin fieldset[data-security="wpa2-enterprise"]>label:has([data-field="password"]){display:none}
-@media(max-width:520px){.wifi-admin .wifi-admin-radius-inputs,.wifi-admin .wifi-admin-mac{grid-template-columns:1fr}}
 @media(prefers-color-scheme:dark){.wifi-admin{color-scheme:dark;--wbg:#202f3c;--wfg:#e6eff6;--wmuted:#b9cbd8;--wline:#546c7d;--winput:#25394a;--waccent:#277da8}}
