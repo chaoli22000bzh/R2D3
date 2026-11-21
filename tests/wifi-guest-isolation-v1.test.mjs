@@ -67,6 +67,10 @@ test("DHCP et passerelle invités préservés quand filtrage activé",()=>{
  assert.equal(session.clients[1].gateway,"192.168.20.1");
  assert.equal(session.pingGateway(1).success,true);
  assert.equal(session.ping(1).code,"access_denied");
+ // L'activation du filtrage ne doit pas empêcher une nouvelle demande DHCP.
+ const next=f.start();good(next);
+ assert.equal(next.clients[1].address,"192.168.20.100");
+ assert.equal(next.pingGateway(1).success,true);
 });
 test("Règle persistée dans le registre, validation atomique et suppression",()=>{
  const f=fixture();good(setSwitchInterVlanRouting(f.registry,f.sw.id,true));
