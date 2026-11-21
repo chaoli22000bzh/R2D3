@@ -11,7 +11,7 @@ import {associateWifiClient} from "./wifi-ap-v1.js";
 const fail=(code,message)=>({success:false,code,message});
 const ipNumber=x=>typeof x==="string"&&/^\d{1,3}(\.\d{1,3}){3}$/.test(x)&&x.split(".").every(n=>+n<=255)?x.split(".").reduce((a,n)=>(a*256+(+n))>>>0,0):null;
 const sameNetwork=(a,b,p)=>{const x=ipNumber(a),y=ipNumber(b);return x!==null&&y!==null&&Number.isInteger(p)&&p>0&&p<=30&&(x&((0xffffffff<<(32-p))>>>0))===(y&((0xffffffff<<(32-p))>>>0));};
-export function requestWifiVlanDhcp({registry,apId,switchId,clientId,ssidId,password="",bands=["2.4","5"],security=["open","wpa2-personal","wpa3-personal","wpa2-wpa3-personal"],macAddress="02-00-00-00-10-01"}={}){
+export function validateWifiVlanPath({registry,apId,switchId,clientId,ssidId,password="",bands=["2.4","5"],security=["open","wpa2-personal","wpa3-personal","wpa2-wpa3-personal"],macAddress="02-00-00-00-10-01"}={}){
  const association=associateWifiClient(registry,{apId,ssidId,password,bands,security});
  if(!association.success)return association;
  const ap=registry.getAsset(apId),sw=registry.getAsset(switchId),client=registry.getAsset(clientId);
@@ -38,6 +38,13 @@ export function requestWifiVlanDhcp({registry,apId,switchId,clientId,ssidId,pass
   return fail("invalid_interface","Interface VLAN et plage DHCP incompatibles.");
  if(typeof macAddress!=="string"||!/^([0-9a-f]{2}-){5}[0-9a-f]{2}$/i.test(macAddress))
   return fail("invalid_mac","Adresse MAC du client invalide.");
+ return {success:true,code:"path_ok",association,ssid:selected.name,ap,sw,client,vlanNumber,portId:port.id,pool,svi};
+}
+
+export function requestWifiVlanDhcp({registry,apId,switchId,clientId,ssidId,password="",bands=["2.4","5"],security=["open","wpa2-personal","wpa3-personal","wpa2-wpa3-personal"],macAddress="02-00-00-00-10-01"}={}){
+ const path=validateWifiVlanPath({registry,apId,switchId,clientId,ssidId,password,bands,security,macAddress});
+ if(!path.success)return path;
+ const {client,sw,selected,vlanNumber,portId,pool}=path;
  const server=createSwitchDhcpCoreObject(registry,switchId);
  if(!server)return fail("missing_core_asset","Switch absent du Core DHCP.");
  const clientObject={id:clientId,kind:"pc-windows",name:client.name,ports:[{id:"wifi-logical",type:"rj45"}],
@@ -54,5 +61,5 @@ export function requestWifiVlanDhcp({registry,apId,switchId,clientId,ssidId,pass
  const state=engine.getSnapshot(),c=state.objectsById[clientId],ip=c.config.ipv4,lease=state.runtime?.[clientId]?.dhcpStatus==="lease";
  return {success:lease,code:lease?"lease":"apipa",message:lease?"Bail attribué par le Core DHCP du VLAN.":"Aucun bail DHCP : APIPA.",
   address:ip.address,prefix:ip.prefix,gateway:c.config.networkOptions.gateway,dns:c.config.networkOptions.dns,
-  lease:ip.lease,vlanNumber,ssid:selected.name,portId:port.id};
+  lease:ip.lease,vlanNumber,ssid:selected.name,portId};
 }
