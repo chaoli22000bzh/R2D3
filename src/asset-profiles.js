@@ -94,6 +94,18 @@ function validRoutingConfiguration(asset,config){
      !validIPv4(v.address)||!Number.isInteger(v.prefix)||v.prefix<1||v.prefix>30||
      typeof v.enabled!=="boolean")return false;
  }
+ // Règles L3 directionnelles persistées sur le switch. Anciennes sauvegardes compatibles.
+ if(config.accessRules!==undefined){
+  if(!Array.isArray(config.accessRules)||config.accessRules.length>64)return false;
+  const ids=new Set();
+  for(const rule of config.accessRules){
+   if(!rule||typeof rule.id!=="string"||!/^[-a-zA-Z0-9_]{1,40}$/.test(rule.id)||ids.has(rule.id)||
+    !Number.isInteger(rule.sourceVlan)||!vlanNumbers.has(rule.sourceVlan)||
+    !Number.isInteger(rule.targetVlan)||!vlanNumbers.has(rule.targetVlan)||
+    rule.sourceVlan===rule.targetVlan||rule.action!=="deny"||typeof rule.enabled!=="boolean")return false;
+   ids.add(rule.id);
+  }
+ }
  return true;
 }
 // La configuration IP Helper appartient à l'actif, et non à son profil ni au scénario.
