@@ -1,0 +1,15 @@
+/* Module professionnel Wi-Fi : compact et compatible avec le thème du navigateur. */
+.wifi-admin{color-scheme:light;--wbg:#fff;--wfg:#263b48;--wmuted:#556977;--wline:#c5d3dc;--winput:#fff;--waccent:#116c91;color:var(--wfg);background:var(--wbg);font:14px/1.4 system-ui,Arial,sans-serif;max-width:820px}
+.wifi-admin *{box-sizing:border-box}
+.wifi-admin-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.wifi-admin-head strong{font-size:17px}
+.wifi-admin fieldset{border:1px solid var(--wline);border-radius:6px;margin:0 0 9px;padding:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px}
+.wifi-admin legend{font-weight:650;padding:0 6px}
+.wifi-admin label{display:grid;gap:3px;font-weight:550;font-size:13px;color:var(--wmuted)}
+.wifi-admin .check,.wifi-admin-head label{display:flex;align-items:center;gap:7px;color:var(--wfg)}
+.wifi-admin input:not([type=checkbox]),.wifi-admin select{color:var(--wfg);background:var(--winput);border:1px solid var(--wline);padding:5px 7px;border-radius:4px;font:inherit;width:100%;min-width:0;min-height:33px}
+.wifi-admin input[type=checkbox]{width:17px;height:17px;accent-color:var(--waccent)}
+.wifi-admin button{background:var(--waccent);border:1px solid var(--waccent);border-radius:4px;color:white;min-height:35px;padding:6px 12px;cursor:pointer;font:inherit}
+.wifi-admin button:focus-visible,.wifi-admin input:focus-visible,.wifi-admin select:focus-visible{outline:2px solid var(--waccent);outline-offset:2px}
+.wifi-admin-feedback{border-left:3px solid #14895b;padding:7px 10px;background:var(--winput)}.wifi-admin-feedback.error{border-color:#bb4a4a}
+@media(prefers-color-scheme:dark){.wifi-admin{color-scheme:dark;--wbg:#202f3c;--wfg:#e6eff6;--wmuted:#b9cbd8;--wline:#546c7d;--winput:#25394a;--waccent:#277da8}}
