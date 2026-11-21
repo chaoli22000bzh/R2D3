@@ -45,8 +45,9 @@ export function createWifiInterVlanSession({registry,apId,switchId,clients}={}){
   if(live.vlanNumber!==lease.vlanNumber)return fail("vlan_changed","VLAN modifié : renouveler le bail.");
   if(lease.gateway!==live.svi.address||lease.prefix!==live.svi.prefix)
    return fail("gateway_changed","La passerelle du client et l'interface VLAN sont incompatibles.");
-  // Le DHCP et l'accessibilité initiale de la passerelle sont vérifiés par le
-  // Core lors de l'attribution ; on réévalue ici le chemin R2 courant.
+  // Le ping initial de passerelle provient du Core DHCP, puis le chemin R2
+  // courant et la SVI sont relus avant de rendre le diagnostic.
+  if(!lease.gatewayReachable)return fail("gateway_unreachable","Le Core réseau ne joint pas la passerelle.");
   return {success:true,status:"ok",code:"reply",message:"Passerelle VLAN "+lease.vlanNumber+
    " accessible indépendamment des règles inter-VLAN.",source:lease.address,target:lease.gateway};
  };
