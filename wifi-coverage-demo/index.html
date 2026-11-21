@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R2D3 | Couverture Wi-Fi multibornes</title>
+<style>
+:root{color-scheme:light;--bg:#eff3f7;--panel:#fff;--fg:#243a47;--muted:#526c7a;--edge:#b9cad6;--accent:#116b93;--ok:#117e56;--bad:#c53f40}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#15212a;--panel:#243745;--fg:#ecf2f7;--muted:#c3d2db;--edge:#566c7b;--accent:#378eb6;--ok:#51c896;--bad:#f28b8b}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,Arial,sans-serif}
+header{padding:14px max(14px,calc((100% - 980px)/2));background:#173d5c;color:#fff}h1{font-size:20px;margin:0}header p{margin:4px 0}
+main{max-width:980px;margin:auto;padding:12px}section{background:var(--panel);padding:12px;border:1px solid var(--edge);border-radius:8px;margin-bottom:12px}
+h2{font-size:17px;margin:0 0 8px}.help{color:var(--muted);font-size:13px}
+.controls{display:flex;align-items:end;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+label{display:grid;gap:3px;font-weight:550}select,button{min-height:34px;border:1px solid var(--edge);border-radius:5px;padding:5px 9px;background:var(--panel);color:var(--fg);font:inherit}
+button{cursor:pointer}button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.floor{position:relative;width:100%;height:auto;aspect-ratio:1.65;border:2px solid var(--edge);border-radius:6px;background:var(--bg);cursor:crosshair;overflow:hidden;touch-action:manipulation}
+.floor:before{content:"";position:absolute;inset:0;background-image:linear-gradient(to right,var(--edge) 1px,transparent 1px),linear-gradient(to bottom,var(--edge) 1px,transparent 1px);background-size:20% 25%;opacity:.3;pointer-events:none}
+.floor .room-label{position:absolute;font-size:12px;left:3%;top:3%;color:var(--muted)}
+.floor .wall{position:absolute;border:1px dashed var(--edge);pointer-events:none;opacity:.5}
+.ap-dot,.client-dot{position:absolute;transform:translate(-50%,-50%);border-radius:50%;display:grid;place-items:center;z-index:3;font-size:12px;font-weight:700;pointer-events:none;white-space:nowrap}
+.ap-dot{width:35px;height:35px;background:#136da3;color:white;border:2px solid #fff}
+.ap-dot.selected{outline:3px solid #e1a634;outline-offset:2px}
+.client-dot{width:27px;height:27px;background:#f7f9fa;border:2px solid #476174;color:#213a49}
+.client-dot.good{border-color:#13845a}.client-dot.bad{border-color:#cb4545;background:#fbe5e5}
+.node-label{position:absolute;transform:translateX(-50%);font-size:10px;font-weight:650;z-index:4;pointer-events:none}
+.coverage-ring{position:absolute;transform:translate(-50%,-50%);border:1px solid rgba(46,145,207,.45);background:rgba(46,145,207,.08);border-radius:50%;pointer-events:none}
+#report{white-space:pre-line;border-left:4px solid var(--edge);padding:10px;background:var(--bg);margin-top:10px}
+#report[data-ok="yes"]{border-left-color:var(--ok)}
+.legend{display:flex;flex-wrap:wrap;gap:15px;font-size:12px;margin-top:8px;color:var(--muted)}
+</style></head><body><header><h1>R2D3 : couverture Wi-Fi multibornes</h1><p>Premier laboratoire de conception radio 3D simplifiée, 3 étages et 3 bornes</p></header>
+<main><section><h2>Objectif</h2><p>Place les trois bornes dans un bâtiment de trois niveaux pour couvrir tous les points de contrôle. Les bornes couvrent aussi les étages voisins, avec une atténuation pédagogique entre planchers.</p>
+<p class="help">Les points de contrôle sont fixes. Les cercles montrent uniquement une portée illustrative, le résultat est calculé par le moteur commun selon les positions 3D.</p></section>
+<section><h2>Placement des bornes</h2>
+<div class="controls">
+<label>Étage affiché<select id="floor"><option value="2">R+2</option><option value="1" selected>R+1</option><option value="0">RDC</option></select></label>
+<label>Borne à déplacer<select id="selected-ap"><option value="0">AP-01</option><option value="1">AP-02</option><option value="2">AP-03</option></select></label>
+<label>Bande étudiée<select id="band"><option value="2.4">2,4 GHz</option><option value="5" selected>5 GHz</option><option value="6">6 GHz</option></select></label>
+<button id="place" type="button" class="primary">Placer sur cet étage</button>
+<button id="reset" type="button">Réinitialiser</button>
+</div>
+<p id="instruction" class="help">Clique sur le plan pour déplacer AP-01 au niveau affiché.</p>
+<div class="floor" id="plan" aria-label="Plan de l'étage et position des bornes Wi-Fi"></div>
+<div class="legend"><span>● Borne bleue</span><span>● Client vert : couvert</span><span>● Client rouge : hors couverture</span></div>
+<div id="report" aria-live="polite"></div>
+</section></main><script type="module" src="./main.js"></script></body></html>
