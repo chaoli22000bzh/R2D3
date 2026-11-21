@@ -26,8 +26,8 @@ input[type=checkbox]{width:17px;height:17px;min-width:17px;min-height:17px;margi
 <section><h2>Réglage de la borne</h2><div id="wifi-admin"></div><p class="note">Modifier « Isolation mode », puis enregistrer. L’accès à la passerelle reste possible.</p><div class="controls"><button id="reset">Réinitialiser le laboratoire</button></div><div id="ap-status" class="status" aria-live="polite"></div></section>
 <section><h2>Diagnostic réseau</h2>
 <div class="controls">
-<button id="peer-ping" class="primary">Ping PC-01 vers PC-02</button>
-<button id="gateway-ping">Ping PC-01 vers passerelle</button>
+<button id="peer-ping" aria-pressed="false">Ping PC-01 vers PC-02</button>
+<button id="gateway-ping" aria-pressed="false">Ping PC-01 vers passerelle</button>
 </div>
 <div id="ping-status" class="status" aria-live="polite">Choisis un test ping.</div><pre id="ping-console" aria-live="polite" style="background:#101923;color:#d5f0d9;padding:12px;border-radius:5px;white-space:pre-wrap;min-height:100px;overflow-x:auto">C:\\Users\\technicien&gt;</pre>
 <p class="note">Ce test couvre l'isolation entre clients connectés à une même borne et un même SSID. L'isolation interbornes et l'isolation du réseau invité par rapport au LAN sont des mécanismes différents, à traiter séparément.</p></section>
