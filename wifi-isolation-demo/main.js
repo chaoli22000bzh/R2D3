@@ -1,3 +1,6 @@
+import {mountWifiAdmin} from "../src/wifi-admin-ui-v1.js";
+import {createPingAnimator} from "https://chaoli22000bzh.github.io/C2-Lab/shared-ui/v1/ping-animation.js";
+import "https://chaoli22000bzh.github.io/C2-Lab/shared-ui/v1/button-feedback.js";
 import {createAssetRegistry} from "../src/asset-profiles.js";
 import {createWifiAccessPoint,configureWifiAp,getWifiConfig} from "../src/wifi-ap-v1.js";
 import {addSwitchVlan,setSwitchTrunkPort} from "../src/vlan-v1.js";
@@ -8,6 +11,8 @@ const $=id=>document.getElementById(id);
 const good=r=>{if(!r?.success)throw Error(r?.message||r?.reason||r?.code||"Erreur réseau");return r;};
 const report=(id,r)=>{const el=$(id);el.textContent=r.message;el.dataset.result=r.success?"ok":"fail";};
 let registry,ap,sw,session;
+const animator=createPingAnimator($("ping-console"));
+let wifiAdmin;
 function initialize(){
  registry=createAssetRegistry();
  const swProfile=good(registry.createProfile("Switch L3")).profile;
@@ -39,20 +44,19 @@ function initialize(){
  session=createWifiIsolationSession({registry,apId:ap.id,switchId:sw.id,ssidId:"lycee",clients:associations});
  good(session);
  $("ip-1").textContent=session.addresses[0];$("ip-2").textContent=session.addresses[1];
- $("isolation").checked=false;
+ wifiAdmin=mountWifiAdmin({root:$("wifi-admin"),registry,assetId:ap.id,onChange:r=>report("ap-status",r)});
  report("leases-status",{success:true,message:"Deux baux IPv4 distincts attribués : "+session.addresses.join(" et ")+"/24."});
  report("ap-status",{success:true,message:"Isolation mode désactivé : communication directe autorisée."});
+ animator.cancel("C:\\\\Users\\\\technicien>");
  $("ping-status").textContent="Choisis un test ping.";$("ping-status").dataset.result="";
 }
-$("isolation").addEventListener("change",()=>{
- const config=getWifiConfig(registry,ap.id);
- config.ssids[0].clientIsolation=$("isolation").checked;
- const r=registry.setAssetWifiConfig(ap.id,config);
- report("ap-status",r.success?{success:true,message:$("isolation").checked?
-  "Isolation mode activé : communication directe entre clients interdite.":
-  "Isolation mode désactivé : communication directe autorisée."}:r);
-});
-$("peer-ping").addEventListener("click",()=>report("ping-status",session.pingPeers()));
-$("gateway-ping").addEventListener("click",()=>report("ping-status",session.pingGateway()));
+function runPing(target,call){
+ const result=call();
+ report("ping-status",result);
+ animator.run({sourceName:"PC-01",sourceAddress:session.addresses[0],
+  targetAddress:target,targetInput:target,outcome:result});
+}
+$("peer-ping").addEventListener("click",()=>runPing(session.addresses[1],session.pingPeers));
+$("gateway-ping").addEventListener("click",()=>runPing("192.168.10.1",session.pingGateway));
 $("reset").addEventListener("click",initialize);
 initialize();
