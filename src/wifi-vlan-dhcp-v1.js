@@ -44,7 +44,7 @@ export function validateWifiVlanPath({registry,apId,switchId,clientId,ssidId,pas
 export function requestWifiVlanDhcp({registry,apId,switchId,clientId,ssidId,password="",bands=["2.4","5"],security=["open","wpa2-personal","wpa3-personal","wpa2-wpa3-personal"],macAddress="02-00-00-00-10-01"}={}){
  const path=validateWifiVlanPath({registry,apId,switchId,clientId,ssidId,password,bands,security,macAddress});
  if(!path.success)return path;
- const {client,sw,selected,vlanNumber,portId,pool}=path;
+ const {client,ssid,vlanNumber,portId,pool}=path;
  const server=createSwitchDhcpCoreObject(registry,switchId);
  if(!server)return fail("missing_core_asset","Switch absent du Core DHCP.");
  const clientObject={id:clientId,kind:"pc-windows",name:client.name,ports:[{id:"wifi-logical",type:"rj45"}],
@@ -61,5 +61,5 @@ export function requestWifiVlanDhcp({registry,apId,switchId,clientId,ssidId,pass
  const state=engine.getSnapshot(),c=state.objectsById[clientId],ip=c.config.ipv4,lease=state.runtime?.[clientId]?.dhcpStatus==="lease";
  return {success:lease,code:lease?"lease":"apipa",message:lease?"Bail attribué par le Core DHCP du VLAN.":"Aucun bail DHCP : APIPA.",
   address:ip.address,prefix:ip.prefix,gateway:c.config.networkOptions.gateway,dns:c.config.networkOptions.dns,
-  lease:ip.lease,vlanNumber,ssid:selected.name,portId};
+  lease:ip.lease,vlanNumber,ssid,portId};
 }
