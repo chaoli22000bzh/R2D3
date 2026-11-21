@@ -43,6 +43,6 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
   onChange?.(result);
   return result;
  }
- root.addEventListener("click",e=>{if(e.target.closest("[data-save]"))save();});
+ root.onclick=e=>{if(e.target.closest("[data-save]"))save();};
  render();return {render,save,getConfig:get};
 }
