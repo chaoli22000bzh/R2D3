@@ -18,7 +18,7 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
     '<label>Nom du réseau<input data-field="name" maxlength="32" value="'+esc(s.name)+'"></label>'+
     '<label>Sécurité<select data-field="security">'+choices.map(([id,label])=>'<option value="'+id+'" '+(s.security===id?"selected":"")+'>'+label+'</option>').join("")+'</select></label>'+
     '<label>Mot de passe<input data-field="password" value="'+esc(s.password||"")+'"></label>'+
-    '<label>VLAN<input type="number" data-field="vlanNumber" min="1" max="4094" value="'+esc(s.vlanNumber??"")+'"></label>'+
+    '<label class="wifi-admin-vlan">VLAN<input type="text" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4" autocomplete="off" data-field="vlanNumber" value="'+esc(s.vlanNumber??"")+'"></label>'+
     '<label class="check"><input type="checkbox" data-field="enabled" '+(s.enabled?"checked":"")+'> SSID actif</label>'+
     '<label class="check"><input type="checkbox" data-field="clientIsolation" '+(s.clientIsolation?"checked":"")+'> Isolation mode</label>'+
     '</fieldset>').join("")+
@@ -26,6 +26,14 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
  }
  function save(){
   const prev=get();if(!prev)return {success:false,message:"Borne indisponible."};
+  const vlanInputs=[...root.querySelectorAll('[data-field="vlanNumber"]')];
+  if(vlanInputs.some(input=>{const value=input.value.trim();return value!==""&&(!/^[0-9]{1,4}$/.test(value)||Number(value)<1||Number(value)>4094);})){
+   error="Le numéro de VLAN doit être compris entre 1 et 4094.";isError=true;
+   const existing=root.querySelector(".wifi-admin-feedback");
+   if(existing){existing.textContent=error;existing.classList.add("error");}
+   else {const p=document.createElement("p");p.className="wifi-admin-feedback error";p.setAttribute("role","status");p.textContent=error;root.querySelector(".wifi-admin-head").after(p);}
+   return {success:false,message:error};
+  }
   const ssids=prev.ssids.map((s,i)=>{
    const fieldset=root.querySelector('fieldset[data-index="'+i+'"]');
    const read=k=>fieldset.querySelector('[data-field="'+k+'"]');
