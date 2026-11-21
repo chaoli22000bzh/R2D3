@@ -47,6 +47,10 @@ export function requestWifiVlanDhcp({registry,apId,switchId,clientId,ssidId,pass
  const {client,ssid,vlanNumber,portId,pool}=path;
  const server=createSwitchDhcpCoreObject(registry,switchId);
  if(!server)return fail("missing_core_asset","Switch absent du Core DHCP.");
+ // Le Core utilise une IPv4 par objet. Projeter ici la véritable SVI du VLAN
+ // du client permet de tester le ping de sa passerelle, même sur VLAN 20.
+ // Cette projection n'altère ni le registre R2D3 ni les plages DHCP.
+ server.config.ipv4={interfaceId:portId,mode:"static",address:path.svi.address,prefix:path.svi.prefix};
  const clientObject={id:clientId,kind:"pc-windows",name:client.name,ports:[{id:"wifi-logical",type:"rj45"}],
   config:{macAddress,ipv4:{interfaceId:"wifi-logical",mode:"dhcp",address:null,prefix:null,lease:null},networkOptions:{gateway:null,dns:[]}}};
  let engine;
