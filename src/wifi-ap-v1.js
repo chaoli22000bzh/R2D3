@@ -1,5 +1,3 @@
-import {authenticateWifiRadius} from "./wifi-radius-v1.js";
-import {checkWifiMacFilter} from "./wifi-mac-filter-v1.js";
 /* Wi-Fi R2D3 : premier lot, association simulée et capacité de borne.
    Ne remplace pas les moteurs Ethernet, DHCP, VLAN ou routage. */
 import {negotiateWifiSecurity} from "./wifi-security-v1.js";
@@ -23,7 +21,7 @@ export function configureWifiAp(registry,apId,{enabled,ssids}={}){
  if(!config)return fail("ap_missing","Point d'accès introuvable.");
  return registry.setAssetWifiConfig(apId,{...config,enabled:enabled??config.enabled,ssids:ssids??config.ssids});
 }
-export function scanWifiNetworks(registry,{bands=["2.4","5"],security=["open","wpa2-personal","wpa3-personal","wpa2-wpa3-personal","wpa2-enterprise"]}={}){
+export function scanWifiNetworks(registry,{bands=["2.4","5"],security=["open","wpa2-personal","wpa3-personal","wpa2-wpa3-personal"]}={}){
  const out=[];
  for(const ap of registry.listAssets().filter(a=>a.networkCapabilities?.includes("wifi-ap")&&a.wifiConfig?.enabled&&a.status==="En service")){
   for(const ssid of ap.wifiConfig.ssids.filter(s=>s.enabled)){
@@ -34,7 +32,7 @@ export function scanWifiNetworks(registry,{bands=["2.4","5"],security=["open","w
  }
  return out;
 }
-export function associateWifiClient(registry,{apId,ssidId,password="",username="",radiusService=null,macAddress="",bands=["2.4","5"],security=["open","wpa2-personal","wpa3-personal","wpa2-wpa3-personal"]}={}){
+export function associateWifiClient(registry,{apId,ssidId,password="",bands=["2.4","5"],security=["open","wpa2-personal","wpa3-personal","wpa2-wpa3-personal"]}={}){
  const ap=registry?.getAsset?.(apId);
  if(!ap?.networkCapabilities?.includes("wifi-ap"))return fail("ap_missing","Borne introuvable.");
  if(ap.status!=="En service"||!ap.wifiConfig?.enabled)return fail("ap_disabled","Borne Wi-Fi désactivée.");
@@ -45,13 +43,7 @@ export function associateWifiClient(registry,{apId,ssidId,password="",username="
  const compatible=commonBands.map(band=>({band,negotiation:negotiateWifiSecurity(ssid.security,security,band)}))
   .find(x=>x.negotiation.success);
  if(!compatible)return fail("security_incompatible","Sécurité non prise en charge par le client sur cette bande.");
- const mac=checkWifiMacFilter(ssid.macFilter,macAddress);
- if(!mac.success)return fail(mac.code,mac.message);
- if(ssid.security==="wpa2-enterprise"){
-  const radius=authenticateWifiRadius({endpoint:ssid.radius,service:radiusService,username,password});
-  if(!radius.success)return fail(radius.code,radius.message);
- }
- if(ssid.security!=="open"&&ssid.security!=="wpa2-enterprise"&&(!ssid.password||ssid.password!==password))
+ if(ssid.security!=="open"&&(!ssid.password||ssid.password!==password))
   return fail("authentication_failed","Mot de passe incorrect ou absent.");
  return ok("associated","Client associé au Wi-Fi. L'adressage IP et la connectivité Ethernet doivent être testés séparément.",{
   apId:ap.id,ssid:ssid.name,ssidId:ssid.id,band:compatible.band,
