@@ -1,0 +1,48 @@
+/* R2D3 - Administration Wi-Fi partageable.
+ * Toute configuration est lue et enregistrée dans le registre R2D3.
+ * Aucun état radio, VLAN, sécurité ou DHCP parallèle dans cette interface.
+ */
+import {getWifiConfig,configureWifiAp} from "./wifi-ap-v1.js";
+const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const choices=[["open","Ouvert"],["wpa2-personal","WPA2-Personal"],["wpa3-personal","WPA3-Personal"],["wpa2-wpa3-personal","WPA2/WPA3"]];
+export function mountWifiAdmin({root,registry,assetId,onChange}={}){
+ if(!root||!registry?.getAsset)throw Error("Élément ou registre R2D3 absent.");
+ let error="",isError=false;
+ const get=()=>getWifiConfig(registry,assetId);
+ function render(){
+  const config=get();if(!config)throw Error("Borne Wi-Fi R2D3 introuvable.");
+  root.classList.add("wifi-admin");
+  root.innerHTML='<div class="wifi-admin-head"><strong>Administration Wi-Fi</strong><label><input type="checkbox" data-enabled '+(config.enabled?"checked":"")+'> Borne activée</label></div>'+
+   (error?'<p role="status" class="wifi-admin-feedback '+(isError?"error":"")+'">'+esc(error)+'</p>':"")+
+   config.ssids.map((s,i)=>'<fieldset data-index="'+i+'"><legend>SSID '+(i+1)+'</legend>'+
+    '<label>Nom du réseau<input data-field="name" maxlength="32" value="'+esc(s.name)+'"></label>'+
+    '<label>Sécurité<select data-field="security">'+choices.map(([id,label])=>'<option value="'+id+'" '+(s.security===id?"selected":"")+'>'+label+'</option>').join("")+'</select></label>'+
+    '<label>Mot de passe<input data-field="password" value="'+esc(s.password||"")+'"></label>'+
+    '<label>VLAN<input type="number" data-field="vlanNumber" min="1" max="4094" value="'+esc(s.vlanNumber??"")+'"></label>'+
+    '<label class="check"><input type="checkbox" data-field="enabled" '+(s.enabled?"checked":"")+'> SSID actif</label>'+
+    '<label class="check"><input type="checkbox" data-field="clientIsolation" '+(s.clientIsolation?"checked":"")+'> Isolation mode</label>'+
+    '</fieldset>').join("")+
+   '<div class="wifi-admin-actions"><button type="button" data-save class="primary">Enregistrer les réglages</button></div>';
+ }
+ function save(){
+  const prev=get();if(!prev)return {success:false,message:"Borne indisponible."};
+  const ssids=prev.ssids.map((s,i)=>{
+   const fieldset=root.querySelector('fieldset[data-index="'+i+'"]');
+   const read=k=>fieldset.querySelector('[data-field="'+k+'"]');
+   const raw=read("vlanNumber").value.trim();
+   return {...s,name:read("name").value.trim(),security:read("security").value,
+     password:read("password").value,
+     vlanNumber:raw===""?null:Number(raw),
+     enabled:read("enabled").checked,clientIsolation:read("clientIsolation").checked};
+  });
+  const result=configureWifiAp(registry,assetId,{enabled:root.querySelector("[data-enabled]").checked,ssids});
+  error=result.success?"Configuration de la borne enregistrée.":(result.message||"Configuration refusée.");
+  isError=!result.success;
+  if(result.success)render();
+  else {const box=root.querySelector(".wifi-admin-feedback");if(box){box.textContent=error;box.classList.add("error");}else{const p=document.createElement("p");p.className="wifi-admin-feedback error";p.setAttribute("role","status");p.textContent=error;root.querySelector(".wifi-admin-head").after(p);}}
+  onChange?.(result);
+  return result;
+ }
+ root.addEventListener("click",e=>{if(e.target.closest("[data-save]"))save();});
+ render();return {render,save,getConfig:get};
+}
