@@ -3,6 +3,7 @@
  * Aucun état radio, VLAN, sécurité ou DHCP parallèle dans cette interface.
  */
 import {getWifiConfig,configureWifiAp} from "./wifi-ap-v1.js";
+import {WIFI_RADIO_BANDS,WIFI_RADIO_OPTIONS,effectiveWifiRadios} from "./wifi-radio-config-v1.js";
 const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const choices=[["open","Ouvert"],["wpa2-personal","WPA2-Personal"],["wpa3-personal","WPA3-Personal"],["wpa2-wpa3-personal","WPA2/WPA3"]];
 export function mountWifiAdmin({root,registry,assetId,onChange}={}){
@@ -14,6 +15,17 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
   root.classList.add("wifi-admin");
   root.innerHTML='<div class="wifi-admin-head"><strong>Administration Wi-Fi</strong><label><input type="checkbox" data-enabled '+(config.enabled?"checked":"")+'> Borne activée</label></div>'+
    (error?'<p role="status" class="wifi-admin-feedback '+(isError?"error":"")+'">'+esc(error)+'</p>':"")+
+   '<fieldset class="wifi-admin-radios"><legend>Radios et canaux</legend>'+
+   WIFI_RADIO_BANDS.map(band=>{
+    const options=WIFI_RADIO_OPTIONS[band],radio=effectiveWifiRadios(config)[band];
+    return '<div class="wifi-admin-radio" data-radio-band="'+band+'">'+
+     '<label class="check"><input type="checkbox" data-radio-enabled'+(radio.enabled?' checked':'')+'> '+options.label+'</label>'+
+     '<label>Canal<select data-radio-channel><option value="auto"'+(radio.channel==="auto"?' selected':'')+'>Automatique</option>'+
+      options.channels.map(n=>'<option value="'+n+'"'+(radio.channel===n?' selected':'')+'>'+n+'</option>').join("")+'</select></label>'+
+     '<label>Largeur<select data-radio-width>'+
+      options.widths.map(n=>'<option value="'+n+'"'+(radio.width===n?' selected':'')+'>'+n+' MHz</option>').join("")+'</select></label>'+
+     '</div>';
+   }).join("")+'</fieldset>'+
    config.ssids.map((s,i)=>'<fieldset data-index="'+i+'"><legend>SSID '+(i+1)+'</legend>'+
     '<label>Nom du réseau<input data-field="name" maxlength="32" value="'+esc(s.name)+'"></label>'+
     '<label>Sécurité<select data-field="security">'+choices.map(([id,label])=>'<option value="'+id+'" '+(s.security===id?"selected":"")+'>'+label+'</option>').join("")+'</select></label>'+
@@ -62,7 +74,17 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
      vlanNumber:raw===""?null:Number(raw),
      enabled:read("enabled").checked,clientIsolation:read("clientIsolation").checked};
   });
-  const result=configureWifiAp(registry,assetId,{enabled:root.querySelector("[data-enabled]").checked,ssids});
+  const radios=effectiveWifiRadios(prev);
+  for(const row of root.querySelectorAll("[data-radio-band]")){
+   const band=row.dataset.radioBand;
+   const choice=row.querySelector("[data-radio-channel]").value;
+   radios[band]={
+    enabled:row.querySelector("[data-radio-enabled]").checked,
+    channel:choice==="auto"?"auto":Number(choice),
+    width:Number(row.querySelector("[data-radio-width]").value)
+   };
+  }
+  const result=configureWifiAp(registry,assetId,{enabled:root.querySelector("[data-enabled]").checked,ssids,radios});
   error=result.success?"Configuration de la borne enregistrée.":(result.message||"Configuration refusée.");
   isError=!result.success;
   if(result.success)render();
