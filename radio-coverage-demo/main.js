@@ -40,7 +40,7 @@ const scenarios={
 };
 const profiles={
  neutral:{label:"Radio pédagogique",baseline:-38,decay:24,floorLoss:9},
- wifi:{label:"Wi-Fi (illustration)",baseline:-39,decay:25,floorLoss:9},
+ wifi:{label:"Wi-Fi (illustration)",baseline:-39,decay:25,floorLoss:25,obstacleLoss:{light:5,solid:20,metal:24}},
  dect:{label:"DECT (illustration)",baseline:-35,decay:22,floorLoss:8},
  cellular:{label:"Réseau mobile (illustration)",baseline:-34,decay:21,floorLoss:8},
  mesh:{label:"Mesh (illustration)",baseline:-39,decay:24,floorLoss:9}
