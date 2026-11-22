@@ -8,12 +8,20 @@ const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;
 const choices=[["open","Ouvert"],["wpa2-personal","WPA2-Personal"],["wpa3-personal","WPA3-Personal"],["wpa2-wpa3-personal","WPA2/WPA3"]];
 export function mountWifiAdmin({root,registry,assetId,onChange}={}){
  if(!root||!registry?.getAsset)throw Error("Élément ou registre R2D3 absent.");
- let error="",isError=false;
+ let error="",isError=false,activeTab="overview";
  const get=()=>getWifiConfig(registry,assetId);
  function render(){
   const config=get();if(!config)throw Error("Borne Wi-Fi R2D3 introuvable.");
+  const asset=registry.getAsset(assetId);
   root.classList.add("wifi-admin");
-  root.innerHTML='<div class="wifi-admin-head"><strong>Administration Wi-Fi</strong><label><input type="checkbox" data-enabled '+(config.enabled?"checked":"")+'> Borne activée</label></div>'+
+  root.dataset.tab=activeTab;
+  root.innerHTML='<div class="wifi-admin-topbar">R2D3 <span>Administration réseau</span></div>'+
+   '<div class="wifi-admin-device"><div><strong>'+esc(asset?.name||"Point d’accès Wi-Fi")+'</strong><span>Point d’accès Wi-Fi</span></div><span class="wifi-admin-state">'+(config.enabled?"Activée":"Désactivée")+'</span></div>'+
+   '<nav class="wifi-admin-tabs" aria-label="Administration Wi-Fi">'+
+   [["overview","Vue d’ensemble"],["networks","Réseaux Wi-Fi"],["security","Sécurité"],["radios","Radios"],["vlan","VLAN"]].map(([id,label])=>'<button type="button" data-tab-target="'+id+'" class="'+(activeTab===id?"active":"")+'" aria-current="'+(activeTab===id?"page":"false")+'">'+label+'</button>').join("")+
+   '</nav>'+
+   '<section class="wifi-admin-overview"><h3>Vue d’ensemble</h3><dl><div><dt>Nom</dt><dd>'+esc(asset?.name||"")+'</dd></div><div><dt>État</dt><dd>'+(config.enabled?"Activée":"Désactivée")+'</dd></div><div><dt>Ports</dt><dd>'+esc((asset?.ports||[]).map(p=>p.name||p.id).join(", "))+'</dd></div><div><dt>SSID</dt><dd>'+config.ssids.length+'</dd></div></dl></section>'+
+   '<div class="wifi-admin-head"><strong>Administration Wi-Fi</strong><label><input type="checkbox" data-enabled '+(config.enabled?"checked":"")+'> Borne activée</label></div>'+
    (error?'<p role="status" class="wifi-admin-feedback '+(isError?"error":"")+'">'+esc(error)+'</p>':"")+
    '<fieldset class="wifi-admin-radios"><legend>Radios et canaux</legend>'+
    WIFI_RADIO_BANDS.map(band=>{
@@ -89,6 +97,17 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
   onChange?.(result);
   return result;
  }
- root.onclick=e=>{if(e.target.closest("[data-save]"))save();};
+ root.onclick=e=>{
+  const tab=e.target.closest("[data-tab-target]");
+  if(tab){
+   activeTab=tab.dataset.tabTarget;root.dataset.tab=activeTab;
+   for(const button of root.querySelectorAll("[data-tab-target]")){
+    const selected=button.dataset.tabTarget===activeTab;
+    button.classList.toggle("active",selected);button.setAttribute("aria-current",selected?"page":"false");
+   }
+   return;
+  }
+  if(e.target.closest("[data-save]"))save();
+ };
  render();return {render,save,getConfig:get};
 }
