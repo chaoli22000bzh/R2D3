@@ -45,14 +45,37 @@ const profiles={
  cellular:{label:"Réseau mobile (illustration)",baseline:-34,decay:21,floorLoss:8},
  mesh:{label:"Mesh (illustration)",baseline:-39,decay:24,floorLoss:9}
 };
-let positions=[],scenario;
+let positions=[],scenario,selectedId=null,placing=false,nextId=1;
 function reset(){
- scenario=scenarios[$("site").value];positions=scenario.positions.map(p=>({...p}));
+ scenario=scenarios[$("site").value];positions=[];selectedId=null;placing=false;nextId=1;
  $("floor").replaceChildren();
  for(let i=0;i<scenario.levels;i++){
   const option=document.createElement("option");option.value=i;option.textContent=i===0?"RDC":"R+"+i;$("floor").append(option);
  }
  render();
+}
+function updateControls(){
+ const floor=Number($("floor").value);
+ const local=positions.filter(p=>p.z===floor*3);
+ const select=$("tx-select");
+ select.replaceChildren();
+ const empty=document.createElement("option");empty.value="";empty.textContent=local.length?"Choisir une borne":"Aucune borne à cet étage";select.append(empty);
+ for(const p of local){
+  const option=document.createElement("option");option.value=String(p.id);option.textContent="Borne "+p.id;select.append(option);
+ }
+ if(!local.some(p=>p.id===selectedId))selectedId=null;
+ select.value=selectedId===null?"":String(selectedId);
+ select.disabled=local.length===0;
+ $("remove-tx").disabled=selectedId===null;
+ $("add-tx").textContent=placing?"Annuler le placement":"+ Ajouter une borne";
+ $("add-tx").setAttribute("aria-pressed",String(placing));
+ $("tx-count").textContent=local.length+" borne"+(local.length===1?"":"s")+" sur cet étage · "+positions.length+" au total";
+ $("plan").classList.toggle("placing",placing);
+ $("instruction").textContent=placing
+  ?"Clique sur le plan pour placer la nouvelle borne au niveau affiché."
+  :selectedId!==null
+   ?"Borne "+selectedId+" sélectionnée. Clique sur le plan pour la déplacer, ou supprime-la."
+   :"Clique sur « Ajouter une borne », puis sur le plan pour choisir son emplacement.";
 }
 function el(cls,text,x,y){
  const n=document.createElement("div");n.className=cls;n.textContent=text??"";
@@ -149,11 +172,11 @@ function render(){
  const panel=$("plan");panel.replaceChildren();panel.style.aspectRatio=scenario.width+"/"+scenario.height;
  planAreas(panel);
  const receivers=radioSampleGrid({width:scenario.width,height:scenario.height,z:floor*3,step:scenario.step});
- const result=radioCoverageAt({transmitters:positions.map((p,i)=>({...p,id:"E"+(i+1)})),receivers,site,profile});
- coverageCanvas(panel,result.points,scenario.step);
+ const result=radioCoverageAt({transmitters:positions.map(p=>({...p,id:"E"+p.id})),receivers,site,profile});
+ if(positions.length)coverageCanvas(panel,result.points,scenario.step);
  drawings(panel);
- for(const [i,p] of positions.entries())if(p.z===floor*3)
-  panel.append(el("tx"+(Number($("tx-select").value)===i?" selected":""),String(i+1),p.x,p.y));
+ for(const p of positions)if(p.z===floor*3)
+  panel.append(el("tx"+(selectedId===p.id?" selected":""),String(p.id),p.x,p.y));
  const counts={good:0,weak:0,bad:0};
  for(const p of result.points)counts[p.quality==="bonne"?"good":p.quality==="faible"?"weak":"bad"]++;
  $("map-title").textContent=scenario.label;
@@ -168,13 +191,31 @@ function render(){
  $("sample-count").textContent="Points calculés : "+result.totalCount;
  $("report").textContent="Couverture "+percentage+" %. "+counts.good+" points bons, "+counts.weak+" faibles, "+counts.bad+" insuffisants.";
  $("details").textContent="Les cloisons comportent des passages et les murs extérieurs atténuent la propagation. Profil : "+profile.label+". Modèle pédagogique simplifié.";
+ updateControls();
 }
-$("site").onchange=reset;$("profile").onchange=render;$("floor").onchange=render;$("tx-select").onchange=render;
+$("site").onchange=reset;
+$("profile").onchange=render;
+$("floor").onchange=()=>{placing=false;selectedId=null;render();};
+$("tx-select").onchange=()=>{selectedId=$("tx-select").value?Number($("tx-select").value):null;placing=false;render();};
+$("add-tx").onclick=()=>{placing=!placing;selectedId=null;render();};
+$("remove-tx").onclick=()=>{
+ if(selectedId===null)return;
+ positions=positions.filter(p=>p.id!==selectedId);
+ selectedId=null;placing=false;render();
+};
 $("reset").onclick=reset;
 $("plan").onclick=e=>{
- const rect=e.currentTarget.getBoundingClientRect(),i=Number($("tx-select").value);
- positions[i]={x:Math.max(0,Math.min(scenario.width,(e.clientX-rect.left)/rect.width*scenario.width)),
- y:Math.max(0,Math.min(scenario.height,(e.clientY-rect.top)/rect.height*scenario.height)),z:Number($("floor").value)*3};
+ const rect=e.currentTarget.getBoundingClientRect();
+ const x=Math.max(0,Math.min(scenario.width,(e.clientX-rect.left)/rect.width*scenario.width));
+ const y=Math.max(0,Math.min(scenario.height,(e.clientY-rect.top)/rect.height*scenario.height));
+ const z=Number($("floor").value)*3;
+ if(placing){
+  const id=nextId++;positions.push({id,x,y,z});selectedId=id;placing=false;
+ }else if(selectedId!==null){
+  const p=positions.find(p=>p.id===selectedId&&p.z===z);
+  if(!p)return;
+  p.x=x;p.y=y;
+ }else return;
  render();
 };
 reset();
