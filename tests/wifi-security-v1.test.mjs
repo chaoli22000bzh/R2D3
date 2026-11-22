@@ -46,6 +46,8 @@ test("6 GHz : WPA2 interdit par négociation, WPA3 accepté",()=>{
  assert.equal(negotiateWifiSecurity("wpa2-wpa3-personal",["wpa2-personal"],"6").success,false);
  assert.equal(negotiateWifiSecurity("wpa2-wpa3-personal",["wpa3-personal"],"6").negotiatedSecurity,"wpa3-personal");
  const f=setup();assert.equal(f.configure("wpa3-personal","Motdepasse2026",["6"]).success,true);
+ const radios={...getWifiConfig(f.registry,f.ap.id).radios,"6":{enabled:true,channel:"auto"}};
+ assert.equal(configureWifiAp(f.registry,f.ap.id,{radios}).success,true);
  assert.equal(f.connect(["wpa3-personal"],"Motdepasse2026",["6"]).success,true);
  assert.equal(f.connect(["wpa2-personal"],"Motdepasse2026",["6"]).code,"security_incompatible");
 });
@@ -69,6 +71,8 @@ test("Bandes par SSID : 6 GHz exige WPA3 et préserve l'état lors d'un refus",(
  assert.deepEqual(f.registry.exportState(),before);
  assert.equal(f.configure("wpa3-personal","Motdepasse2026",["5","6"]).success,true);
  assert.deepEqual(getWifiConfig(f.registry,f.ap.id).ssids[0].bands,["5","6"]);
+ const radios={...getWifiConfig(f.registry,f.ap.id).radios,"6":{enabled:true,channel:"auto"}};
+ assert.equal(configureWifiAp(f.registry,f.ap.id,{radios}).success,true);
  assert.equal(scanWifiNetworks(f.registry,{bands:["6"],security:["wpa3-personal"]}).length,1);
  assert.equal(scanWifiNetworks(f.registry,{bands:["6"],security:["wpa2-personal"]}).length,0);
  const restored=restoreAssetRegistry(f.registry.exportState());
