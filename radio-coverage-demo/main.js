@@ -19,7 +19,7 @@ const officeWalls=[
  ...splitHorizontal(36,6,66,[[34,38]],"solid")
 ];
 const scenarios={
- offices:{label:"Bureaux sur 3 niveaux",width:72,height:42,levels:3,step:1,
+ offices:{label:"Bureaux sur 3 niveaux",width:72,height:42,levels:3,step:0.5,
   walls:officeWalls,
   areas:[
    {x:0,y:0,width:72,height:42,type:"outdoor"},
@@ -28,7 +28,7 @@ const scenarios={
    {x:6,y:36,width:60,height:6,type:"parking",label:"PARKING EXTÉRIEUR"}
   ],
   positions:[{x:12,y:12,z:0},{x:15,y:13,z:0},{x:14,y:12,z:3}]},
- workshop:{label:"Atelier et parking",width:120,height:65,levels:1,step:1.5,
+ workshop:{label:"Atelier et parking",width:120,height:65,levels:1,step:0.75,
   walls:[line(0,8,120,8,"metal"),line(0,45,120,45,"metal"),line(20,8,20,45,"solid")],
   areas:[
    {x:0,y:0,width:120,height:8,type:"outdoor",label:"ACCÈS EXTÉRIEUR"},
