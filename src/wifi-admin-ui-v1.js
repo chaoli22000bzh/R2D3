@@ -8,14 +8,14 @@ const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const copy=x=>JSON.parse(JSON.stringify(x));
 const securityChoices=[["open","Ouvert"],["wpa2-personal","WPA2-Personal"],["wpa3-personal","WPA3-Personal"],["wpa2-wpa3-personal","WPA2/WPA3"]];
 const bands=[["2.4","2,4 GHz"],["5","5 GHz"],["6","6 GHz"]];
-const tabs=[["overview","Vue d’ensemble"],["networks","Réseaux Wi-Fi"],["security","Sécurité"],["radios","Radios"],["vlan","VLAN"]];
+const tabs=[["overview","Vue d’ensemble"],["networks","Réseaux Wi-Fi"],["radios","Radios"]];
 const opt=(choices,current)=>choices.map(([value,label])=>'<option value="'+esc(value)+'"'+(String(current)===String(value)?" selected":"")+'>'+esc(label)+'</option>').join("");
 
 export function mountWifiAdmin({root,registry,assetId,onChange}={}){
  if(!root||!registry?.getAsset)throw Error("Élément ou registre réseau absent.");
  const initial=getWifiConfig(registry,assetId);
  if(!initial)throw Error("Point d’accès Wi-Fi introuvable.");
- let draft=copy(initial),page="overview",dirty=false,feedback="",feedbackError=false;
+ let draft=copy(initial),page="overview",dirty=false,feedback="",feedbackError=false,assetName=registry.getAsset(assetId)?.name||"";
  const get=()=>getWifiConfig(registry,assetId);
  const asset=()=>registry.getAsset(assetId);
  const ssidName=s=>s.name||"Sans nom";
@@ -23,17 +23,20 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
  const note=()=>dirty?'<span class="wifi-admin-pending">Modifications non enregistrées</span>':"";
  const overview=()=>{
   const a=asset(),ethernet=(a?.ports||[]).filter(p=>p.type==="ethernet-rj45"),radio=(a?.ports||[]).filter(p=>p.type==="wifi");
-  const details=[["Équipement",a?.name||""],["État de l’actif",a?.status||"Non renseigné"],["Ports Ethernet",ethernet.map(p=>p.name).join(", ")||"Aucun"],["Interfaces radio",radio.map(p=>p.name).join(", ")||"Aucune"],["Réseaux configurés",String(draft.ssids.length)],["Réseaux actifs",String(draft.ssids.filter(s=>s.enabled).length)]];
-  return '<section class="wifi-admin-panel"><h3>Informations de la borne</h3><dl class="wifi-admin-details">'+details.map(([key,value])=>'<div><dt>'+esc(key)+'</dt><dd>'+esc(value)+'</dd></div>').join("")+'</dl></section>'+
+  const details=[["État de l’actif",a?.status||"Non renseigné"],["Ports Ethernet",ethernet.map(p=>p.name).join(", ")||"Aucun"],["Interfaces radio",radio.map(p=>p.name).join(", ")||"Aucune"],["Réseaux configurés",String(draft.ssids.length)],["Réseaux actifs",String(draft.ssids.filter(s=>s.enabled).length)]];
+  return '<section class="wifi-admin-panel"><h3>Informations de la borne</h3><label class="wifi-admin-label wifi-admin-assetname">Nom de la borne<input data-asset-name maxlength="100" value="'+esc(assetName)+'"></label><dl class="wifi-admin-details">'+details.map(([key,value])=>'<div><dt>'+esc(key)+'</dt><dd>'+esc(value)+'</dd></div>').join("")+'</dl></section>'+
    '<section class="wifi-admin-panel"><h3>État du Wi-Fi</h3><label class="wifi-admin-check"><input type="checkbox" data-global-enabled'+(draft.enabled?" checked":"")+'> Activer la borne Wi-Fi</label></section>';
  };
  const networkRow=(s,i)=>'<section class="wifi-admin-panel wifi-admin-ssid" data-ssid="'+esc(s.id)+'">'+
-  '<div class="wifi-admin-panel-title"><h3>'+esc(ssidName(s))+'</h3><span>Réseau '+(i+1)+'</span></div>'+
+  '<div class="wifi-admin-panel-title"><h3>'+esc(ssidName(s))+'</h3></div>'+
   '<div class="wifi-admin-fields">'+
   '<label class="wifi-admin-label wifi-admin-ssidname">Nom du réseau (SSID)<input data-field="name" maxlength="32" value="'+esc(s.name)+'"></label>'+
   '<div class="wifi-admin-band-field"><span>Bandes Wi-Fi</span><div class="wifi-admin-band-options">'+bands.map(([id,label])=>'<label class="wifi-admin-check"><input type="checkbox" data-band="'+id+'"'+(s.bands.includes(id)?" checked":"")+'> '+label+'</label>').join("")+'</div></div>'+
   '<label class="wifi-admin-check"><input type="checkbox" data-field="enabled"'+(s.enabled?" checked":"")+'> SSID actif</label>'+
   '<label class="wifi-admin-check"><input type="checkbox" data-field="clientIsolation"'+(s.clientIsolation?" checked":"")+'> Isolation mode</label>'+
+  '<label class="wifi-admin-label wifi-admin-security">Sécurité<select data-field="security">'+opt(securityChoices,s.security)+'</select></label>'+ 
+  '<label class="wifi-admin-label wifi-admin-password">Mot de passe<input type="password" autocomplete="new-password" minlength="8" maxlength="63" data-field="password" value="'+esc(s.password||"")+'"'+(s.security==="open"?" disabled":"")+'></label>'+
+  '<label class="wifi-admin-label wifi-admin-vlan">Identifiant VLAN<input type="text" inputmode="numeric" maxlength="4" data-field="vlanNumber" value="'+esc(s.vlanNumber??"")+'"></label>'+
   '</div><div class="wifi-admin-panel-foot"><button type="button" class="wifi-admin-danger" data-remove-ssid="'+esc(s.id)+'">Supprimer ce SSID</button></div></section>';
  const networks=()=>'<div class="wifi-admin-section-head"><div><h3>Réseaux Wi-Fi</h3><p>Chaque SSID peut être diffusé sur plusieurs bandes.</p></div>'+
   '<button type="button" class="wifi-admin-secondary" data-add-ssid'+(draft.ssids.length>=16?" disabled":"")+'>Ajouter un SSID ('+draft.ssids.length+'/16)</button></div>'+
@@ -55,7 +58,7 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
   draft.ssids.map(s=>'<div class="wifi-admin-vlan-row" data-ssid="'+esc(s.id)+'"><div><strong>'+esc(ssidName(s))+'</strong><span>SSID</span></div>'+
    '<label class="wifi-admin-label wifi-admin-vlan">Identifiant VLAN<input type="text" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4" data-field="vlanNumber" value="'+esc(s.vlanNumber??"")+'"></label></div>').join("")+
   '</div></section>';
- const pages={overview,networks,security,radios,vlan};
+ const pages={overview,networks,radios};
  function render(){
   const a=asset();if(!a)throw Error("Équipement indisponible.");
   root.classList.add("wifi-admin");
@@ -73,6 +76,7 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
   if(page==="overview"){
    const enabled=root.querySelector("[data-global-enabled]");
    if(enabled)draft.enabled=enabled.checked;
+   const name=root.querySelector("[data-asset-name]");if(name)assetName=name.value.trim();
   }
   if(page==="networks"){
    for(const row of root.querySelectorAll("[data-ssid]")){
@@ -81,6 +85,9 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
     s.bands=[...row.querySelectorAll("[data-band]:checked")].map(x=>x.dataset.band);
     s.enabled=row.querySelector('[data-field="enabled"]').checked;
     s.clientIsolation=row.querySelector('[data-field="clientIsolation"]').checked;
+    s.security=row.querySelector('[data-field="security"]').value;
+    s.password=s.security==="open"?"":row.querySelector('[data-field="password"]').value;
+    const raw=row.querySelector('[data-field="vlanNumber"]').value.trim();s.vlanNumber=raw===""?null:Number(raw);s._vlanRaw=raw;
    }
   }
   if(page==="security"){
@@ -107,6 +114,7 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
   }
  }
  function validate(){
+  if(!assetName)return "Le nom de la borne est obligatoire.";
   if(draft.ssids.length>16)return "Une borne accepte au maximum 16 SSID.";
   for(const s of draft.ssids){
    if(!s.name||s.name.length>32)return "Le nom de chaque SSID doit contenir de 1 à 32 caractères.";
@@ -125,7 +133,10 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
   const config=copy(draft);
   for(const s of config.ssids)delete s._vlanRaw;
   const result=configureWifiAp(registry,assetId,config);
-  if(result.success){draft=copy(get());dirty=false;feedback="Configuration enregistrée.";feedbackError=false;render();}
+  if(result.success){
+   if(assetName!==asset()?.name){const rename=registry.updateAsset(assetId,{name:assetName});if(!rename.success){status(rename.message||"Renommage refusé.",true);return rename;}}
+   draft=copy(get());dirty=false;feedback="Configuration enregistrée.";feedbackError=false;render();
+  }
   else status(result.message||"Configuration refusée.",true);
   onChange?.(result);
   return result;
