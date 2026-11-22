@@ -3,6 +3,7 @@ import {createWifiAccessPoint,getWifiConfig,configureWifiAp} from "../src/wifi-a
 import {WIFI_RADIO_OPTIONS} from "../src/wifi-radio-config-v1.js";
 import {radioSampleGrid,radioSignalAt} from "../src/radio-coverage-core-v1.js";
 import {diagnoseWifiChannels,WIFI_CHANNEL_PROFILE} from "../src/wifi-channel-diagnostic-v1.js";
+import {resolveWifiAutoChannels} from "../src/wifi-auto-channel-v1.js";
 const $=id=>document.getElementById(id);
 const WIDTH=140,HEIGHT=55,STEP=2.5;
 const receivers=radioSampleGrid({width:WIDTH,height:HEIGHT,step:STEP});
@@ -70,7 +71,17 @@ function show(){
   ctx.fillStyle="#fff";ctx.fillText(i===0?"A":"B",x,y);
   if(!active){ctx.beginPath();ctx.moveTo(x-9,y-9);ctx.lineTo(x+9,y+9);ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.stroke();}
  });
- const diagnosis=diagnoseWifiChannels({accessPoints:aps,receivers,band,profile:WIFI_CHANNEL_PROFILE});
+ const selection=resolveWifiAutoChannels({accessPoints:aps,receivers,band,profile:WIFI_CHANNEL_PROFILE});
+ const resolvedChannels=Object.fromEntries(selection.assignments.map(item=>[item.apId,item.channel]));
+ const channelLabel=ap=>{
+  const setting=ap.wifiConfig.radios?.[band];
+  if(!setting?.enabled)return "désactivée";
+  return setting.channel==="auto"
+   ?"Automatique → canal "+(resolvedChannels[ap.id]??"indéterminé")
+   :"canal "+setting.channel+" (manuel)";
+ };
+ const channelsText="Borne A : "+channelLabel(aps[0])+" | Borne B : "+channelLabel(aps[1]);
+ const diagnosis=diagnoseWifiChannels({accessPoints:aps,receivers,band,profile:WIFI_CHANNEL_PROFILE,resolvedChannels});
  const pair=diagnosis.pairs[0];
  if(!pair){
   const enabled=aps.filter(ap=>ap.wifiConfig.enabled!==false&&ap.wifiConfig.radios?.[band]?.enabled===true);
@@ -80,7 +91,7 @@ function show(){
   $("result").dataset.classification="radio_inactive";
   return;
  }
- $("result").textContent="Borne A : "+pair.channelA+" | Borne B : "+pair.channelB+
+ $("result").textContent=channelsText+
   "\nPoints de réception couverts par les deux bornes : "+pair.overlapPoints+" / "+pair.totalPoints+
   "\n"+pair.message;
  $("result").dataset.classification=pair.classification;
