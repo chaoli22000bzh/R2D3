@@ -15,7 +15,7 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
   const asset=registry.getAsset(assetId);
   root.classList.add("wifi-admin");
   root.dataset.tab=activeTab;
-  root.innerHTML='<div class="wifi-admin-topbar">R2D3 <span>Administration réseau</span></div>'+
+  root.innerHTML='<div class="wifi-admin-topbar">Administration du point d’accès Wi-Fi</div>'+
    '<div class="wifi-admin-device"><div><strong>'+esc(asset?.name||"Point d’accès Wi-Fi")+'</strong><span>Point d’accès Wi-Fi</span></div><span class="wifi-admin-state">'+(config.enabled?"Activée":"Désactivée")+'</span></div>'+
    '<nav class="wifi-admin-tabs" aria-label="Administration Wi-Fi">'+
    [["overview","Vue d’ensemble"],["networks","Réseaux Wi-Fi"],["security","Sécurité"],["radios","Radios"],["vlan","VLAN"]].map(([id,label])=>'<button type="button" data-tab-target="'+id+'" class="'+(activeTab===id?"active":"")+'" aria-current="'+(activeTab===id?"page":"false")+'">'+label+'</button>').join("")+
