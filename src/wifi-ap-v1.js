@@ -1,6 +1,7 @@
 /* Wi-Fi R2D3 : premier lot, association simulée et capacité de borne.
    Ne remplace pas les moteurs Ethernet, DHCP, VLAN ou routage. */
 import {negotiateWifiSecurity} from "./wifi-security-v1.js";
+import {effectiveWifiRadios} from "./wifi-radio-config-v1.js";
 const fail=(code,message)=>({success:false,code,message});
 const ok=(code,message,extra={})=>({success:true,code,message,...extra});
 export function createWifiAccessPoint(registry,{name="AP-01"}={}){
@@ -16,10 +17,10 @@ export function getWifiConfig(registry,apId){
  const a=registry?.getAsset?.(apId);
  return a?.networkCapabilities?.includes("wifi-ap")?a.wifiConfig:null;
 }
-export function configureWifiAp(registry,apId,{enabled,ssids}={}){
+export function configureWifiAp(registry,apId,{enabled,ssids,radios}={}){
  const config=getWifiConfig(registry,apId);
  if(!config)return fail("ap_missing","Point d'accès introuvable.");
- return registry.setAssetWifiConfig(apId,{...config,enabled:enabled??config.enabled,ssids:ssids??config.ssids});
+ return registry.setAssetWifiConfig(apId,{...config,enabled:enabled??config.enabled,ssids:ssids??config.ssids,radios:radios??effectiveWifiRadios(config)});
 }
 export function scanWifiNetworks(registry,{bands=["2.4","5"],security=["open","wpa2-personal","wpa3-personal","wpa2-wpa3-personal"]}={}){
  const out=[];
