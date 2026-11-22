@@ -115,7 +115,7 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
     lanMask=root.querySelector("[data-lan-mask]")?.value.trim()||"";
     const prefix=prefixOf(lanMask);
     lanDraft={assetId,mode:"static",address,prefix,gateway:gateway||null,dns:[primary,secondary].filter(Boolean),lease:null};
-   }else if(mode==="dhcp"){
+   }else if(mode==="dhcp"&&lanDraft.mode!=="dhcp"){
     lanDraft={assetId,mode:"dhcp",address:null,prefix:null,gateway:null,dns:[],lease:null};
    }
   }
@@ -174,6 +174,9 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
    if(!management.success){status(management.message||"Configuration IPv4 refusée.",true);return management;}
   }
   const result=configureWifiAp(registry,assetId,config);
+  if(!result.success&&needsManagement&&currentManagement){
+   registry.setAssetManagementConfig(assetId,currentManagement);
+  }
   if(result.success){
    if(assetName!==asset()?.name){const rename=registry.updateAsset(assetId,{name:assetName});if(!rename.success){status(rename.message||"Renommage refusé.",true);return rename;}}
    draft=copy(get());lanDraft=copy(asset().managementConfig);lanMask=lanDraft.prefix==null?"":maskOf(lanDraft.prefix);dirty=false;feedback="Configuration enregistrée.";feedbackError=false;render();
