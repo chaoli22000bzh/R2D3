@@ -26,7 +26,8 @@ export function scanWifiNetworks(registry,{bands=["2.4","5"],security=["open","w
  const out=[];
  for(const ap of registry.listAssets().filter(a=>a.networkCapabilities?.includes("wifi-ap")&&a.wifiConfig?.enabled&&a.status==="En service")){
   for(const ssid of ap.wifiConfig.ssids.filter(s=>s.enabled)){
-   const common=ssid.bands.filter(b=>bands.includes(b));
+   const radios=effectiveWifiRadios(ap.wifiConfig);
+   const common=ssid.bands.filter(b=>bands.includes(b)&&radios[b]?.enabled);
    const negotiated=common.map(b=>({band:b,result:negotiateWifiSecurity(ssid.security,security,b)})).filter(x=>x.result.success);
    if(negotiated.length)out.push({apId:ap.id,apName:ap.name,ssidId:ssid.id,ssid:ssid.name,security:ssid.security,bands:negotiated.map(x=>x.band)});
   }
@@ -39,7 +40,8 @@ export function associateWifiClient(registry,{apId,ssidId,password="",bands=["2.
  if(ap.status!=="En service"||!ap.wifiConfig?.enabled)return fail("ap_disabled","Borne Wi-Fi désactivée.");
  const ssid=ap.wifiConfig.ssids.find(x=>x.id===ssidId);
  if(!ssid?.enabled)return fail("ssid_unavailable","Réseau Wi-Fi non disponible.");
- const commonBands=ssid.bands.filter(x=>bands.includes(x));
+ const radios=effectiveWifiRadios(ap.wifiConfig);
+ const commonBands=ssid.bands.filter(x=>bands.includes(x)&&radios[x]?.enabled);
  if(!commonBands.length)return fail("band_incompatible","Aucune bande radio compatible.");
  const compatible=commonBands.map(band=>({band,negotiation:negotiateWifiSecurity(ssid.security,security,band)}))
   .find(x=>x.negotiation.success);
