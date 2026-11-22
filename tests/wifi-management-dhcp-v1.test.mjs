@@ -67,3 +67,41 @@ test("Borne DHCP/APIPA : horloge Core et bail expiré synchronisés via le même
  sync=syncWifiManagementDhcp({registry:f.registry,apId:f.ap.id,engine:initial.engine});
  good(sync);assert.equal(sync.code,"apipa");assert.equal(sync.prefix,16);
 });
+
+test("Borne DHCP/APIPA : plusieurs bornes obtiennent des APIPA distinctes sans serveur",()=>{
+ const f=fixture();good(f.registry.disconnectCableEnd(f.cable.id,1));
+ const second=createWifiAccessPoint(f.registry,{name:"AP02"}).asset;
+ const a=requestWifiManagementDhcp({registry:f.registry,apId:f.ap.id});
+ const b=requestWifiManagementDhcp({registry:f.registry,apId:second.id});
+ good(a);good(b);
+ assert.equal(a.code,"apipa");assert.equal(b.code,"apipa");
+ assert.notEqual(a.address,b.address);
+});
+test("Borne DHCP/APIPA : deux bornes connectées au même switch L3 reçoivent deux baux différents",()=>{
+ const r=createAssetRegistry();
+ const ap1=createWifiAccessPoint(r,{name:"AP01"}).asset;
+ const ap2=createWifiAccessPoint(r,{name:"AP02"}).asset;
+ const profile=r.createProfile("Switch L3").profile;
+ good(r.addPortGroup(profile.id,{type:"ethernet-rj45",prefix:"GE",start:1,count:3}));
+ for(const capability of ["ethernet-switching","vlan","inter-vlan-routing","dhcp-server"])
+  good(r.setProfileNetworkCapability(profile.id,capability,true));
+ const sw=r.createAsset(profile.id,{name:"SWL3"}).asset;
+ const routing=r.getAsset(sw.id).routingConfig;
+ routing.routingEnabled=true;routing.interfaces={"1":{address:"192.168.50.1",prefix:24,enabled:true}};
+ good(r.setAssetRoutingConfig(sw.id,routing));
+ good(r.setAssetDhcpServerConfig(sw.id,{assetId:sw.id,enabled:true,pools:[{
+  id:"gestion",vlanNumber:1,start:"192.168.50.100",end:"192.168.50.105",prefix:24,
+  gateway:"192.168.50.1",dns:["1.1.1.1"],leaseSeconds:3600}]}));
+ for(const [i,ap] of [ap1,ap2].entries()){
+  const cable=r.createCable().cable;
+  good(r.connectCableEnd(cable.id,0,ap.ports.find(p=>p.type==="ethernet-rj45").id));
+  good(r.connectCableEnd(cable.id,1,sw.ports[i].id));
+ }
+ const a=requestWifiManagementDhcp({registry:r,apId:ap1.id});
+ const b=requestWifiManagementDhcp({registry:r,apId:ap2.id});
+ good(a);good(b);
+ assert.equal(a.code,"lease");assert.equal(b.code,"lease");
+ assert.equal(a.address,"192.168.50.100");
+ assert.equal(b.address,"192.168.50.101");
+ assert.deepEqual(b.dns,["1.1.1.1"]);
+});
