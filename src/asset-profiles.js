@@ -178,7 +178,7 @@ const sameNet=(a,b,prefix)=>{
  return (parse(a)&mask)===(parse(b)&mask);
 };
 function validManagement(asset,c){
- if(!asset.networkCapabilities?.includes("vlan")||!c||c.assetId!==asset.id||
+ if(!(asset.networkCapabilities?.includes("vlan")||asset.networkCapabilities?.includes("wifi-ap"))||!c||c.assetId!==asset.id||
     !["static","dhcp"].includes(c.mode))return false;
  // Accepter les anciennes sauvegardes sans champ DNS.
  const dns=c.dns??[];
@@ -264,12 +264,12 @@ export function createAssetRegistry(saved){
   if(!a.networkCapabilities.includes("ip-helper")&&a.ipHelperConfig!==undefined)
    throw Error("IP Helper présent sans capacité");
   // Les anciens inventaires VLAN restent rechargeables après l'ajout de cette fonction.
-  if(a.networkCapabilities.includes("vlan")&&a.managementConfig===undefined)
+  if((a.networkCapabilities.includes("vlan")||a.networkCapabilities.includes("wifi-ap"))&&a.managementConfig===undefined)
    a.managementConfig=managementDefault(a);
-  if(a.networkCapabilities.includes("vlan")&&!validManagement(a,a.managementConfig))
-   throw Error("Adresse de gestion du switch invalide");
-  if(!a.networkCapabilities.includes("vlan")&&a.managementConfig!==undefined)
-   throw Error("Gestion IP interdite sur switch non administrable");
+  if((a.networkCapabilities.includes("vlan")||a.networkCapabilities.includes("wifi-ap"))&&!validManagement(a,a.managementConfig))
+   throw Error("Adresse IPv4 de gestion invalide");
+  if(!a.networkCapabilities.includes("vlan")&&!a.networkCapabilities.includes("wifi-ap")&&a.managementConfig!==undefined)
+   throw Error("Gestion IP interdite sur équipement non administrable");
  }
  for(const panel of s.panels){
   if(!panel||typeof panel.id!=="string"||!trim(panel.name)||!placeIds.has(panel.placeId)||
@@ -682,7 +682,7 @@ export function createAssetRegistry(saved){
   if(a.networkCapabilities.includes("dhcp-server"))
    a.dhcpServerConfig={assetId:a.id,enabled:false,pools:[]};
   if(a.networkCapabilities.includes("ipv4-router"))a.routerConfig=routerDefaults(a);
-   if(a.networkCapabilities.includes("wifi-ap"))a.wifiConfig=wifiDefault(a);
+   if(a.networkCapabilities.includes("wifi-ap")){a.wifiConfig=wifiDefault(a);a.managementConfig??=managementDefault(a);}
    s.assets.push(a);s.revision++;return result(true,"asset_created","Matériel créé.",{asset:clone(a)});
  }
  function setAssetWifiConfig(id,config){
