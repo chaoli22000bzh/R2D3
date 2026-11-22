@@ -85,9 +85,9 @@ function show(){
  const pair=diagnosis.pairs[0];
  if(!pair){
   const enabled=aps.filter(ap=>ap.wifiConfig.enabled!==false&&ap.wifiConfig.radios?.[band]?.enabled===true);
-  $("result").textContent=enabled.length===0
+  $("result").textContent=channelsText+"\n"+(enabled.length===0
    ?"Les deux radios sont désactivées sur "+band+" GHz. Aucune couverture et aucun partage de canal."
-   :"Une seule radio est active sur "+band+" GHz. La borne désactivée n'émet pas ; aucun partage de canal entre les deux bornes.";
+   :"Une seule radio est active sur "+band+" GHz. La borne désactivée n'émet pas ; aucun partage de canal entre les deux bornes.");
   $("result").dataset.classification="radio_inactive";
   return;
  }
