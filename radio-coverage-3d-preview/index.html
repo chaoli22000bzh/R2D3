@@ -8,18 +8,73 @@
 <clipPath id="site-mask"><polygon points="130,142 610,154 674,310 130,320"/><polygon points="130,300 660,303 681,456 130,462"/><polygon points="130,425 670,448 690,624 130,615"/><polygon points="605,168 1038,153 1120,270 1070,560 682,585 670,314"/><polygon points="10,606 700,630 800,782 10,782"/><polygon points="745,551 1160,475 1175,781 815,781"/></clipPath>
 <radialGradient id="sig-good"><stop stop-color="#20d98a" stop-opacity=".82"/><stop offset="1" stop-color="#20d98a" stop-opacity=".02"/></radialGradient>
 <radialGradient id="sig-weak"><stop stop-color="#f5d04f" stop-opacity=".75"/><stop offset="1" stop-color="#f5d04f" stop-opacity=".02"/></radialGradient>
-<radialGradient id="sig-bad"><stop stop-color="#ed6569" stop-opacity=".72"/><stop offset="1" stop-color="#ed6569" stop-opacity=".02"/></radialGradient></defs><g id="coverage-cells" clip-path="url(#site-mask)"></g></svg><div class="layer" id="pins"></div></div><div class="legend"><span><i class="dot good"></i>Bonne</span><span><i class="dot weak"></i>Faible</span><span><i class="dot bad"></i>Insuffisante</span><span>● Émetteurs bleus</span></div></section><aside class="side"><div><h2>Bilan de couverture</h2><div class="figure" id="pct">—</div><div class="small">Résultat du moteur R2D3 sur des points de contrôle approximatifs</div><div class="bar"><span class="good" id="bg"></span><span class="weak" id="bw"></span><span class="bad" id="bb"></span></div><div class="item">Bonne couverture <strong id="ng"></strong></div><div class="item">Faible <strong id="nw"></strong></div><div class="item">Insuffisante <strong id="nb"></strong></div></div><div><p class="info">Clique sur le bâtiment pour déplacer l'émetteur choisi. Les repères, halos et le bilan réagissent.</p><p class="warn"><strong>Maquette interactive, non validée :</strong> l'image comporte déjà des couleurs et des repères radio fixes. Les indicateurs utilisent le moteur partagé R2D3 sur des points d'essai approximatifs projetés sur la scène. L'image conserve des couleurs de couverture fixes : ces couleurs ne sont pas recalculées.</p></div></aside></div></main><script type="module">
+<radialGradient id="sig-bad"><stop stop-color="#ed6569" stop-opacity=".72"/><stop offset="1" stop-color="#ed6569" stop-opacity=".02"/></radialGradient></defs><g id="coverage-cells" clip-path="url(#site-mask)"></g></svg><div class="layer" id="pins"></div></div><div class="legend"><span><i class="dot good"></i>Bonne</span><span><i class="dot weak"></i>Faible</span><span><i class="dot bad"></i>Insuffisante</span><span>● Émetteurs bleus</span></div></section><aside class="side"><div><h2>Bilan de couverture</h2><div class="figure" id="pct">—</div><div class="small">Résultat du moteur R2D3 sur des points de contrôle approximatifs</div><div class="bar"><span class="good" id="bg"></span><span class="weak" id="bw"></span><span class="bad" id="bb"></span></div><div class="item">Bonne couverture <strong id="ng"></strong></div><div class="item">Faible <strong id="nw"></strong></div><div class="item">Insuffisante <strong id="nb"></strong></div></div><div><p class="info">Clique sur le bâtiment pour déplacer l'émetteur choisi. Les repères, halos et le bilan réagissent.</p><p class="warn"><strong>Maquette interactive, non validée :</strong> l'image comporte déjà des couleurs et des repères radio fixes. Le calque de couverture et le bilan sont recalculés par le moteur R2D3 sur des zones approximatives. Certains anciens pictogrammes radio sont toujours intégrés au décor d'origine.</p></div></aside></div></main><script type="module">
 import {radioCoverageAt} from "../src/radio-coverage-core-v1.js";
-const initial=[{x:430,y:340,z:1},{x:603,y:516,z:0},{x:280,y:200,z:2}];let transmitters=initial.map(p=>({...p}));const $=id=>document.getElementById(id);const factor={radio:1,wifi:.88,dect:1.14,mobile:1.2,mesh:.94};
-function draw(){const show=$('level').value,active=+$('tx').value;const pins=$('pins'),glows=$('glows');pins.replaceChildren();glows.replaceChildren();const overlay=$('overlay').value;const receivers=[];
-for(let y=125;y<740;y+=44)for(let x=65;x<1150;x+=44){
- const floor=y<265?2:y<400?1:0;
- receivers.push({id:x+"-"+y,x:x/12,y:y/12,z:floor*3});
+const $=id=>document.getElementById(id),NS="http://www.w3.org/2000/svg";
+const initial=[{x:430,y:340,z:1},{x:603,y:516,z:0},{x:280,y:200,z:2}];
+let transmitters=initial.map(p=>({...p}));
+const profiles={
+ radio:{baseline:-38,decay:24,floorLoss:9},
+ wifi:{baseline:-39,decay:25,floorLoss:9},
+ dect:{baseline:-35,decay:22,floorLoss:8},
+ mobile:{baseline:-34,decay:21,floorLoss:8},
+ mesh:{baseline:-39,decay:24,floorLoss:9}
+};
+const regions=[
+ {name:"Bureaux R+2",floor:2,x1:140,y1:155,x2:610,y2:307},
+ {name:"Bureaux R+1",floor:1,x1:140,y1:310,x2:653,y2:448},
+ {name:"Bureaux RDC",floor:0,x1:140,y1:450,x2:664,y2:602},
+ {name:"Atelier",floor:0,x1:670,y1:222,x2:1058,y2:557},
+ {name:"Parking",floor:0,x1:60,y1:630,x2:1080,y2:752}
+];
+const receivers=[];
+for(const [r,region] of regions.entries()){
+ for(let y=region.y1+13;y<region.y2;y+=25)
+  for(let x=region.x1+13;x<region.x2;x+=25)
+   receivers.push({id:r+"-"+x+"-"+y,x:x/12,y:y/12,z:region.floor*3,px:x,py:y,level:region.floor});
 }
-const radioProfile={radio:{baseline:-38,decay:24},wifi:{baseline:-39,decay:25},dect:{baseline:-35,decay:22},mobile:{baseline:-34,decay:21},mesh:{baseline:-39,decay:24}}[$('profile').value];
-const coverage=radioCoverageAt({transmitters:transmitters.map((t,i)=>({id:"E"+i,x:t.x/12,y:t.y/12,z:t.z*3})),receivers,site:{floorHeight:3},profile:radioProfile});
-let quality=[0,0,0];
-for(const point of coverage.points)quality[point.quality==='bonne'?0:point.quality==='faible'?1:2]++;
-const total=coverage.totalCount,pct=Math.round(coverage.coveredCount/Math.max(1,total)*100);$('pct').textContent=pct+' %';['bg','bw','bb'].forEach((id,i)=>$(id).style.width=(quality[i]/total*100)+'%');['ng','nw','nb'].forEach((id,i)=>$(id).textContent=quality[i]);if(overlay==='none')return;transmitters.forEach((p,i)=>{if(show!=='all'&&+show!==p.z)return;if(overlay==='visible'){const c=document.createElementNS('http://www.w3.org/2000/svg','ellipse');c.setAttribute('cx',p.x);c.setAttribute('cy',p.y);c.setAttribute('rx',180*factor[$('profile').value]);c.setAttribute('ry',115*factor[$('profile').value]);c.setAttribute('fill','url(#g)');glows.append(c)}const marker=document.createElement('div');marker.className='pin'+(i===active?' selected':'');marker.style.left=p.x/1180*100+'%';marker.style.top=p.y/782*100+'%';marker.textContent=i+1;pins.append(marker)})}
-$('scene').addEventListener('click',e=>{const rect=$('scene').getBoundingClientRect();const i=+$('tx').value;transmitters[i]={x:Math.max(30,Math.min(1150,(e.clientX-rect.left)/rect.width*1180)),y:Math.max(40,Math.min(750,(e.clientY-rect.top)/rect.height*782)),z:$('level').value==='all'?transmitters[i].z:+$('level').value};draw()});for(const id of ['profile','tx','level','overlay'])$(id).onchange=draw;$('reset').onclick=()=>{transmitters=initial.map(p=>({...p}));draw()};draw();
+const receiverIndex=new Map(receivers.map(r=>[r.id,r]));
+function draw(){
+ const show=$("level").value,active=Number($("tx").value),overlay=$("overlay").value;
+ const visibleLevel=show==="all"?null:Number(show),profile=profiles[$("profile").value];
+ const tx=transmitters.map((t,i)=>({id:"E"+(i+1),x:t.x/12,y:t.y/12,z:t.z*3}));
+ const coverage=radioCoverageAt({transmitters:tx,receivers,site:{floorHeight:3},profile});
+ const drawn=coverage.points.filter(p=>visibleLevel===null||receiverIndex.get(p.id).level===visibleLevel);
+ const counts={bonne:0,faible:0,insuffisante:0};for(const p of drawn)counts[p.quality]++;
+ const total=drawn.length,covered=counts.bonne+counts.faible;
+ $("pct").textContent=(total?Math.round(covered/total*100):0)+" %";
+ for(const [id,n] of [["bg",counts.bonne],["bw",counts.faible],["bb",counts.insuffisante]])
+  $(id).style.width=(total?n/total*100:0)+"%";
+ $("ng").textContent=counts.bonne;$("nw").textContent=counts.faible;$("nb").textContent=counts.insuffisante;
+ const cells=$("coverage-cells"),pins=$("pins");cells.replaceChildren();pins.replaceChildren();
+ if(overlay==="visible"){
+  for(const p of drawn){
+   const pos=receiverIndex.get(p.id),circle=document.createElementNS(NS,"circle");
+   circle.setAttribute("cx",String(pos.px));circle.setAttribute("cy",String(pos.py));
+   circle.setAttribute("r","27");
+   circle.setAttribute("fill","url(#sig-"+(p.quality==="bonne"?"good":p.quality==="faible"?"weak":"bad")+")");
+   cells.append(circle);
+  }
+ }
+ if(overlay!=="none"){
+  transmitters.forEach((p,i)=>{
+   if(visibleLevel!==null&&visibleLevel!==p.z)return;
+   const marker=document.createElement("div");marker.className="pin"+(i===active?" selected":"");
+   marker.style.left=p.x/1180*100+"%";marker.style.top=p.y/782*100+"%";
+   marker.textContent=String(i+1);pins.append(marker);
+  });
+ }
+}
+$("scene").addEventListener("click",e=>{
+ const rect=$("scene").getBoundingClientRect(),i=Number($("tx").value);
+ transmitters[i]={
+  x:Math.max(30,Math.min(1150,(e.clientX-rect.left)/rect.width*1180)),
+  y:Math.max(40,Math.min(750,(e.clientY-rect.top)/rect.height*782)),
+  z:$("level").value==="all"?transmitters[i].z:Number($("level").value)
+ };
+ draw();
+});
+for(const id of ["profile","tx","level","overlay"])$(id).onchange=draw;
+$("reset").onclick=()=>{transmitters=initial.map(p=>({...p}));draw();};
+draw();
 </script></body></html>
