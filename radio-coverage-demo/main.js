@@ -75,17 +75,21 @@ function coverageCanvas(panel,points,step){
  const canvas=document.createElement("canvas");canvas.className="coverage-canvas";
  const scale=8;
  canvas.width=Math.ceil(scenario.width*scale);canvas.height=Math.ceil(scenario.height*scale);
- const context=canvas.getContext("2d");context.scale(scale,scale);
+ const context=canvas.getContext("2d");
  const colors={bonne:"rgba(53,163,119,.52)",faible:"rgba(221,174,61,.48)",insuffisante:"rgba(200,101,105,.43)"};
+ // Bords des cellules alignés sur les pixels réels du canvas :
+ // aucun trait de séparation ni chevauchement semi-transparent.
  for(const point of points){
+  const x0=Math.round((point.position.x-step/2)*scale);
+  const y0=Math.round((point.position.y-step/2)*scale);
+  const x1=Math.round((point.position.x+step/2)*scale);
+  const y1=Math.round((point.position.y+step/2)*scale);
   context.fillStyle=colors[point.quality];
-  // Chevauchement volontaire des cellules : supprime les lignes parasites
-  // dues au redimensionnement et à l'anticrénelage du canvas.
-  const overlap=0.45;
-  context.fillRect(point.position.x-step/2-overlap/2,point.position.y-step/2-overlap/2,step+overlap,step+overlap);
+  context.fillRect(x0,y0,x1-x0,y1-y0);
  }
  panel.append(canvas);
 }
+
 function drawings(panel){
  const svg=document.createElementNS(NS,"svg");
  svg.setAttribute("viewBox",`0 0 ${scenario.width} ${scenario.height}`);
