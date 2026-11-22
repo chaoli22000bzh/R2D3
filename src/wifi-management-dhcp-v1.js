@@ -64,11 +64,18 @@ function detectServer(registry,ap){
  if(candidates.length>1)return {invalid:"Plusieurs serveurs DHCP candidats : topologie ambiguë."};
  return {candidate:candidates[0]??null,uplink:uplinks[0]};
 }
-const coreClient=(ap,port)=>({id:ap.id,kind:"pc-windows",name:ap.name,
- ports:[{id:port.id,type:"rj45"}],
- config:{macAddress:"02-00-00-00-00-"+String((Number(ap.id.match(/\d+$/)?.[0]||1)%254)+1).padStart(2,"0"),
- ipv4:{interfaceId:port.id,mode:"dhcp",address:null,prefix:null,lease:null},
- networkOptions:{gateway:null,dns:[]}}});
+const coreClient=(ap,port,serverId=null)=>{
+ const mg=ap.managementConfig,previous=mg?.mode==="dhcp"&&mg.lease?.serverId===serverId&&
+  Number.isInteger(mg.lease.start)&&Number.isInteger(mg.lease.expires)&&mg.lease.expires>mg.lease.start;
+ const idNumber=Number(ap.id.match(/\d+$/)?.[0]||1);
+ return {id:ap.id,kind:"pc-windows",name:ap.name,
+  ports:[{id:port.id,type:"rj45"}],
+  config:{macAddress:"02-00-00-00-"+Math.floor(idNumber/256%256).toString(16).padStart(2,"0")+"-"+(idNumber%256).toString(16).padStart(2,"0"),
+   ipv4:{interfaceId:port.id,mode:"dhcp",address:previous?mg.address:null,
+    prefix:previous?mg.prefix:null,lease:previous?copy(mg.lease):null},
+   networkOptions:{gateway:previous?mg.gateway:null,dns:previous?copy(mg.dns):[]}}
+ };
+};
 function persistCore(registry,apId,engine){
  const snap=engine.getSnapshot(),node=snap.objectsById?.[apId],ip=node?.config?.ipv4;
  if(ip?.mode!=="dhcp")return fail("core_client_missing","Client DHCP absent du Core.");
@@ -94,7 +101,17 @@ export function requestWifiManagementDhcp({registry,apId}={}){
  const route=detectServer(registry,ap);
  if(route.invalid)return fail("topology_invalid",route.invalid);
  const {candidate,uplink}=route;
- const objects=[coreClient(ap,uplink)],links=[];
+ const objects=[coreClient(ap,uplink,candidate?.asset.id??null)],links=[];
+ // Les baux déjà attribués à d'autres bornes restent connus du Core ;
+ // un nouveau client ne peut pas reprendre une IPv4 encore louée.
+ if(candidate){
+  for(const peer of registry.listAssets()){
+   if(peer.id===apId||!peer.networkCapabilities?.includes("wifi-ap")||
+      peer.managementConfig?.lease?.serverId!==candidate.asset.id)continue;
+   const p=ethernet(peer)[0];
+   if(p)objects.push(coreClient(peer,p,candidate.asset.id));
+  }
+ }
  if(candidate){
   objects.push(candidate.server);
   links.push({id:"wifi-management-link",kind:"ethernet-cable",connected:true,
