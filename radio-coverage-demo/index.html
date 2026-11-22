@@ -26,7 +26,7 @@ h1{font-size:clamp(21px,2.5vw,27px);margin:3px 0 2px;letter-spacing:-.035em;line
 .field{display:grid;gap:5px;min-width:130px}.field.wide{min-width:195px}.field span{font-size:11px;font-weight:750;color:var(--muted);letter-spacing:.025em}
 select{appearance:auto;width:100%;min-height:37px;padding:7px 9px;border:1px solid var(--edge);border-radius:7px;background:var(--soft);color:var(--text)}
 button{min-height:37px;padding:7px 13px;border:1px solid var(--edge);border-radius:7px;background:var(--panel);color:var(--text);font-weight:650}
-button:hover{background:var(--brand-soft)}
+button:hover{background:var(--brand-soft)}button:disabled{opacity:.45;cursor:not-allowed}.add-tx{background:var(--brand);color:var(--panel);border-color:var(--brand)}.add-tx:hover{filter:brightness(1.1);background:var(--brand);color:var(--panel)}.add-tx[aria-pressed="true"]{background:var(--weak);color:#182630;border-color:var(--weak)}.tx-count{font-size:12px;color:var(--muted);align-self:center}#plan.placing{cursor:copy}
 .workspace{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px;align-items:start}
 .map-card{padding:16px}.map-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px}
 .map-kicker{font-size:12px;color:var(--muted)}.map-info{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
@@ -91,15 +91,18 @@ button:hover{background:var(--brand-soft)}
   <label class="field wide"><span>Environnement</span><select id="site"><option value="offices">Bureaux sur trois niveaux</option><option value="workshop">Atelier et parking</option></select></label>
   <label class="field wide"><span>Technologie / profil</span><select id="profile"><option value="neutral">Radio pédagogique</option><option value="wifi">Wi-Fi (illustration)</option><option value="dect">DECT (illustration)</option><option value="cellular">Réseau mobile (illustration)</option><option value="mesh">Mesh (illustration)</option></select></label>
   <label class="field"><span>Niveau</span><select id="floor"></select></label>
-  <label class="field"><span>Émetteur à déplacer</span><select id="tx-select"><option value="0">Émetteur 1</option><option value="1">Émetteur 2</option><option value="2">Émetteur 3</option></select></label>
-  <button id="reset" type="button">↺ Réinitialiser</button>
+  <label class="field"><span>Borne à déplacer</span><select id="tx-select"><option value="">Aucune borne à cet étage</option></select></label>
+  <button id="add-tx" type="button" class="add-tx" aria-pressed="false">+ Ajouter une borne</button>
+  <button id="remove-tx" type="button" disabled>Supprimer la borne</button>
+  <button id="reset" type="button">↺ Tout effacer</button>
+  <span id="tx-count" class="tx-count" aria-live="polite">0 borne sur cet étage</span>
  </section>
  <div class="workspace">
   <section class="map-card card">
    <div class="map-heading"><div><h2 id="map-title">Plan de couverture</h2><div class="map-kicker" id="map-subtitle">Sélectionne un émetteur puis clique sur le plan</div></div><div class="map-info"><span id="floor-chip" class="pill">RDC</span><span class="pill">Vue de dessus</span></div></div>
-   <div class="plan-wrap"><div id="plan" role="img" aria-label="Carte de couverture interactive : sélectionner un émetteur puis cliquer pour le déplacer" tabindex="0"></div></div>
+   <div class="plan-wrap"><div id="plan" role="img" aria-label="Plan interactif : cliquer pour placer ou déplacer une borne" tabindex="0"></div></div>
    <div class="map-bottom"><div class="legend"><span><i class="swatch good"></i>Bonne</span><span><i class="swatch weak"></i>Faible</span><span><i class="swatch bad"></i>Insuffisante</span><span><i class="swatch tx-swatch"></i>Émetteur</span></div></div>
-   <p class="hint">Clique sur le plan pour déplacer l'émetteur sélectionné. Les couleurs sont recalculées immédiatement. Les portes, les murs et les zones extérieures restent visibles.</p>
+   <p class="hint" id="instruction">Clique sur « Ajouter une borne », puis sur le plan pour choisir son emplacement.</p>
   </section>
   <aside class="sidebar">
    <section class="summary card"><div class="summary-heading"><h2>Bilan du niveau</h2></div><div class="big-number" id="percent">0<span>%</span></div><div class="big-label">de zones suffisamment couvertes</div>
