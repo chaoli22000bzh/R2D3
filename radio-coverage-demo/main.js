@@ -175,8 +175,21 @@ function render(){
  const result=radioCoverageAt({transmitters:positions.map(p=>({...p,id:"E"+p.id})),receivers,site,profile});
  if(positions.length)coverageCanvas(panel,result.points,scenario.step);
  drawings(panel);
- for(const p of positions)if(p.z===floor*3)
-  panel.append(el("tx"+(selectedId===p.id?" selected":""),String(p.id),p.x,p.y));
+ for(const p of positions)if(p.z===floor*3){
+  const marker=el("tx"+(selectedId===p.id?" selected":""),String(p.id),p.x,p.y);
+  marker.dataset.borneId=String(p.id);
+  marker.setAttribute("role","button");
+  marker.setAttribute("tabindex","0");
+  marker.setAttribute("aria-label","Sélectionner la borne "+p.id);
+  marker.setAttribute("aria-pressed",String(selectedId===p.id));
+  marker.addEventListener("keydown",event=>{
+   if(event.key==="Enter"||event.key===" "){
+    event.preventDefault();event.stopPropagation();
+    selectedId=p.id;placing=false;render();
+   }
+  });
+  panel.append(marker);
+ }
  const counts={good:0,weak:0,bad:0};
  for(const p of result.points)counts[p.quality==="bonne"?"good":p.quality==="faible"?"weak":"bad"]++;
  $("map-title").textContent=scenario.label;
@@ -205,6 +218,13 @@ $("remove-tx").onclick=()=>{
 };
 $("reset").onclick=reset;
 $("plan").onclick=e=>{
+ const marker=e.target.closest(".tx[data-borne-id]");
+ if(marker){
+  selectedId=Number(marker.dataset.borneId);
+  placing=false;
+  render();
+  return;
+ }
  const rect=e.currentTarget.getBoundingClientRect();
  const x=Math.max(0,Math.min(scenario.width,(e.clientX-rect.left)/rect.width*scenario.width));
  const y=Math.max(0,Math.min(scenario.height,(e.clientY-rect.top)/rect.height*scenario.height));
