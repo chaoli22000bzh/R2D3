@@ -239,6 +239,13 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
    if(password){password.disabled=e.target.value==="open";if(password.disabled)password.value="";}
   }
  };
+ if(lanDraft.mode==="dhcp"&&lanDraft.address===null&&registry.listCables){
+  const acquisition=requestWifiManagementDhcp({registry,apId:assetId});
+  if(acquisition.success){
+   lanDraft=copy(asset().managementConfig);
+   lanMask=lanDraft.prefix==null?"":maskOf(lanDraft.prefix);
+  }
+ }
  render();
  return {render,save,getConfig:get,destroy(){root.onclick=null;root.oninput=null;root.onchange=null;root.replaceChildren();root.classList.remove("wifi-admin");}};
 }
