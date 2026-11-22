@@ -2,6 +2,7 @@
  * Un seul registre R2D3, aucune logique DHCP/VLAN parallèle.
  */
 import {getWifiConfig,configureWifiAp} from "./wifi-ap-v1.js";
+import {requestWifiManagementDhcp} from "./wifi-management-dhcp-v1.js";
 import {WIFI_RADIO_BANDS,WIFI_RADIO_OPTIONS,effectiveWifiRadios} from "./wifi-radio-config-v1.js";
 
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -49,7 +50,7 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
     (dhcp?
       '<p class="wifi-admin-ip-status">Adresse obtenue : '+esc(lanDraft.address||"En attente d’attribution DHCP")+
       (lanDraft.prefix!=null?'/'+lanDraft.prefix:'')+'</p>'+
-      '<p class="wifi-admin-ip-note">Le mode DHCP est enregistré. L’attribution nécessite un serveur DHCP et un scénario réseau opérationnels.</p>'
+      '<p class="wifi-admin-ip-note">Sans serveur DHCP accessible, le Core R2D3 attribue une adresse APIPA.</p><button type="button" class="wifi-admin-secondary wifi-admin-renew" data-dhcp-renew>Renouveler DHCP</button>'
      :'<div class="wifi-admin-ip-fields">'+
        '<label class="wifi-admin-label wifi-admin-ip">Adresse IPv4<input data-lan-field="address" inputmode="decimal" maxlength="15" value="'+esc(lanDraft.address||"")+'" placeholder="192.168.1.10"></label>'+
        '<label class="wifi-admin-label wifi-admin-ip">Masque de sous-réseau<input data-lan-mask inputmode="decimal" maxlength="15" value="'+esc(lanMask)+'" placeholder="255.255.255.0"></label>'+
@@ -182,6 +183,14 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
    draft=copy(get());lanDraft=copy(asset().managementConfig);lanMask=lanDraft.prefix==null?"":maskOf(lanDraft.prefix);dirty=false;feedback="Configuration enregistrée.";feedbackError=false;render();
   }
   else status(result.message||"Configuration refusée.",true);
+  if(result.success&&lanDraft.mode==="dhcp"&&lanDraft.address===null){
+   const lease=requestWifiManagementDhcp({registry,apId:assetId});
+   if(lease.success){
+    lanDraft=copy(asset().managementConfig);lanMask=lanDraft.prefix==null?"":maskOf(lanDraft.prefix);
+    feedback=lease.code==="apipa"?"Aucun bail DHCP : APIPA attribuée par le Core.":"Bail DHCP attribué par le Core.";
+    feedbackError=false;render();
+   }else{feedback="Configuration enregistrée. DHCP non exécuté : "+lease.message;feedbackError=true;render();}
+  }
   onChange?.(result);
   return result;
  }
@@ -197,6 +206,17 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
   const tab=e.target.closest("[data-tab]");
   if(tab){collect();page=tab.dataset.tab;feedback="";render();return;}
   if(e.target.closest("[data-save]")){save();return;}
+  if(e.target.closest("[data-dhcp-renew]")){
+   collect();
+   if(dirty){status("Enregistrez les modifications avant le renouvellement DHCP.",true);return;}
+   const renewal=requestWifiManagementDhcp({registry,apId:assetId});
+   if(renewal.success){
+    lanDraft=copy(asset().managementConfig);lanMask=lanDraft.prefix==null?"":maskOf(lanDraft.prefix);
+    feedback=renewal.code==="apipa"?"Aucun DHCP accessible : APIPA attribuée par le Core.":"Bail DHCP attribué par le Core.";
+    feedbackError=false;render();
+   }else status(renewal.message||"Renouvellement DHCP refusé.",true);
+   return;
+  }
   if(e.target.closest("[data-add-ssid]")){collect();newSsid();return;}
   const remove=e.target.closest("[data-remove-ssid]");
   if(remove){
