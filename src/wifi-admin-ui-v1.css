@@ -82,3 +82,16 @@
  .wifi-admin-overview dl>div{grid-template-columns:100px minmax(0,1fr)}
  .wifi-admin fieldset[data-index]>label{max-width:100%}
 }
+
+/* Panneau de synthèse : couleurs explicites compatibles avec les thèmes du navigateur et du laboratoire hôte. */
+.wifi-admin .wifi-admin-overview{
+ background:var(--wbg);
+ color:var(--wfg);
+ border:0;
+ border-radius:0;
+ box-shadow:none;
+}
+.wifi-admin .wifi-admin-overview h3,
+.wifi-admin .wifi-admin-overview dd{color:var(--wfg)}
+.wifi-admin .wifi-admin-overview dt{color:var(--wmuted)}
+.wifi-admin .wifi-admin-overview dl>div{border-bottom-color:var(--wline)}
