@@ -79,7 +79,10 @@ function coverageCanvas(panel,points,step){
  const colors={bonne:"rgba(53,163,119,.52)",faible:"rgba(221,174,61,.48)",insuffisante:"rgba(200,101,105,.43)"};
  for(const point of points){
   context.fillStyle=colors[point.quality];
-  context.fillRect(point.position.x-step/2,point.position.y-step/2,step+.06,step+.06);
+  // Chevauchement volontaire des cellules : supprime les lignes parasites
+  // dues au redimensionnement et à l'anticrénelage du canvas.
+  const overlap=0.45;
+  context.fillRect(point.position.x-step/2-overlap/2,point.position.y-step/2-overlap/2,step+overlap,step+overlap);
  }
  panel.append(canvas);
 }
