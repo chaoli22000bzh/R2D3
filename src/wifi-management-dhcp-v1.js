@@ -104,13 +104,11 @@ export function requestWifiManagementDhcp({registry,apId}={}){
  const objects=[coreClient(ap,uplink,candidate?.asset.id??null)],links=[];
  // Les baux déjà attribués à d'autres bornes restent connus du Core ;
  // un nouveau client ne peut pas reprendre une IPv4 encore louée.
- if(candidate){
-  for(const peer of registry.listAssets()){
-   if(peer.id===apId||!peer.networkCapabilities?.includes("wifi-ap")||
-      peer.managementConfig?.lease?.serverId!==candidate.asset.id)continue;
-   const p=ethernet(peer)[0];
-   if(p)objects.push(coreClient(peer,p,candidate.asset.id));
-  }
+ for(const peer of registry.listAssets()){
+  if(peer.id===apId||!peer.networkCapabilities?.includes("wifi-ap")||
+     peer.status!=="En service"||peer.managementConfig?.mode!=="dhcp")continue;
+  const p=ethernet(peer)[0];
+  if(p)objects.push(coreClient(peer,p,candidate?.asset.id??null));
  }
  if(candidate){
   objects.push(candidate.server);
