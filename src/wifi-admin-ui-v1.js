@@ -41,11 +41,6 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
  const networks=()=>'<div class="wifi-admin-section-head"><div><h3>Réseaux Wi-Fi</h3><p>Chaque SSID peut être diffusé sur plusieurs bandes.</p></div>'+
   '<button type="button" class="wifi-admin-secondary" data-add-ssid'+(draft.ssids.length>=16?" disabled":"")+'>Ajouter un SSID ('+draft.ssids.length+'/16)</button></div>'+
   (draft.ssids.length?draft.ssids.map(networkRow).join(""):'<p>Aucun SSID configuré. Ajoutez un réseau Wi-Fi.</p>');
- const security=()=>'<div class="wifi-admin-section-head"><div><h3>Sécurité des réseaux</h3><p>Les paramètres sont propres à chaque SSID.</p></div></div>'+
-  draft.ssids.map(s=>'<section class="wifi-admin-panel wifi-admin-security-row" data-ssid="'+esc(s.id)+'"><h3>'+esc(ssidName(s))+'</h3>'+
-  '<div class="wifi-admin-fields"><label class="wifi-admin-label wifi-admin-security">Mode de sécurité<select data-field="security">'+opt(securityChoices,s.security)+'</select></label>'+
-  '<label class="wifi-admin-label wifi-admin-password">Mot de passe<input type="password" autocomplete="new-password" minlength="8" maxlength="63" data-field="password" value="'+esc(s.password||"")+'"'+(s.security==="open"?" disabled":"")+'></label>'+
-  '</div></section>').join("");
  const radios=()=>'<div class="wifi-admin-section-head"><div><h3>Radios et canaux</h3><p>Réglage indépendant des bandes disponibles.</p></div></div>'+
   '<section class="wifi-admin-panel wifi-admin-radio-panel">'+WIFI_RADIO_BANDS.map(band=>{
    const r=effectiveWifiRadios(draft)[band],info=WIFI_RADIO_OPTIONS[band];
@@ -53,11 +48,6 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
     '<label class="wifi-admin-check"><input type="checkbox" data-radio-enabled'+(r.enabled?" checked":"")+'> '+esc(info.label)+'</label>'+
     '<label class="wifi-admin-label wifi-admin-channel">Canal<select data-radio-channel>'+opt([["auto","Automatique"],...info.channels.map(n=>[n,String(n)])],r.channel)+'</select></label></div>';
   }).join("")+'</section>';
- const vlan=()=>'<div class="wifi-admin-section-head"><div><h3>Association SSID / VLAN</h3><p>Un identifiant VLAN est un nombre entre 1 et 4094. Vide : aucun VLAN associé au SSID.</p></div></div>'+
-  '<section class="wifi-admin-panel"><div class="wifi-admin-vlan-rows">'+
-  draft.ssids.map(s=>'<div class="wifi-admin-vlan-row" data-ssid="'+esc(s.id)+'"><div><strong>'+esc(ssidName(s))+'</strong><span>SSID</span></div>'+
-   '<label class="wifi-admin-label wifi-admin-vlan">Identifiant VLAN<input type="text" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4" data-field="vlanNumber" value="'+esc(s.vlanNumber??"")+'"></label></div>').join("")+
-  '</div></section>';
  const pages={overview,networks,radios};
  function render(){
   const a=asset();if(!a)throw Error("Équipement indisponible.");
@@ -90,13 +80,6 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
     const raw=row.querySelector('[data-field="vlanNumber"]').value.trim();s.vlanNumber=raw===""?null:Number(raw);s._vlanRaw=raw;
    }
   }
-  if(page==="security"){
-   for(const row of root.querySelectorAll("[data-ssid]")){
-    const s=draft.ssids.find(x=>x.id===row.dataset.ssid);if(!s)continue;
-    s.security=row.querySelector('[data-field="security"]').value;
-    s.password=s.security==="open"?"":row.querySelector('[data-field="password"]').value;
-   }
-  }
   if(page==="radios"){
    draft.radios=effectiveWifiRadios(draft);
    for(const row of root.querySelectorAll("[data-radio]")){
@@ -104,14 +87,7 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
     draft.radios[band]={enabled:row.querySelector("[data-radio-enabled]").checked,channel:value==="auto"?"auto":Number(value)};
    }
   }
-  if(page==="vlan"){
-   for(const row of root.querySelectorAll("[data-ssid]")){
-    const s=draft.ssids.find(x=>x.id===row.dataset.ssid);if(!s)continue;
-    const raw=row.querySelector('[data-field="vlanNumber"]').value.trim();
-    s.vlanNumber=raw===""?null:Number(raw);
-    s._vlanRaw=raw;
-   }
-  }
+
  }
  function validate(){
   if(!assetName)return "Le nom de la borne est obligatoire.";
