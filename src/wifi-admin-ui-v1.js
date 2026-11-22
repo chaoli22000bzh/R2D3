@@ -8,7 +8,7 @@ const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const copy=x=>JSON.parse(JSON.stringify(x));
 const securityChoices=[["open","Ouvert"],["wpa2-personal","WPA2-Personal"],["wpa3-personal","WPA3-Personal"],["wpa2-wpa3-personal","WPA2/WPA3"]];
 const bands=[["2.4","2,4 GHz"],["5","5 GHz"],["6","6 GHz"]];
-const tabs=[["overview","Vue d’ensemble"],["networks","Réseaux Wi-Fi"],["radios","Radios"]];
+const tabs=[["overview","Vue d’ensemble"],["lan","LAN / IPv4"],["networks","Réseaux Wi-Fi"],["radios","Radios"]];
 const opt=(choices,current)=>choices.map(([value,label])=>'<option value="'+esc(value)+'"'+(String(current)===String(value)?" selected":"")+'>'+esc(label)+'</option>').join("");
 
 export function mountWifiAdmin({root,registry,assetId,onChange}={}){
@@ -16,6 +16,13 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
  const initial=getWifiConfig(registry,assetId);
  if(!initial)throw Error("Point d’accès Wi-Fi introuvable.");
  let draft=copy(initial),page="overview",dirty=false,feedback="",feedbackError=false,assetName=registry.getAsset(assetId)?.name||"";
+ let lanDraft=copy(registry.getAsset(assetId)?.managementConfig||{assetId,mode:"dhcp",address:null,prefix:null,gateway:null,dns:[],lease:null});
+ let lanMask=lanDraft.prefix==null?"":maskOf(lanDraft.prefix);
+ function ipv4(value){if(typeof value!=="string"||!/^\d{1,3}(\.\d{1,3}){3}$/.test(value))return false;return value.split(".").every(x=>Number(x)<=255);}
+ function maskOf(prefix){const bits=((0xffffffff<<(32-prefix))>>>0);return [24,16,8,0].map(x=>(bits>>>x)&255).join(".");}
+ function prefixOf(mask){if(!ipv4(mask))return null;const binary=mask.split(".").map(x=>Number(x).toString(2).padStart(8,"0")).join("");if(!/^1+0*$/.test(binary))return null;const count=binary.indexOf("0");return count===-1?32:count;}
+ function sameSubnet(address,gateway,prefix){const mask=prefix===0?0:(0xffffffff<<(32-prefix))>>>0;const toInt=v=>v.split(".").reduce((n,x)=>((n<<8)|Number(x))>>>0,0);return (toInt(address)&mask)===(toInt(gateway)&mask);}
+
  const get=()=>getWifiConfig(registry,assetId);
  const asset=()=>registry.getAsset(assetId);
  const ssidName=s=>s.name||"Sans nom";
@@ -29,6 +36,27 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
   const details=[["État de l’actif",a?.status||"Non renseigné"],["Interfaces radio",radio.map(p=>p.name).join(", ")||"Aucune"],["Réseaux configurés",String(draft.ssids.length)],["Réseaux actifs",String(draft.ssids.filter(s=>s.enabled).length)]];
   return '<section class="wifi-admin-panel"><h3>Informations de la borne</h3><label class="wifi-admin-label wifi-admin-assetname">Nom de la borne<input data-asset-name maxlength="100" value="'+esc(assetName)+'"></label><dl class="wifi-admin-details">'+details.map(([key,value])=>'<div><dt>'+esc(key)+'</dt><dd>'+esc(value)+'</dd></div>').join("")+'</dl></section>'+ '<section class="wifi-admin-panel wifi-admin-lan"><h3>Raccordement LAN</h3>'+lan+'</section>'+
    '<section class="wifi-admin-panel"><h3>État du Wi-Fi</h3><label class="wifi-admin-check"><input type="checkbox" data-global-enabled'+(draft.enabled?" checked":"")+'> Activer la borne Wi-Fi</label></section>';
+ };
+ const lan=()=>{
+  const a=asset(),ports=(a?.ports||[]).filter(p=>p.type==="ethernet-rj45"),cables=registry.listCables?.()||[];
+  const physical=ports.map(p=>'<div class="wifi-admin-lan-row"><strong>'+esc(p.name)+'</strong><span>'+
+   (cables.some(c=>c.ends?.some(end=>end?.portId===p.id))?"Raccordé":"Non raccordé")+'</span></div>').join("");
+  const mode=lanDraft.mode,dhcp=mode==="dhcp";
+  return '<section class="wifi-admin-panel wifi-admin-lan"><h3>Interface Ethernet</h3>'+physical+'</section>'+
+    '<section class="wifi-admin-panel wifi-admin-ipv4"><h3>IPv4 de gestion de la borne</h3>'+
+    '<label class="wifi-admin-label wifi-admin-mode">Mode d’adressage<select data-lan-mode>'+
+      opt([["dhcp","DHCP"],["static","Statique"]],mode)+'</select></label>'+
+    (dhcp?
+      '<p class="wifi-admin-ip-status">Adresse obtenue : '+esc(lanDraft.address||"En attente d’attribution DHCP")+
+      (lanDraft.prefix!=null?'/'+lanDraft.prefix:'')+'</p>'+
+      '<p class="wifi-admin-ip-note">Le mode DHCP est enregistré. L’attribution nécessite un serveur DHCP et un scénario réseau opérationnels.</p>'
+     :'<div class="wifi-admin-ip-fields">'+
+       '<label class="wifi-admin-label wifi-admin-ip">Adresse IPv4<input data-lan-field="address" inputmode="decimal" maxlength="15" value="'+esc(lanDraft.address||"")+'" placeholder="192.168.1.10"></label>'+
+       '<label class="wifi-admin-label wifi-admin-ip">Masque de sous-réseau<input data-lan-mask inputmode="decimal" maxlength="15" value="'+esc(lanMask)+'" placeholder="255.255.255.0"></label>'+
+       '<label class="wifi-admin-label wifi-admin-ip">Passerelle<input data-lan-field="gateway" inputmode="decimal" maxlength="15" value="'+esc(lanDraft.gateway||"")+'" placeholder="192.168.1.1"></label>'+
+       '<label class="wifi-admin-label wifi-admin-ip">DNS primaire<input data-lan-dns="0" inputmode="decimal" maxlength="15" value="'+esc(lanDraft.dns?.[0]||"")+'"></label>'+
+       '<label class="wifi-admin-label wifi-admin-ip">DNS secondaire<input data-lan-dns="1" inputmode="decimal" maxlength="15" value="'+esc(lanDraft.dns?.[1]||"")+'"></label>'+
+      '</div>')+'</section>';
  };
  const networkRow=s=>'<section class="wifi-admin-panel wifi-admin-ssid" data-ssid="'+esc(s.id)+'">'+
   '<h3>'+esc(ssidName(s))+'</h3>'+
@@ -57,7 +85,7 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
     '<label class="wifi-admin-check"><input type="checkbox" data-radio-enabled'+(r.enabled?" checked":"")+'> '+esc(info.label)+'</label>'+
     '<label class="wifi-admin-label wifi-admin-channel">Canal<select data-radio-channel>'+opt([["auto","Automatique"],...info.channels.map(n=>[n,String(n)])],r.channel)+'</select></label></div>';
   }).join("")+'</section>';
- const pages={overview,networks,radios};
+ const pages={overview,lan,networks,radios};
  function render(){
   const a=asset();if(!a)throw Error("Équipement indisponible.");
   root.classList.add("wifi-admin");
@@ -76,6 +104,20 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
    const enabled=root.querySelector("[data-global-enabled]");
    if(enabled)draft.enabled=enabled.checked;
    const name=root.querySelector("[data-asset-name]");if(name)assetName=name.value.trim();
+  }
+  if(page==="lan"){
+   const mode=root.querySelector("[data-lan-mode]")?.value;
+   if(mode==="static"){
+    const address=root.querySelector('[data-lan-field="address"]')?.value.trim()||"";
+    const gateway=root.querySelector('[data-lan-field="gateway"]')?.value.trim()||"";
+    const primary=root.querySelector('[data-lan-dns="0"]')?.value.trim()||"";
+    const secondary=root.querySelector('[data-lan-dns="1"]')?.value.trim()||"";
+    lanMask=root.querySelector("[data-lan-mask]")?.value.trim()||"";
+    const prefix=prefixOf(lanMask);
+    lanDraft={assetId,mode:"static",address,prefix,gateway:gateway||null,dns:[primary,secondary].filter(Boolean),lease:null};
+   }else if(mode==="dhcp"){
+    lanDraft={assetId,mode:"dhcp",address:null,prefix:null,gateway:null,dns:[],lease:null};
+   }
   }
   if(page==="networks"){
    for(const row of root.querySelectorAll("[data-ssid]")){
@@ -100,6 +142,14 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
  }
  function validate(){
   if(!assetName)return "Le nom de la borne est obligatoire.";
+  if(lanDraft.mode==="static"){
+   if(!ipv4(lanDraft.address))return "Adresse IPv4 de gestion invalide.";
+   if(lanDraft.prefix===null||lanDraft.prefix<1||lanDraft.prefix>30)return "Masque de sous-réseau invalide.";
+   if(lanDraft.gateway&&(!ipv4(lanDraft.gateway)||!sameSubnet(lanDraft.address,lanDraft.gateway,lanDraft.prefix)))
+    return "La passerelle doit être une IPv4 du même sous-réseau.";
+   if(lanDraft.dns.some(x=>!ipv4(x)))return "Une adresse DNS est invalide.";
+  }
+
   if(draft.ssids.length>16)return "Une borne accepte au maximum 16 SSID.";
   for(const s of draft.ssids){
    if(!s.name||s.name.length>32)return "Le nom de chaque SSID doit contenir de 1 à 32 caractères.";
@@ -117,10 +167,16 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
   if(invalid){status(invalid,true);return {success:false,message:invalid};}
   const config=copy(draft);
   for(const s of config.ssids)delete s._vlanRaw;
+  const currentManagement=asset()?.managementConfig;
+  const needsManagement=JSON.stringify(currentManagement)!==JSON.stringify(lanDraft);
+  if(needsManagement){
+   const management=registry.setAssetManagementConfig(assetId,copy(lanDraft));
+   if(!management.success){status(management.message||"Configuration IPv4 refusée.",true);return management;}
+  }
   const result=configureWifiAp(registry,assetId,config);
   if(result.success){
    if(assetName!==asset()?.name){const rename=registry.updateAsset(assetId,{name:assetName});if(!rename.success){status(rename.message||"Renommage refusé.",true);return rename;}}
-   draft=copy(get());dirty=false;feedback="Configuration enregistrée.";feedbackError=false;render();
+   draft=copy(get());lanDraft=copy(asset().managementConfig);lanMask=lanDraft.prefix==null?"":maskOf(lanDraft.prefix);dirty=false;feedback="Configuration enregistrée.";feedbackError=false;render();
   }
   else status(result.message||"Configuration refusée.",true);
   onChange?.(result);
@@ -153,6 +209,7 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
   if(e.target.matches("input,select")){dirty=true;const saveButton=root.querySelector("[data-save]");if(saveButton)saveButton.disabled=false;}
  };
  root.onchange=e=>{
+  if(e.target.matches("[data-lan-mode]")){collect();dirty=true;feedback="";render();return;}
   if(e.target.matches('[data-field="security"]')){
    const row=e.target.closest("[data-ssid]");
    const password=row?.querySelector('[data-field="password"]');
