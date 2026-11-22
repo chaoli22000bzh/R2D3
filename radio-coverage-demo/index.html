@@ -34,23 +34,32 @@ button:hover{background:var(--brand-soft)}
 .plan-wrap{padding:9px;border:1px solid var(--edge);border-radius:9px;background:var(--soft)}
 #plan{position:relative;isolation:isolate;width:100%;background:var(--map);overflow:hidden;cursor:crosshair;min-height:260px;border:1px solid var(--edge);border-radius:4px;touch-action:manipulation}
 #plan::before{content:none}
-.area-layer,.coverage-layer,.plan-lines,.plan-labels{position:absolute;inset:0;pointer-events:none}
-.area-layer{z-index:0}.coverage-layer{z-index:1}.plan-lines{z-index:3;width:100%;height:100%;overflow:visible}
+.area-layer,.coverage-layer,.coverage-canvas,.plan-lines,.plan-labels{position:absolute;inset:0;pointer-events:none}
+.area-layer{z-index:0}.coverage-layer,.coverage-canvas{z-index:1}.coverage-canvas{width:100%;height:100%;display:block;image-rendering:auto}.plan-lines{z-index:3;width:100%;height:100%;overflow:visible}
 .plan-labels{z-index:4}
 .area{position:absolute}.area.building{background:rgba(94,139,164,.14)}
 .area.officeWing{background:rgba(110,143,166,.13)}
 .area.corridor{background:rgba(145,165,175,.16)}
 .area.parking{background:repeating-linear-gradient(90deg,rgba(119,143,154,.12) 0,rgba(119,143,154,.12) 1px,transparent 1px,transparent 14px)}
 .area.outdoor{background:rgba(126,162,143,.07)}
+.area.parking{background:rgba(126,145,158,.14)}
+.room-title.exterior-title{opacity:.78}
 .cell{position:absolute;transform:translate(-50%,-50%);pointer-events:none;opacity:.48;border:0;z-index:1}
 .cell.good{background:var(--good)}.cell.weak{background:var(--weak)}.cell.bad{background:var(--bad)}
-.plan-lines .outline{fill:none;stroke-width:.62;vector-effect:non-scaling-stroke;stroke:var(--text)}
+.plan-lines .outline{fill:none;stroke-width:2;vector-effect:non-scaling-stroke;stroke:var(--text)}
 .plan-lines .outline.parking{stroke:var(--muted);stroke-width:1.5;stroke-dasharray:7 4}
 .plan-lines .outline.officeWing{stroke:var(--text);stroke-width:1.7}
 .plan-lines .partition{fill:none;vector-effect:non-scaling-stroke;stroke-linecap:square}
 .plan-lines .partition.light{stroke:var(--text);stroke-width:2.1;opacity:.91}
 .plan-lines .partition.solid{stroke:var(--text);stroke-width:4}
 .plan-lines .partition.metal{stroke:#4f7898;stroke-width:5}
+.plan-lines .partition.solid{stroke-width:5.5}
+.plan-lines .door{fill:none;stroke:#277db0;stroke-width:1.3;vector-effect:non-scaling-stroke;stroke-linecap:round}
+.plan-lines .door.entrance{stroke-width:1.8}
+.plan-lines .stair-frame{fill:rgba(236,242,246,.33);stroke:var(--text);stroke-width:.32}
+.plan-lines .stair-divider,.plan-lines .stair-landing{fill:var(--text);opacity:.7}
+.plan-lines .stair-step{stroke:var(--text);stroke-width:.19}
+.plan-lines .stair-arrow{fill:none;stroke:#287eb1;stroke-width:.2;stroke-linejoin:round}
 .plan-lines .parking-mark{stroke:var(--text);stroke-width:1.2;opacity:.68;vector-effect:non-scaling-stroke}
 .plan-lines .stairs{fill:rgba(249,251,253,.19);stroke:var(--text);stroke-width:.3}
 .plan-lines .stair-line{fill:none;stroke:var(--text);stroke-width:.2}
@@ -90,7 +99,7 @@ button:hover{background:var(--brand-soft)}
    <div class="map-heading"><div><h2 id="map-title">Plan de couverture</h2><div class="map-kicker" id="map-subtitle">Sélectionne un émetteur puis clique sur le plan</div></div><div class="map-info"><span id="floor-chip" class="pill">RDC</span><span class="pill">Vue de dessus</span></div></div>
    <div class="plan-wrap"><div id="plan" role="img" aria-label="Carte de couverture interactive : sélectionner un émetteur puis cliquer pour le déplacer" tabindex="0"></div></div>
    <div class="map-bottom"><div class="legend"><span><i class="swatch good"></i>Bonne</span><span><i class="swatch weak"></i>Faible</span><span><i class="swatch bad"></i>Insuffisante</span><span><i class="swatch tx-swatch"></i>Émetteur</span></div></div>
-   <p class="hint">Clique sur le plan pour déplacer l'émetteur sélectionné. Les couleurs sont recalculées immédiatement et les murs restent visibles.</p>
+   <p class="hint">Clique sur le plan pour déplacer l'émetteur sélectionné. Les couleurs sont recalculées immédiatement. Les portes, les murs et les zones extérieures restent visibles.</p>
   </section>
   <aside class="sidebar">
    <section class="summary card"><div class="summary-heading"><h2>Bilan du niveau</h2></div><div class="big-number" id="percent">0<span>%</span></div><div class="big-label">de zones suffisamment couvertes</div>
