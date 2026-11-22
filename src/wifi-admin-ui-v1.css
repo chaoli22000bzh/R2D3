@@ -123,3 +123,17 @@
  .wifi-admin .wifi-admin-band-field{width:100%}
  .wifi-admin .wifi-admin-config-security .wifi-admin-password{max-width:100%}
 }
+
+/* Interface LAN / IPv4 : mêmes dimensions compactes que pour l'administration réseau. */
+.wifi-admin .wifi-admin-ipv4{max-width:950px}
+.wifi-admin .wifi-admin-mode{width:135px;max-width:100%;margin-bottom:14px}
+.wifi-admin .wifi-admin-mode select{width:135px}
+.wifi-admin .wifi-admin-ip-fields{display:flex;align-items:end;flex-wrap:wrap;gap:12px 15px}
+.wifi-admin .wifi-admin-ip{width:170px;max-width:100%}
+.wifi-admin .wifi-admin-ip input{width:170px;max-width:100%;font-variant-numeric:tabular-nums}
+.wifi-admin .wifi-admin-ip-note{font-size:13px;color:var(--wa-muted);margin:6px 0 0}
+.wifi-admin .wifi-admin-ip-status{margin:2px 0;color:var(--wa-fg);font-weight:600}
+@media(max-width:430px){
+ .wifi-admin .wifi-admin-ip-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+ .wifi-admin .wifi-admin-ip,.wifi-admin .wifi-admin-ip input{width:100%;min-width:0}
+}
