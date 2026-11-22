@@ -23,20 +23,29 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
  const note=()=>dirty?'<span class="wifi-admin-pending">Modifications non enregistrées</span>':"";
  const overview=()=>{
   const a=asset(),ethernet=(a?.ports||[]).filter(p=>p.type==="ethernet-rj45"),radio=(a?.ports||[]).filter(p=>p.type==="wifi");
-  const details=[["État de l’actif",a?.status||"Non renseigné"],["Ports Ethernet",ethernet.map(p=>p.name).join(", ")||"Aucun"],["Interfaces radio",radio.map(p=>p.name).join(", ")||"Aucune"],["Réseaux configurés",String(draft.ssids.length)],["Réseaux actifs",String(draft.ssids.filter(s=>s.enabled).length)]];
-  return '<section class="wifi-admin-panel"><h3>Informations de la borne</h3><label class="wifi-admin-label wifi-admin-assetname">Nom de la borne<input data-asset-name maxlength="100" value="'+esc(assetName)+'"></label><dl class="wifi-admin-details">'+details.map(([key,value])=>'<div><dt>'+esc(key)+'</dt><dd>'+esc(value)+'</dd></div>').join("")+'</dl></section>'+
+  const cables=registry.listCables?.()||[];
+  const wired=port=>cables.some(c=>c.ends?.some(end=>end?.portId===port.id));
+  const lan=ethernet.length?ethernet.map(p=>'<div class="wifi-admin-lan-row"><strong>'+esc(p.name)+'</strong><span>'+(wired(p)?"Câble raccordé":"Port non raccordé")+'</span></div>').join(""):'<p>Aucun port Ethernet.</p>';
+  const details=[["État de l’actif",a?.status||"Non renseigné"],["Interfaces radio",radio.map(p=>p.name).join(", ")||"Aucune"],["Réseaux configurés",String(draft.ssids.length)],["Réseaux actifs",String(draft.ssids.filter(s=>s.enabled).length)]];
+  return '<section class="wifi-admin-panel"><h3>Informations de la borne</h3><label class="wifi-admin-label wifi-admin-assetname">Nom de la borne<input data-asset-name maxlength="100" value="'+esc(assetName)+'"></label><dl class="wifi-admin-details">'+details.map(([key,value])=>'<div><dt>'+esc(key)+'</dt><dd>'+esc(value)+'</dd></div>').join("")+'</dl></section>'+ '<section class="wifi-admin-panel wifi-admin-lan"><h3>Raccordement LAN</h3>'+lan+'</section>'+
    '<section class="wifi-admin-panel"><h3>État du Wi-Fi</h3><label class="wifi-admin-check"><input type="checkbox" data-global-enabled'+(draft.enabled?" checked":"")+'> Activer la borne Wi-Fi</label></section>';
  };
- const networkRow=(s,i)=>'<section class="wifi-admin-panel wifi-admin-ssid" data-ssid="'+esc(s.id)+'">'+
-  '<div class="wifi-admin-panel-title"><h3>'+esc(ssidName(s))+'</h3></div>'+
-  '<div class="wifi-admin-fields">'+
-  '<label class="wifi-admin-label wifi-admin-ssidname">Nom du réseau (SSID)<input data-field="name" maxlength="32" value="'+esc(s.name)+'"></label>'+
-  '<div class="wifi-admin-band-field"><span>Bandes Wi-Fi</span><div class="wifi-admin-band-options">'+bands.map(([id,label])=>'<label class="wifi-admin-check"><input type="checkbox" data-band="'+id+'"'+(s.bands.includes(id)?" checked":"")+'> '+label+'</label>').join("")+'</div></div>'+
-  '<label class="wifi-admin-check"><input type="checkbox" data-field="enabled"'+(s.enabled?" checked":"")+'> SSID actif</label>'+
-  '<label class="wifi-admin-check"><input type="checkbox" data-field="clientIsolation"'+(s.clientIsolation?" checked":"")+'> Isolation mode</label>'+
-  '<label class="wifi-admin-label wifi-admin-security">Sécurité<select data-field="security">'+opt(securityChoices,s.security)+'</select></label>'+ 
-  '<label class="wifi-admin-label wifi-admin-password">Mot de passe<input type="password" autocomplete="new-password" minlength="8" maxlength="63" data-field="password" value="'+esc(s.password||"")+'"'+(s.security==="open"?" disabled":"")+'></label>'+
-  '<label class="wifi-admin-label wifi-admin-vlan">Identifiant VLAN<input type="text" inputmode="numeric" maxlength="4" data-field="vlanNumber" value="'+esc(s.vlanNumber??"")+'"></label>'+
+ const networkRow=s=>'<section class="wifi-admin-panel wifi-admin-ssid" data-ssid="'+esc(s.id)+'">'+
+  '<h3>'+esc(ssidName(s))+'</h3>'+
+  '<div class="wifi-admin-network-config">'+
+   '<div class="wifi-admin-config-row">'+
+    '<label class="wifi-admin-label wifi-admin-ssidname">Nom du réseau (SSID)<input data-field="name" maxlength="32" value="'+esc(s.name)+'"></label>'+
+    '<div class="wifi-admin-band-field"><span>Bandes diffusées</span><div class="wifi-admin-band-options">'+bands.map(([id,label])=>'<label class="wifi-admin-check"><input type="checkbox" data-band="'+id+'"'+(s.bands.includes(id)?" checked":"")+'> '+label+'</label>').join("")+'</div></div>'+
+   '</div>'+
+   '<div class="wifi-admin-config-row wifi-admin-config-security">'+
+    '<label class="wifi-admin-label wifi-admin-security">Sécurité<select data-field="security">'+opt(securityChoices,s.security)+'</select></label>'+
+    '<label class="wifi-admin-label wifi-admin-password">Mot de passe<input type="password" autocomplete="new-password" minlength="8" maxlength="63" data-field="password" value="'+esc(s.password||"")+'"'+(s.security==="open"?" disabled":"")+'></label>'+
+    '<label class="wifi-admin-label wifi-admin-vlan">VLAN du SSID<input type="text" inputmode="numeric" maxlength="4" pattern="[0-9]{1,4}" placeholder="Aucun" data-field="vlanNumber" value="'+esc(s.vlanNumber??"")+'"></label>'+
+   '</div>'+
+   '<div class="wifi-admin-config-row wifi-admin-config-switches">'+
+    '<label class="wifi-admin-check"><input type="checkbox" data-field="enabled"'+(s.enabled?" checked":"")+'> SSID actif</label>'+
+    '<label class="wifi-admin-check"><input type="checkbox" data-field="clientIsolation"'+(s.clientIsolation?" checked":"")+'> Isolation mode</label>'+
+   '</div>'+
   '</div><div class="wifi-admin-panel-foot"><button type="button" class="wifi-admin-danger" data-remove-ssid="'+esc(s.id)+'">Supprimer ce SSID</button></div></section>';
  const networks=()=>'<div class="wifi-admin-section-head"><div><h3>Réseaux Wi-Fi</h3><p>Chaque SSID peut être diffusé sur plusieurs bandes.</p></div>'+
   '<button type="button" class="wifi-admin-secondary" data-add-ssid'+(draft.ssids.length>=16?" disabled":"")+'>Ajouter un SSID ('+draft.ssids.length+'/16)</button></div>'+
