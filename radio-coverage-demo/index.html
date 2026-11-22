@@ -1,15 +1,88 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>R2D3 | Laboratoire commun de couverture radio</title>
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R2D3 | Couverture radio</title>
 <style>
-:root{color-scheme:light;--bg:#edf2f5;--fg:#20323b;--panel:#fff;--line:#9eafb9;--sub:#526874}
-@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#16232b;--fg:#e7eff4;--panel:#263a46;--line:#8195a1;--sub:#c5d2d9}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,Arial}main{max-width:1000px;margin:auto;padding:14px}h1{font-size:22px;margin:0 0 4px}p{margin:6px 0 12px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:14px;margin-top:10px}.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:end}label{display:grid;gap:3px}select,button{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:5px;padding:7px;min-height:36px;font:inherit}button{cursor:pointer}
-#plan{position:relative;width:100%;max-height:520px;min-height:260px;border:2px solid var(--line);background:var(--bg);overflow:hidden;cursor:crosshair;margin-top:12px}
-.cell{position:absolute;transform:translate(-50%,-50%);opacity:.64;pointer-events:none}.good{background:#38a06f}.weak{background:#e8be42}.bad{background:#cf6666}
-.wall{position:absolute;height:0;border-top:4px solid var(--line);transform-origin:left center;pointer-events:none;z-index:3}.wall.light{border-top-color:#879da9}.wall.solid{border-top-color:#535d67;border-top-width:7px}.wall.metal{border-top-color:#355b83;border-top-width:8px}
-.tx{position:absolute;transform:translate(-50%,-50%);background:#126cbd;color:#fff;border:2px solid white;border-radius:50%;width:32px;height:32px;display:grid;place-items:center;z-index:4;pointer-events:none;font-weight:700}
-.legend{display:flex;flex-wrap:wrap;gap:15px;font-size:13px;margin-top:8px}.legend b{display:inline-block;width:12px;height:12px;margin-right:4px}#report{font-weight:650;margin-top:10px}#details{color:var(--sub)}
-</style></head><body><main><h1>R2D3 : laboratoire commun de couverture radio</h1><p>Un seul moteur pour des exercices Wi-Fi, DECT, mesh et réseaux mobiles. Modèle simplifié pour comprendre le placement des émetteurs.</p>
-<section class="panel"><div class="controls"><label>Environnement<select id="site"><option value="offices">Bureaux sur trois niveaux</option><option value="workshop">Atelier et parking</option></select></label><label>Profil<select id="profile"><option value="neutral">Radio pédagogique</option><option value="wifi">Wi-Fi (illustration)</option><option value="dect">DECT (illustration)</option><option value="cellular">Réseau mobile (illustration)</option><option value="mesh">Mesh (illustration)</option></select></label><label>Niveau<select id="floor"></select></label><label>Émetteur à déplacer<select id="tx-select"><option value="0">Émetteur 1</option><option value="1">Émetteur 2</option><option value="2">Émetteur 3</option></select></label><button id="reset">Réinitialiser</button></div>
-<div id="plan" aria-label="Plan interactif, cliquer pour placer l'émetteur sélectionné"></div>
-<div class="legend"><span><b style="background:#38a06f"></b>Bonne couverture</span><span><b style="background:#e8be42"></b>Faible</span><span><b style="background:#cf6666"></b>Insuffisante</span><span>● Émetteur bleu</span></div><p id="report" aria-live="polite"></p><p id="details"></p>
-</section></main><script type="module" src="./main.js"></script></body></html>
+:root{
+ color-scheme:light;--bg:#edf2f6;--panel:#fff;--text:#1a3042;--muted:#607485;--edge:#d5dfe7;
+ --soft:#f5f8fb;--brand:#236a9c;--brand-soft:#e6f1f9;--map:#f8fbfd;
+ --good:#3c9d80;--weak:#e2b34d;--bad:#ce7776;--wall:#748a9c;--shadow:0 6px 24px rgba(26,48,66,.06)
+}
+@media(prefers-color-scheme:dark){:root{
+ color-scheme:dark;--bg:#121d26;--panel:#20313e;--text:#e8f1f6;--muted:#b5c7d2;--edge:#3c5261;
+ --soft:#1a2a35;--brand:#74b6e4;--brand-soft:#2c4659;--map:#1a2933;
+ --good:#43ac8a;--weak:#ddb34e;--bad:#d57776;--wall:#9fb3c3;--shadow:0 6px 24px rgba(0,0,0,.1)
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
+button,select{font:inherit}button{cursor:pointer}button:focus-visible,select:focus-visible,#plan:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+.shell{max-width:1320px;margin:auto;padding:20px}
+.topline{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:16px}
+.eyebrow{display:flex;align-items:center;gap:8px;color:var(--brand);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.eyebrow:before{content:"";display:block;width:9px;height:9px;border-radius:50%;background:var(--brand)}
+h1{font-size:clamp(21px,2.5vw,27px);margin:3px 0 2px;letter-spacing:-.035em;line-height:1.2}h2{font-size:15px;margin:0;font-weight:760}
+.subtitle,.muted{color:var(--muted)}.subtitle{font-size:13px;margin:3px 0 0}.tag{border:1px solid var(--edge);border-radius:99px;padding:5px 10px;color:var(--muted);font-size:12px;white-space:nowrap}
+.card{background:var(--panel);border:1px solid var(--edge);border-radius:12px;box-shadow:var(--shadow)}
+.toolbar{display:flex;gap:12px;align-items:end;flex-wrap:wrap;padding:14px 16px;margin-bottom:14px}
+.field{display:grid;gap:5px;min-width:130px}.field.wide{min-width:195px}.field span{font-size:11px;font-weight:750;color:var(--muted);letter-spacing:.025em}
+select{appearance:auto;width:100%;min-height:37px;padding:7px 9px;border:1px solid var(--edge);border-radius:7px;background:var(--soft);color:var(--text)}
+button{min-height:37px;padding:7px 13px;border:1px solid var(--edge);border-radius:7px;background:var(--panel);color:var(--text);font-weight:650}
+button:hover{background:var(--brand-soft)}
+.workspace{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px;align-items:start}
+.map-card{padding:16px}.map-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px}
+.map-kicker{font-size:12px;color:var(--muted)}.map-info{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.pill{border:1px solid var(--edge);border-radius:30px;padding:4px 9px;font-size:11px;color:var(--muted);background:var(--soft)}
+.plan-wrap{padding:9px;border:1px solid var(--edge);border-radius:9px;background:var(--soft)}
+#plan{position:relative;isolation:isolate;width:100%;background:var(--map);overflow:hidden;cursor:crosshair;min-height:260px;border:1px solid var(--edge);border-radius:4px;touch-action:manipulation}
+#plan::before{content:"";position:absolute;inset:0;background-image:linear-gradient(to right,var(--edge) 1px,transparent 1px),linear-gradient(to bottom,var(--edge) 1px,transparent 1px);background-size:10% 20%;opacity:.3;pointer-events:none;z-index:0}
+.cell{position:absolute;transform:translate(-50%,-50%);pointer-events:none;opacity:.63;border:1px solid rgba(255,255,255,.11);z-index:1}
+.cell.good{background:var(--good)}.cell.weak{background:var(--weak)}.cell.bad{background:var(--bad)}
+.wall{position:absolute;height:0;border-top:4px solid var(--wall);transform-origin:left center;pointer-events:none;z-index:3;filter:drop-shadow(0 1px 1px rgba(0,0,0,.17))}
+.wall.light{border-top-color:#9aa6b3}.wall.solid{border-top-color:#526575;border-top-width:7px}.wall.metal{border-top-color:#376584;border-top-width:8px}
+.tx{position:absolute;transform:translate(-50%,-50%);background:#1268a4;color:#fff;border:3px solid white;border-radius:50%;width:33px;height:33px;display:grid;place-items:center;z-index:5;pointer-events:none;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.32)}
+.tx.selected{outline:3px solid #f1b44c;outline-offset:2px}
+.map-bottom{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px}
+.legend{display:flex;flex-wrap:wrap;gap:10px 15px;font-size:12px;color:var(--muted)}.legend span{display:inline-flex;align-items:center;gap:6px}
+.swatch{width:11px;height:11px;border-radius:3px;display:inline-block}.swatch.good{background:var(--good)}.swatch.weak{background:var(--weak)}.swatch.bad{background:var(--bad)}.swatch.tx-swatch{background:#1268a4;border-radius:50%}
+.hint{font-size:12px;color:var(--muted);margin:8px 0 0}
+.sidebar{display:grid;gap:12px}.summary{padding:16px}.summary-heading{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.summary-heading:before{content:"";width:7px;height:17px;background:var(--brand);border-radius:10px}
+.big-number{font-size:46px;line-height:1;font-weight:800;letter-spacing:-.06em;font-variant-numeric:tabular-nums}
+.big-number span{font-size:22px;color:var(--muted);font-weight:650;margin-left:2px}.big-label{color:var(--muted);font-size:12px;margin-top:5px}
+.meter{height:9px;background:var(--soft);border-radius:30px;overflow:hidden;display:flex;margin:17px 0}
+.meter span{height:100%}.meter .good{background:var(--good)}.meter .weak{background:var(--weak)}.meter .bad{background:var(--bad)}
+.stat{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--edge);font-size:13px;gap:8px}.stat:last-of-type{border-bottom:0}.stat .label{display:flex;align-items:center;gap:8px;color:var(--muted)}.stat strong{font-variant-numeric:tabular-nums;font-size:15px}
+.footnote{border-top:1px solid var(--edge);padding-top:11px;margin-top:11px;font-size:11px;color:var(--muted)}
+.tip{padding:14px 16px;background:var(--brand-soft);border:1px solid var(--edge);border-radius:11px}
+.tip h2{font-size:13px;margin-bottom:5px}.tip p{margin:0;color:var(--muted);font-size:12px}
+#report{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+@media(max-width:850px){.workspace{grid-template-columns:1fr}.sidebar{grid-template-columns:1fr 1fr}.shell{padding:12px}}
+@media(max-width:560px){.toolbar{gap:10px;padding:12px}.field,.field.wide{flex:1 1 135px;min-width:0}.sidebar{grid-template-columns:1fr}.map-card{padding:10px}.map-heading{align-items:start;flex-direction:column}.map-info{justify-content:flex-start}.topline{align-items:flex-start}.tag{display:none}.big-number{font-size:40px}#plan{min-height:185px}}
+</style></head>
+<body><main class="shell">
+ <header class="topline"><div><div class="eyebrow">R2D3 · Banc d'essai partagé</div><h1>Couverture radio</h1><p class="subtitle">Un outil commun pour les technologies sans fil</p></div><span class="tag">Modèle pédagogique simplifié</span></header>
+ <section class="toolbar card" aria-label="Paramètres du laboratoire">
+  <label class="field wide"><span>Environnement</span><select id="site"><option value="offices">Bureaux sur trois niveaux</option><option value="workshop">Atelier et parking</option></select></label>
+  <label class="field wide"><span>Technologie / profil</span><select id="profile"><option value="neutral">Radio pédagogique</option><option value="wifi">Wi-Fi (illustration)</option><option value="dect">DECT (illustration)</option><option value="cellular">Réseau mobile (illustration)</option><option value="mesh">Mesh (illustration)</option></select></label>
+  <label class="field"><span>Niveau</span><select id="floor"></select></label>
+  <label class="field"><span>Émetteur à déplacer</span><select id="tx-select"><option value="0">Émetteur 1</option><option value="1">Émetteur 2</option><option value="2">Émetteur 3</option></select></label>
+  <button id="reset" type="button">↺ Réinitialiser</button>
+ </section>
+ <div class="workspace">
+  <section class="map-card card">
+   <div class="map-heading"><div><h2 id="map-title">Plan de couverture</h2><div class="map-kicker" id="map-subtitle">Sélectionne un émetteur puis clique sur le plan</div></div><div class="map-info"><span id="floor-chip" class="pill">RDC</span><span class="pill">Vue de dessus</span></div></div>
+   <div class="plan-wrap"><div id="plan" role="img" aria-label="Carte de couverture interactive : sélectionner un émetteur puis cliquer pour le déplacer" tabindex="0"></div></div>
+   <div class="map-bottom"><div class="legend"><span><i class="swatch good"></i>Bonne</span><span><i class="swatch weak"></i>Faible</span><span><i class="swatch bad"></i>Insuffisante</span><span><i class="swatch tx-swatch"></i>Émetteur</span></div></div>
+   <p class="hint">Clique sur le plan pour déplacer l'émetteur sélectionné. Les couleurs sont recalculées immédiatement.</p>
+  </section>
+  <aside class="sidebar">
+   <section class="summary card"><div class="summary-heading"><h2>Bilan du niveau</h2></div><div class="big-number" id="percent">0<span>%</span></div><div class="big-label">de zones suffisamment couvertes</div>
+    <div class="meter" aria-hidden="true"><span class="good" id="bar-good"></span><span class="weak" id="bar-weak"></span><span class="bad" id="bar-bad"></span></div>
+    <div class="stat"><div class="label"><i class="swatch good"></i>Bonne couverture</div><strong id="count-good">0</strong></div>
+    <div class="stat"><div class="label"><i class="swatch weak"></i>Couverture faible</div><strong id="count-weak">0</strong></div>
+    <div class="stat"><div class="label"><i class="swatch bad"></i>Non couverte</div><strong id="count-bad">0</strong></div>
+    <div class="footnote" id="sample-count">Zones évaluées : 0</div></section>
+   <section class="tip"><h2>À observer</h2><p id="details">La distance, les obstacles et les étages influencent la couverture.</p></section>
+  </aside>
+ </div>
+ <p id="report" role="status" aria-live="polite"></p>
+</main><script type="module" src="./main.js"></script></body></html>
