@@ -21,6 +21,8 @@ test("Wi-Fi : bande incompatible, sécurité incompatible, désactivation",()=>{
  c.ssids[0]={...c.ssids[0],security:"wpa3-personal",password:"Secret2026!",bands:["6"]};
  assert.equal(configureWifiAp(reg,ap.id,{ssids:c.ssids}).success,true);
  assert.equal(associateWifiClient(reg,{apId:ap.id,ssidId:"ssid-1",password:"Secret2026!"}).code,"band_incompatible");
+ const radios={...getWifiConfig(reg,ap.id).radios,"6":{enabled:true,channel:"auto"}};
+ assert.equal(configureWifiAp(reg,ap.id,{radios}).success,true);
  assert.equal(associateWifiClient(reg,{apId:ap.id,ssidId:"ssid-1",password:"Secret2026!",bands:["6"],security:["wpa2-personal"]}).code,"security_incompatible");
  assert.equal(associateWifiClient(reg,{apId:ap.id,ssidId:"ssid-1",password:"Secret2026!",bands:["6"],security:["wpa3-personal"]}).success,true);
  assert.equal(configureWifiAp(reg,ap.id,{enabled:false}).success,true);
