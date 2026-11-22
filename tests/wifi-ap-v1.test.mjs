@@ -6,7 +6,7 @@ const setup=()=>{const reg=createAssetRegistry(),r=createWifiAccessPoint(reg,{na
 test("Borne Wi-Fi : capacité, ports radio et Ethernet, état initial",()=>{
  const {reg,ap}=setup();assert.equal(ap.ports.filter(p=>p.type==="wifi").length,1);
  assert.equal(ap.ports.filter(p=>p.type==="ethernet-rj45").length,1);
- assert.ok(ap.networkCapabilities.includes("wifi-ap"));assert.equal(getWifiConfig(reg,ap.id).ssids[0].name,"R2D3-WIFI");
+ assert.ok(ap.networkCapabilities.includes("wifi-ap"));assert.equal(getWifiConfig(reg,ap.id).ssids[0].name,"WIFI-01");
 });
 test("Wi-Fi : SSID WPA2 et association acceptée ou refusée",()=>{
  const {reg,ap}=setup(),c=getWifiConfig(reg,ap.id);
