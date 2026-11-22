@@ -15,7 +15,7 @@ function populateChannels(){
  const band=$("band").value;
  const channels=WIFI_RADIO_OPTIONS[band].channels;
  for(const id of ["channel-a","channel-b"]){
-  const select=$(id),wanted=id==="channel-b"?channels[0]:channels[0];
+  const select=$(id),wanted=channels[0];
   select.replaceChildren();
   for(const channel of ["auto",...channels]){
    const opt=document.createElement("option");
@@ -23,6 +23,10 @@ function populateChannels(){
    select.append(opt);
   }
   select.value=String(wanted);
+ }
+ for(let i=0;i<ids.length;i++){
+  const active=getWifiConfig(registry,ids[i]).radios?.[band]?.enabled;
+  $(i===0?"enabled-a":"enabled-b").checked=active??false;
  }
 }
 function position(index){
@@ -36,7 +40,7 @@ function save(){
  for(let i=0;i<ids.length;i++){
   const config=getWifiConfig(registry,ids[i]),radios={...config.radios};
   const selected=$(i===0?"channel-a":"channel-b").value;
-  radios[band]={enabled:true,channel:selected==="auto"?"auto":Number(selected)};
+  radios[band]={enabled:$(i===0?"enabled-a":"enabled-b").checked,channel:selected==="auto"?"auto":Number(selected)};
   const result=configureWifiAp(registry,ids[i],{radios});
   if(!result.success){$("result").textContent=result.message;return;}
  }
@@ -52,20 +56,30 @@ function show(){
  let common=0;
  for(const p of receivers){
   const signal=aps.map(ap=>radioSignalAt({transmitter:ap,receiver:p,profile:WIFI_CHANNEL_PROFILE}));
-  const yes=signal.map(s=>s.covered);
+  const yes=signal.map((s,i)=>aps[i].wifiConfig.radios?.[band]?.enabled===true&&aps[i].wifiConfig.enabled!==false&&s.covered);
   if(yes[0]&&yes[1])common++;
   ctx.fillStyle=yes[0]&&yes[1]?"rgba(140,104,186,.75)":yes[0]?"rgba(59,149,209,.65)":yes[1]?"rgba(230,171,69,.65)":"rgba(120,120,120,.08)";
   ctx.fillRect((p.x-STEP/2)*scale,(p.y-STEP/2)*scale,STEP*scale+.3,STEP*scale+.3);
  }
  ctx.textAlign="center";ctx.textBaseline="middle";ctx.font="bold 15px system-ui,Arial";
  aps.forEach((ap,i)=>{
+  const active=ap.wifiConfig.radios?.[band]?.enabled===true;
   const x=ap.x*scale,y=ap.y*scale;
-  ctx.beginPath();ctx.arc(x,y,12,0,Math.PI*2);ctx.fillStyle=i===0?"#2673aa":"#b27b20";ctx.fill();
+  ctx.beginPath();ctx.arc(x,y,12,0,Math.PI*2);ctx.fillStyle=!active?"#777":i===0?"#2673aa":"#b27b20";ctx.fill();
   ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.stroke();
   ctx.fillStyle="#fff";ctx.fillText(i===0?"A":"B",x,y);
+  if(!active){ctx.beginPath();ctx.moveTo(x-9,y-9);ctx.lineTo(x+9,y+9);ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.stroke();}
  });
  const diagnosis=diagnoseWifiChannels({accessPoints:aps,receivers,band,profile:WIFI_CHANNEL_PROFILE});
  const pair=diagnosis.pairs[0];
+ if(!pair){
+  const enabled=aps.filter(ap=>ap.wifiConfig.enabled!==false&&ap.wifiConfig.radios?.[band]?.enabled===true);
+  $("result").textContent=enabled.length===0
+   ?"Les deux radios sont désactivées sur "+band+" GHz. Aucune couverture et aucun partage de canal."
+   :"Une seule radio est active sur "+band+" GHz. La borne désactivée n'émet pas ; aucun partage de canal entre les deux bornes.";
+  $("result").dataset.classification="radio_inactive";
+  return;
+ }
  $("result").textContent="Borne A : "+pair.channelA+" | Borne B : "+pair.channelB+
   "\nPoints de réception couverts par les deux bornes : "+pair.overlapPoints+" / "+pair.totalPoints+
   "\n"+pair.message;
