@@ -108,11 +108,8 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
  }
  function validate(){
   if(draft.ssids.length>16)return "Une borne accepte au maximum 16 SSID.";
-  const ids=new Set();
   for(const s of draft.ssids){
    if(!s.name||s.name.length>32)return "Le nom de chaque SSID doit contenir de 1 à 32 caractères.";
-   if(ids.has(s.name))return "Deux réseaux ne peuvent pas avoir le même nom de SSID dans cette interface.";
-   ids.add(s.name);
    if(!s.bands.length)return "Sélectionnez au moins une bande pour "+s.name+".";
    if(s.bands.includes("6")&&s.security!=="wpa3-personal")return "La bande 6 GHz nécessite WPA3-Personal pour "+s.name+".";
    if(s.security!=="open"&&s.password!==""&&(s.password.length<8||s.password.length>63))return "Le mot de passe de "+s.name+" doit contenir entre 8 et 63 caractères.";
