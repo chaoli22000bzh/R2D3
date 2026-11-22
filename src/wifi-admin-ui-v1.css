@@ -22,6 +22,6 @@
 
 /* Configuration des radios : une ligne compacte par bande. */
 .wifi-admin .wifi-admin-radios{display:block}
-.wifi-admin .wifi-admin-radio{display:grid;grid-template-columns:minmax(100px,1fr) minmax(120px,1.4fr) minmax(100px,1fr);gap:9px;align-items:center;padding:5px 0}
+.wifi-admin .wifi-admin-radio{display:grid;grid-template-columns:minmax(100px,1fr) minmax(120px,1.4fr);gap:9px;align-items:center;padding:5px 0}
 .wifi-admin .wifi-admin-radio+.wifi-admin-radio{border-top:1px solid var(--wline)}
 @media(max-width:480px){.wifi-admin .wifi-admin-radio{grid-template-columns:1fr 1fr}.wifi-admin .wifi-admin-radio>.check{grid-column:1/-1}}
