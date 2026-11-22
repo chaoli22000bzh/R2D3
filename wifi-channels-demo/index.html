@@ -8,6 +8,8 @@ h1{font-size:21px;margin:0 0 5px}h2{font-size:16px;margin:0 0 8px}
 section{background:var(--panel);border:1px solid var(--edge);border-radius:8px;padding:13px;margin-top:12px}
 p{color:var(--muted);margin:4px 0 10px}.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
 label{display:grid;gap:4px;font-weight:550}select{background:var(--panel);color:var(--fg);border:1px solid var(--edge);border-radius:5px;padding:6px;font:inherit;min-width:125px;min-height:36px}
+label.toggle{display:flex;align-items:center;gap:7px;min-height:36px;color:var(--fg)}
+label.toggle input{width:17px;height:17px;accent-color:var(--accent)}
 button{background:var(--accent);color:white;padding:7px 12px;border:0;border-radius:5px;font:inherit;cursor:pointer;min-height:36px}
 #map{position:relative;width:100%;aspect-ratio:140/55;background:var(--map);border:2px solid var(--edge);border-radius:7px;overflow:hidden}
 #map canvas{width:100%;height:100%;display:block}
@@ -21,7 +23,9 @@ small{color:var(--muted)}
 <section><h2>Configuration des deux bornes</h2>
 <div class="controls">
 <label>Bande radio<select id="band"><option value="2.4">2,4 GHz</option><option value="5">5 GHz</option><option value="6">6 GHz</option></select></label>
+<label class="toggle"><input type="checkbox" id="enabled-a" checked> Borne A active</label>
 <label>Borne A, canal<select id="channel-a"></select></label>
+<label class="toggle"><input type="checkbox" id="enabled-b" checked> Borne B active</label>
 <label>Borne B, canal<select id="channel-b"></select></label>
 <label>Implantation<select id="layout"><option value="near">Bornes proches</option><option value="far">Bornes éloignées</option></select></label>
 <button id="apply" type="button">Enregistrer et diagnostiquer</button>
