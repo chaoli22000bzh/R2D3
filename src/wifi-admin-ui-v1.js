@@ -22,8 +22,6 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
      '<label class="check"><input type="checkbox" data-radio-enabled'+(radio.enabled?' checked':'')+'> '+options.label+'</label>'+
      '<label>Canal<select data-radio-channel><option value="auto"'+(radio.channel==="auto"?' selected':'')+'>Automatique</option>'+
       options.channels.map(n=>'<option value="'+n+'"'+(radio.channel===n?' selected':'')+'>'+n+'</option>').join("")+'</select></label>'+
-     '<label>Largeur<select data-radio-width>'+
-      options.widths.map(n=>'<option value="'+n+'"'+(radio.width===n?' selected':'')+'>'+n+' MHz</option>').join("")+'</select></label>'+
      '</div>';
    }).join("")+'</fieldset>'+
    config.ssids.map((s,i)=>'<fieldset data-index="'+i+'"><legend>SSID '+(i+1)+'</legend>'+
@@ -80,8 +78,7 @@ export function mountWifiAdmin({root,registry,assetId,onChange}={}){
    const choice=row.querySelector("[data-radio-channel]").value;
    radios[band]={
     enabled:row.querySelector("[data-radio-enabled]").checked,
-    channel:choice==="auto"?"auto":Number(choice),
-    width:Number(row.querySelector("[data-radio-width]").value)
+    channel:choice==="auto"?"auto":Number(choice)
    };
   }
   const result=configureWifiAp(registry,assetId,{enabled:root.querySelector("[data-enabled]").checked,ssids,radios});
