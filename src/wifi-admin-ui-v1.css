@@ -94,3 +94,38 @@
  .wifi-admin .wifi-admin-radio-row{grid-template-columns:minmax(100px,1fr) 142px}
  .wifi-admin .wifi-admin-details>div{grid-template-columns:115px minmax(0,1fr)}
 }
+
+/* Administration simplifiée : nom de borne et paramètres regroupés par SSID. */
+.wifi-admin .wifi-admin-assetname{margin-bottom:12px;width:max-content;max-width:100%}
+.wifi-admin .wifi-admin-assetname input{width:230px;max-width:100%}
+.wifi-admin .wifi-admin-ssid .wifi-admin-fields{
+ display:grid;
+ grid-template-columns:230px 215px 185px 230px 96px;
+ align-items:end;
+ gap:13px 15px;
+ max-width:100%;
+}
+.wifi-admin .wifi-admin-ssid .wifi-admin-ssidname{grid-column:1}
+.wifi-admin .wifi-admin-ssid .wifi-admin-band-field{grid-column:2 / 4;align-self:end}
+.wifi-admin .wifi-admin-ssid .wifi-admin-fields>.wifi-admin-check{align-self:end}
+.wifi-admin .wifi-admin-ssid .wifi-admin-fields>.wifi-admin-check:has([data-field="enabled"]){grid-column:4}
+.wifi-admin .wifi-admin-ssid .wifi-admin-fields>.wifi-admin-check:has([data-field="clientIsolation"]){grid-column:5}
+.wifi-admin .wifi-admin-ssid .wifi-admin-security{grid-column:1}
+.wifi-admin .wifi-admin-ssid .wifi-admin-password{grid-column:2}
+.wifi-admin .wifi-admin-ssid .wifi-admin-vlan{grid-column:3}
+.wifi-admin .wifi-admin-ssid .wifi-admin-security select{width:185px}
+.wifi-admin .wifi-admin-ssid .wifi-admin-password input{width:205px}
+.wifi-admin .wifi-admin-ssid .wifi-admin-vlan input{width:76px}
+.wifi-admin .wifi-admin-ssid .wifi-admin-band-options{gap:8px 12px}
+@media(max-width:970px){
+ .wifi-admin .wifi-admin-ssid .wifi-admin-fields{display:flex;flex-wrap:wrap;align-items:end;gap:12px 17px}
+ .wifi-admin .wifi-admin-ssid .wifi-admin-fields>*{flex:none;max-width:100%}
+ .wifi-admin .wifi-admin-ssid .wifi-admin-band-field{flex-basis:100%}
+}
+@media(max-width:520px){
+ .wifi-admin .wifi-admin-ssid .wifi-admin-fields{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+ .wifi-admin .wifi-admin-ssid .wifi-admin-fields>*{grid-column:1!important;max-width:100%}
+ .wifi-admin .wifi-admin-ssid .wifi-admin-ssidname input,
+ .wifi-admin .wifi-admin-ssid .wifi-admin-password input{width:100%;max-width:230px}
+ .wifi-admin .wifi-admin-ssid .wifi-admin-band-field{width:100%;min-width:0}
+}
