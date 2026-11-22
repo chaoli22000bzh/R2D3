@@ -761,3 +761,32 @@
  .switch-admin.v4 .device-state{background:#214d43;color:#a2efd0}
  .switch-admin.v4 .table-port{color:#7be0b3}
 }
+
+/* VLAN administrables dans un éditeur hôte : les règles globales du
+   laboratoire (label flex:1 / min-width:135px) ne doivent pas élargir
+   les colonnes compactes de l'interface partagée. */
+.switch-admin.v4 form[data-form="vlan"]>label,
+.switch-admin.v4 form[data-form="vlan-edit"]>label{
+ min-width:0;
+ width:auto;
+ flex:none;
+ display:grid;
+ gap:4px;
+}
+.switch-admin.v4 form[data-form="vlan"]>label:first-of-type,
+.switch-admin.v4 form[data-form="vlan-edit"]>label:first-of-type{
+ min-width:0;
+}
+/* Contraste explicite pour la sélection dans les tableaux VLAN. */
+@media (prefers-color-scheme: dark){
+ .switch-admin.v4 .admin-table tbody tr.row-selected,
+ .switch-admin.v4 .admin-table tbody tr.row-selected:hover{
+  background:#315448;
+  color:#f2fff8;
+ }
+ .switch-admin.v4 .admin-table tbody tr.row-selected td,
+ .switch-admin.v4 .admin-table tbody tr.row-selected td .table-port{
+  background:transparent;
+  color:#f2fff8;
+ }
+}
