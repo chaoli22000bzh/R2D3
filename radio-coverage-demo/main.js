@@ -34,11 +34,21 @@ function render(){
  const sizes={good:0,weak:0,bad:0};
  for(const p of result.points){const kind=p.quality==="bonne"?"good":p.quality==="faible"?"weak":"bad";sizes[kind]++;
   const n=el("cell "+kind,"",p.position.x,p.position.y);n.style.width=scenario.step/scenario.width*98+"%";n.style.height=scenario.step/scenario.height*98+"%";panel.append(n);}
- for(const [i,p] of positions.entries())if(p.z===floor*3)panel.append(el("tx",String(i+1),p.x,p.y));
+ for(const [i,p] of positions.entries())if(p.z===floor*3)panel.append(el("tx"+(Number($("tx-select").value)===i?" selected":""),String(i+1),p.x,p.y));
+ $("map-title").textContent=scenario.label;
+ $("map-subtitle").textContent="Placement de trois émetteurs · plan simplifié";
+ $("floor-chip").textContent=floor===0?"RDC":"R+"+floor;
+ const percent=Math.round(result.coveredCount/Math.max(1,result.totalCount)*100);
+ $("percent").replaceChildren(document.createTextNode(String(percent)),Object.assign(document.createElement("span"),{textContent:"%"}));
+ for(const key of ["good","weak","bad"]){
+  $("count-"+key).textContent=String(sizes[key]);
+  $("bar-"+key).style.width=(sizes[key]/Math.max(1,result.totalCount)*100)+"%";
+ }
+ $("sample-count").textContent="Zones évaluées : "+result.totalCount;
  $("report").textContent="Zones échantillonnées : "+result.totalCount+" | Bonne : "+sizes.good+" | Faible : "+sizes.weak+" | Non couverte : "+sizes.bad+" | Couverture suffisante : "+Math.round(result.coveredCount/Math.max(1,result.totalCount)*100)+" %";
- $("details").textContent="Profil : "+profile.label+". Valeurs purement pédagogiques. Les obstacles visibles influencent le calcul. Cliquer sur le plan déplace l'émetteur sélectionné.";
+ $("details").textContent="Les zones évoluent selon les émetteurs, les obstacles et le profil "+profile.label+". Valeurs pédagogiques, non mesurées.";
 }
-$("site").onchange=reset;$("profile").onchange=render;$("floor").onchange=render;
+$("site").onchange=reset;$("profile").onchange=render;$("floor").onchange=render;$("tx-select").onchange=render;
 $("reset").onclick=reset;
 $("plan").onclick=e=>{const r=e.currentTarget.getBoundingClientRect(),i=Number($("tx-select").value);
  positions[i]={x:Math.max(0,Math.min(scenario.width,(e.clientX-r.left)/r.width*scenario.width)),y:Math.max(0,Math.min(scenario.height,(e.clientY-r.top)/r.height*scenario.height)),z:Number($("floor").value)*3};render();};
