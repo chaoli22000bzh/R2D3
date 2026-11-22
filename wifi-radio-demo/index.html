@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R2D3 | Radios et canaux Wi-Fi V1</title>
+<link rel="stylesheet" href="../src/wifi-admin-ui-v1.css">
+<style>
+:root{color-scheme:light;--bg:#eef3f7;--panel:#fff;--fg:#263b48;--muted:#536978;--line:#c8d7e0;--accent:#176f98}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#121d26;--panel:#20313e;--fg:#e7f0f6;--muted:#b9cbd6;--line:#526979;--accent:#6aadd7}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,Arial,sans-serif}
+main{max-width:900px;margin:auto;padding:16px}
+h1{font-size:23px;margin:0 0 4px}h2{font-size:16px;margin:0 0 10px}
+p{margin:4px 0 11px;color:var(--muted)}
+section{padding:16px;background:var(--panel);border:1px solid var(--line);border-radius:9px;margin-bottom:13px}
+.controls{display:flex;flex-wrap:wrap;align-items:end;gap:10px}
+.controls label{display:grid;gap:4px}
+.controls select{min-width:115px;min-height:35px;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:5px;padding:5px;font:inherit}
+button{cursor:pointer;min-height:35px;background:var(--accent);color:white;border:0;border-radius:5px;padding:6px 11px;font:inherit}
+button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#result{margin-top:12px;padding:10px;border-left:4px solid var(--accent);background:var(--bg);white-space:pre-line}
+#result[data-ok="false"]{border-color:#bb5959}
+</style></head>
+<body><main>
+<header><h1>R2D3 : radios et canaux Wi-Fi</h1><p>Lot 8, première recette : configuration enregistrée dans le registre R2D3</p></header>
+<section><h2>Administration de la borne</h2><div id="ap-admin"></div></section>
+<section><h2>Vérification de la bande active</h2>
+<p>Les canaux et les largeurs sont enregistrés dans la configuration. Ce premier test vérifie aussi qu'une radio désactivée n'émet plus de SSID visible sur sa bande.</p>
+<div class="controls">
+<label>Bande du client<select id="test-band"><option value="2.4">2,4 GHz</option><option value="5">5 GHz</option><option value="6">6 GHz</option></select></label>
+<button id="scan" type="button">Rechercher le réseau</button>
+<button id="reset" type="button">Réinitialiser</button>
+</div>
+<div id="result" role="status" aria-live="polite">Configure la borne puis lance une recherche.</div>
+</section>
+</main><script type="module" src="./main.js"></script></body></html>
