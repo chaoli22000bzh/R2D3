@@ -790,3 +790,29 @@
   color:#f2fff8;
  }
 }
+
+
+/* Routeur : préfixes CIDR compacts, sans flèches d'incrémentation.
+   Portée strictement limitée aux trois formulaires concernés. */
+.switch-admin.v4 form[data-form="router-port"] label:has(input[name="prefix"]),
+.switch-admin.v4 form[data-form="vpn"].remote-vpn-grid .remote-vpn-prefix,
+.switch-admin.v4 form[data-form="site-vpn"].site-vpn-grid .site-vpn-prefix{
+ min-width:0;
+}
+.switch-admin.v4 form[data-form="router-port"] input[name="prefix"],
+.switch-admin.v4 form[data-form="vpn"] input[name="vpnPrefix"],
+.switch-admin.v4 form[data-form="site-vpn"] input[name="remotePrefix"]{
+ width:76px;
+ max-width:100%;
+ -moz-appearance:textfield;
+ appearance:textfield;
+}
+.switch-admin.v4 form[data-form="router-port"] input[name="prefix"]::-webkit-inner-spin-button,
+.switch-admin.v4 form[data-form="router-port"] input[name="prefix"]::-webkit-outer-spin-button,
+.switch-admin.v4 form[data-form="vpn"] input[name="vpnPrefix"]::-webkit-inner-spin-button,
+.switch-admin.v4 form[data-form="vpn"] input[name="vpnPrefix"]::-webkit-outer-spin-button,
+.switch-admin.v4 form[data-form="site-vpn"] input[name="remotePrefix"]::-webkit-inner-spin-button,
+.switch-admin.v4 form[data-form="site-vpn"] input[name="remotePrefix"]::-webkit-outer-spin-button{
+ -webkit-appearance:none;
+ margin:0;
+}
