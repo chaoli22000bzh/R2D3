@@ -25,3 +25,60 @@
 .wifi-admin .wifi-admin-radio{display:grid;grid-template-columns:minmax(100px,1fr) minmax(120px,1.4fr);gap:9px;align-items:center;padding:5px 0}
 .wifi-admin .wifi-admin-radio+.wifi-admin-radio{border-top:1px solid var(--wline)}
 @media(max-width:480px){.wifi-admin .wifi-admin-radio{grid-template-columns:1fr 1fr}.wifi-admin .wifi-admin-radio>.check{grid-column:1/-1}}
+
+/* Navigation et presentation reprises des administrations switch et routeur. */
+.wifi-admin{max-width:none;width:100%;min-width:0;font-size:15px}
+.wifi-admin-topbar{background:#078c6d;color:#fff;font-weight:650;padding:10px 16px}
+.wifi-admin-topbar span{font-weight:400;margin-left:12px;opacity:.9}
+.wifi-admin-device{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:12px 17px;border-bottom:1px solid var(--wline)}
+.wifi-admin-device>div{display:grid;gap:2px}
+.wifi-admin-device strong{font-size:18px}
+.wifi-admin-device span{color:var(--wmuted)}
+.wifi-admin .wifi-admin-state{background:color-mix(in srgb,var(--waccent) 12%,var(--wbg));color:var(--wfg);border-radius:4px;padding:5px 9px}
+.wifi-admin-tabs{display:flex;gap:18px;overflow-x:auto;border-bottom:1px solid var(--wline);padding:0 17px;scrollbar-width:thin}
+.wifi-admin .wifi-admin-tabs button{flex:none;min-height:40px;white-space:nowrap;background:transparent;border:0;border-bottom:3px solid transparent;border-radius:0;color:var(--wmuted);font-weight:600;padding:8px 1px}
+.wifi-admin .wifi-admin-tabs button.active{color:var(--waccent);border-bottom-color:var(--waccent)}
+.wifi-admin-head,.wifi-admin-overview,.wifi-admin-radios,.wifi-admin fieldset[data-index],.wifi-admin-actions,.wifi-admin-feedback{margin-left:17px;margin-right:17px}
+.wifi-admin-head{margin-top:13px}
+.wifi-admin-overview{padding:10px 0}
+.wifi-admin-overview h3{font-size:16px}
+.wifi-admin-overview dl{max-width:680px;margin:0}
+.wifi-admin-overview dl>div{display:grid;grid-template-columns:140px minmax(0,1fr);gap:12px;padding:8px 0;border-bottom:1px solid var(--wline)}
+.wifi-admin-overview dt{color:var(--wmuted)}
+.wifi-admin-overview dd{margin:0;overflow-wrap:anywhere}
+.wifi-admin fieldset[data-index]{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 18px}
+.wifi-admin fieldset[data-index]>label,.wifi-admin fieldset[data-index]>.wifi-admin-bands{flex:none}
+.wifi-admin [data-field="name"]{width:230px!important;max-width:100%}
+.wifi-admin [data-field="password"]{width:230px!important;max-width:100%}
+.wifi-admin select[data-field="security"]{width:178px;max-width:100%}
+.wifi-admin .wifi-admin-vlan input[data-field="vlanNumber"]{width:76px;max-width:100%}
+.wifi-admin .wifi-admin-radio{grid-template-columns:115px max-content;gap:13px}
+.wifi-admin .wifi-admin-radio label:has([data-radio-channel]){width:140px}
+.wifi-admin select[data-radio-channel]{width:140px;max-width:100%}
+.wifi-admin input[type=number]{appearance:textfield;-moz-appearance:textfield}
+.wifi-admin input[type=number]::-webkit-inner-spin-button,.wifi-admin input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+/* Conserver les valeurs des formulaires dans le DOM lors des changements d'onglet. */
+.wifi-admin:not([data-tab="overview"]) .wifi-admin-overview{display:none}
+.wifi-admin:not([data-tab="radios"]) .wifi-admin-radios{display:none}
+.wifi-admin[data-tab="overview"] fieldset[data-index],
+.wifi-admin[data-tab="overview"] .wifi-admin-radios,
+.wifi-admin[data-tab="overview"] .wifi-admin-actions{display:none}
+.wifi-admin[data-tab="networks"] fieldset[data-index]>label:has([data-field="security"]),
+.wifi-admin[data-tab="networks"] fieldset[data-index]>label:has([data-field="password"]),
+.wifi-admin[data-tab="networks"] fieldset[data-index]>label:has([data-field="vlanNumber"]){display:none}
+.wifi-admin[data-tab="security"] fieldset[data-index]>label:not(:has([data-field="security"],[data-field="password"])),
+.wifi-admin[data-tab="security"] fieldset[data-index]>.wifi-admin-bands{display:none}
+.wifi-admin[data-tab="vlan"] fieldset[data-index]>label:not(:has([data-field="vlanNumber"])),
+.wifi-admin[data-tab="vlan"] fieldset[data-index]>.wifi-admin-bands{display:none}
+.wifi-admin[data-tab="radios"] fieldset[data-index]{display:none}
+.wifi-admin[data-tab="overview"] .wifi-admin-head{display:flex}
+.wifi-admin[data-tab="security"] .wifi-admin-head,
+.wifi-admin[data-tab="radios"] .wifi-admin-head,
+.wifi-admin[data-tab="vlan"] .wifi-admin-head{display:none}
+@media(max-width:520px){
+ .wifi-admin-tabs{gap:13px;padding-inline:12px}
+ .wifi-admin-head,.wifi-admin-overview,.wifi-admin-radios,.wifi-admin fieldset[data-index],.wifi-admin-actions,.wifi-admin-feedback{margin-left:12px;margin-right:12px}
+ .wifi-admin .wifi-admin-radio{grid-template-columns:100px max-content}
+ .wifi-admin-overview dl>div{grid-template-columns:100px minmax(0,1fr)}
+ .wifi-admin fieldset[data-index]>label{max-width:100%}
+}
