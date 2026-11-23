@@ -1,6 +1,7 @@
 /* R2D3 : administration de la box Internet V1.
  * Un actif composite, même registre R2D3 et mêmes moteurs métiers.
- * Aucune administration VLAN/switch. WAN routé et VPN non simulés ici.
+ * Aucune administration VLAN/switch. L’état Internet provient d’une observation réseau.
+ * Un WAN adressé ne prouve jamais à lui seul l’accès Internet.
  */
 import {WIFI_RADIO_BANDS,WIFI_RADIO_OPTIONS} from "./wifi-radio-config-v1.js";
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -12,13 +13,21 @@ const tabs=[["overview","Vue d’ensemble"],["lan","LAN et DHCP"],["wan","Intern
 const checked=x=>x?" checked":"";
 const ipv4=x=>typeof x==="string"&&/^(\d{1,3}\.){3}\d{1,3}$/.test(x)&&x.split(".").every(o=>Number(o)<=255);
 
-export function mountBoxAdmin({root,registry,assetId,onChange}={}){
+export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}={}){
  if(!root||!registry?.getAsset||!registry?.setBoxLanConfig||!registry?.setBoxWanConfig||!registry?.setBoxWifiConfig)
   throw Error("Registre R2D3 ou interface indisponible.");
  let id=assetId,page="overview",feedback="",feedbackError=false,ssidIndex=0;
  const get=()=>{const a=registry.getAsset(id);if(!a?.boxConfig)throw Error("Box Internet introuvable.");return a;};
  let lan=copy(get().boxConfig.lan),wifi=copy(get().boxConfig.wifi),wan=copy(get().boxConfig.wan??{mode:"dhcp",address:"",prefix:null,gateway:"",dns:[]});
  const physical=id=>registry.listCables().some(c=>c.ends.some(end=>end?.portId===id));
+ const connection=()=>{
+  const box=get(),wan=registry.getBoxWanEffective?.(id);
+  if(box.status!=="En service")return "Box hors service";
+  if(!wan?.address||!wan?.gateway)return "WAN non configuré";
+  const observation=typeof getInternetStatus==="function"?getInternetStatus(id):null;
+  return observation?.connected===true&&observation?.wanAddress===wan.address?
+   "Connecté à Internet simulé":"Accès Internet non vérifié";
+ };
  function status(message,error=false){feedback=message;feedbackError=error;render();}
  const info=(title,value)=>'<div><dt>'+esc(title)+'</dt><dd>'+esc(value)+'</dd></div>';
  const portButton=(id,label,internal=false)=>{
@@ -37,7 +46,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange}={}){
    info("Serveur DHCP",c.lan.dhcpEnabled?"Actif":"Arrêté")+
    info("Wi-Fi",c.wifi.enabled?"Actif":"Arrêté")+
    info("WAN IPv4",effective?effective.address+"/"+effective.prefix:"Non configurée")+
-   info("Accès Internet","Routage et NAT/PAT sortant à développer")+
+   info("Accès Internet",connection())+
    info("VLAN","Non administrables")+
    '</dl></section>'+
    '<section class="admin-panel"><h3>Connectiques externes</h3><div class="box-port-bank">'+
@@ -45,7 +54,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange}={}){
    c.ports.lanPortIds.map((p,i)=>portButton(p,"LAN "+(i+1))).join("")+
    '</div><p class="box-note">Switch interne non administrable : LAN 1 à 6 appartiennent au même réseau. Le port 5 relie le Wi-Fi ; le port 6 relie le routeur. Ces deux connexions sont permanentes.</p></section>'+
    '<section class="admin-panel"><h3>Connexion Internet</h3>'+
-   '<p class="box-note">Le WAN est relié directement à l’Internet simulé, sans équipement modem ni FAI à représenter. L’adressage WAN IPv4 est disponible ; le routage Internet, le NAT/PAT et le mode bridge restent à intégrer.</p></section>';
+   '<p class="box-note">Le WAN est relié directement à l’Internet simulé, sans équipement modem ni FAI à représenter. Le routage et le PAT sortant sont disponibles pour les services Internet simulés. L’état « Connecté » nécessite une communication validée avec un service distant. Le mode bridge reste à développer.</p></section>';
  }
  const field=(name,label,value,type="text",extra="")=>'<label>'+esc(label)+'<input name="'+name+'" type="'+type+'" value="'+esc(value)+'" '+extra+'></label>';
  function lanPanel(){
@@ -74,7 +83,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange}={}){
    info("Passerelle",effective?.gateway??"Non configurée")+
    info("DNS 1",effective?.dns?.[0]??"Non configuré")+
    info("DNS 2",effective?.dns?.[1]??"Non configuré")+
-   info("Connexion Internet","Routage/NAT sortant non encore simulés")+'</dl></section>'+
+   info("Connexion Internet",connection())+'</dl></section>'+
    '<section class="admin-panel"><h3>Paramètres WAN IPv4</h3>'+
    '<form data-form="box-wan" class="box-form">'+
    '<label>Mode d’adressage<select name="mode" data-wan-mode>'+
