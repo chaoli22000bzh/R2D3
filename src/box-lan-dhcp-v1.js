@@ -116,15 +116,28 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
    if(!currentBox||!live(currentBox))return fail("box_offline","Box indisponible.");
    const current=admitClient(registry,currentBox,
     clients.find(x=>x.assetId===clientId));
-   if(!current.success)return current;
+   // Convention pédagogique R2D3 : un client DHCP débranché sans bail
+   // actif reçoit l'APIPA du Core, plutôt qu'un refus de simulation.
+   // Un bail encore valide reste conservé conformément au Core.
+   const disconnected=current.code==="link_down"&&initial.medium==="ethernet";
+   if(!current.success&&!disconnected)return current;
    // Si le LAN est reconfiguré après la création de session, refuser
    // plutôt que d'attribuer un bail provenant d'une ancienne configuration.
    if(JSON.stringify(currentBox.boxConfig.lan)!==JSON.stringify(box.boxConfig.lan))
     return fail("out_of_sync","Configuration LAN modifiée : recréer la session.");
-   const snap=engine.getSnapshot();
+   let snap=engine.getSnapshot();
+   const linkId="box-lan-link-"+(accepted.indexOf(initial)+1);
+   const linked=!disconnected;
+   if(snap.linksById[linkId]?.connected!==linked){
+    const transition=engine.dispatch({commandVersion:1,
+     id:"box-link-"+clientId+"-"+(snap.revision+1),
+     type:"network.setLinkConnected",targetId:linkId,params:{connected:linked}});
+    if(transition.status!=="applied")return fail("core_link_error","État du lien Core non synchronisé.");
+    snap=engine.getSnapshot();
+   }
    const result=engine.dispatch({commandVersion:1,id:"box-dhcp-"+(snap.revision+1),
     type:"dhcp.request",targetId:clientId,
-    params:currentBox.boxConfig.lan.dhcpEnabled?
+    params:linked&&currentBox.boxConfig.lan.dhcpEnabled?
      {serverId:router.id,poolId:currentBox.boxConfig.lan.pools[0].id}:{}});
    if(result.status!=="applied")return fail("core_rejected",result.message||result.code||"Demande DHCP refusée.");
    const updated=engine.getSnapshot(),ip=updated.objectsById[clientId].config.ipv4;
