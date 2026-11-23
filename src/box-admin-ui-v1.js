@@ -8,16 +8,16 @@ const copy=x=>JSON.parse(JSON.stringify(x));
 const options=(items,selected)=>items.map(([v,label])=>'<option value="'+esc(v)+'"'+(String(v)===String(selected)?' selected':'')+'>'+esc(label)+'</option>').join("");
 const security=[["open","Ouvert"],["wpa2-personal","WPA2-Personal"],["wpa3-personal","WPA3-Personal"],["wpa2-wpa3-personal","WPA2/WPA3-Personal"]];
 const bands=[["2.4","2,4 GHz"],["5","5 GHz"],["6","6 GHz"]];
-const tabs=[["overview","Vue d’ensemble"],["lan","LAN et DHCP"],["wifi","Wi-Fi"]];
+const tabs=[["overview","Vue d’ensemble"],["lan","LAN et DHCP"],["wan","Internet (WAN)"],["wifi","Wi-Fi"]];
 const checked=x=>x?" checked":"";
 const ipv4=x=>typeof x==="string"&&/^(\d{1,3}\.){3}\d{1,3}$/.test(x)&&x.split(".").every(o=>Number(o)<=255);
 
 export function mountBoxAdmin({root,registry,assetId,onChange}={}){
- if(!root||!registry?.getAsset||!registry?.setBoxLanConfig||!registry?.setBoxWifiConfig)
+ if(!root||!registry?.getAsset||!registry?.setBoxLanConfig||!registry?.setBoxWanConfig||!registry?.setBoxWifiConfig)
   throw Error("Registre R2D3 ou interface indisponible.");
  let id=assetId,page="overview",feedback="",feedbackError=false,ssidIndex=0;
  const get=()=>{const a=registry.getAsset(id);if(!a?.boxConfig)throw Error("Box Internet introuvable.");return a;};
- let lan=copy(get().boxConfig.lan),wifi=copy(get().boxConfig.wifi);
+ let lan=copy(get().boxConfig.lan),wifi=copy(get().boxConfig.wifi),wan=copy(get().boxConfig.wan??{mode:"dhcp",address:"",prefix:null,gateway:"",dns:[]});
  const physical=id=>registry.listCables().some(c=>c.ends.some(end=>end?.portId===id));
  function status(message,error=false){feedback=message;feedbackError=error;render();}
  const info=(title,value)=>'<div><dt>'+esc(title)+'</dt><dd>'+esc(value)+'</dd></div>';
@@ -36,6 +36,8 @@ export function mountBoxAdmin({root,registry,assetId,onChange}={}){
    info("Passerelle LAN",c.lan.address+"/"+c.lan.prefix)+
    info("Serveur DHCP",c.lan.dhcpEnabled?"Actif":"Arrêté")+
    info("Wi-Fi",c.wifi.enabled?"Actif":"Arrêté")+
+   info("WAN IPv4",c.wan?.mode==="static"?c.wan.address+"/"+c.wan.prefix:"Client DHCP (adresse non attribuée)")+
+   info("Accès Internet","Non simulé pour ce lot")+
    info("VLAN","Non administrables")+
    '</dl></section>'+
    '<section class="admin-panel"><h3>Connectiques externes</h3><div class="box-port-bank">'+
@@ -61,6 +63,27 @@ export function mountBoxAdmin({root,registry,assetId,onChange}={}){
    field("dns2","DNS 2",pool.dns[1]||"")+
    '<p class="box-note box-span">Le routeur reste l’unique serveur DHCP. Tous les PC filaires et Wi-Fi utilisent ce réseau et sa passerelle.</p>'+
    '<div class="form-actions box-span"><button class="primary" type="submit">Enregistrer LAN et DHCP</button></div></form></section>';
+ }
+ function wanPanel(){
+  const c=wan,box=get(),connected=physical(box.boxConfig.ports.wanPortId);
+  return '<section class="admin-panel"><h3>Connexion Internet : WAN IPv4</h3>'+
+   '<p class="box-note">Le modem est un équipement externe. La présence du câble ne prouve pas l’obtention d’une adresse ni l’accès à Internet.</p>'+
+   '<dl class="device-details">'+info("Câble WAN",connected?"Raccordé":"Débranché")+
+   info("Configuration",c.mode==="dhcp"?"Client DHCP":"IPv4 statique")+
+   info("Adresse WAN",c.mode==="static"?c.address+"/"+c.prefix:"Non attribuée")+
+   info("Connexion Internet","Non simulée (lot d’adressage)")+'</dl></section>'+
+   '<section class="admin-panel"><h3>Paramètres WAN IPv4</h3>'+
+   '<form data-form="box-wan" class="box-form">'+
+   '<label>Mode d’adressage<select name="mode" data-wan-mode>'+
+   options([["dhcp","Automatique (DHCP)"],["static","Statique"]],c.mode)+'</select></label>'+
+   (c.mode==="static"?
+     field("address","Adresse IPv4",c.address,"text",'required inputmode="decimal"')+
+     field("prefix","Préfixe réseau",c.prefix??24,"number",'min="1" max="30" required class="box-cidr"')+
+     field("gateway","Passerelle",c.gateway,"text",'required inputmode="decimal"')+
+     field("dns1","DNS 1",c.dns[0]??"")+
+     field("dns2","DNS 2",c.dns[1]??""):
+     '<p class="box-note box-span">L’adresse IPv4, le préfixe, la passerelle et les DNS seront obtenus du serveur DHCP situé côté WAN, lors du prochain lot fonctionnel.</p>')+
+   '<div class="form-actions box-span"><button type="submit" class="primary">Enregistrer le WAN IPv4</button></div></form></section>';
  }
  function wifiPanel(){
   const ssids=wifi.ssids,sel=ssids[ssidIndex]??ssids[0];
@@ -100,7 +123,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange}={}){
   const a=get();
   root.innerHTML='<div class="switch-admin v4 router-admin box-admin"><header class="device-bar"><div class="device-ident"><h2>'+esc(a.name)+'</h2><span>Box Internet</span><span class="device-state">'+esc(a.status)+'</span></div></header>'+
    '<nav class="device-tabs">'+tabs.map(([key,label])=>'<button type="button" data-page="'+key+'" class="menu-item'+(page===key?' active':'')+'">'+label+'</button>').join("")+'</nav>'+
-   '<main class="admin-content">'+(page==="overview"?overview(a):page==="lan"?lanPanel():wifiPanel())+
+   '<main class="admin-content">'+(page==="overview"?overview(a):page==="lan"?lanPanel():page==="wan"?wanPanel():wifiPanel())+
    (feedback?'<p class="box-feedback'+(feedbackError?' error':'')+'" role="status">'+esc(feedback)+'</p>':'')+
    '</main></div>';
  }
@@ -109,7 +132,15 @@ export function mountBoxAdmin({root,registry,assetId,onChange}={}){
   const form=e.target.closest("form[data-form]");if(!form)return;
   e.preventDefault();
   const kind=form.dataset.form;
-  if(kind==="box-lan"){
+  if(kind==="box-wan"){
+   const mode=read(form,"mode");
+   const next=mode==="dhcp"?{mode:"dhcp",address:"",prefix:null,gateway:"",dns:[]}:{
+    mode:"static",address:read(form,"address"),prefix:Number(read(form,"prefix")),
+    gateway:read(form,"gateway"),dns:[read(form,"dns1"),read(form,"dns2")].filter(Boolean)};
+   const result=registry.setBoxWanConfig(id,next);
+   if(result.success){wan=copy(result.wan);onChange?.();}
+   status(result.message,!result.success);
+  }else if(kind==="box-lan"){
    const address=read(form,"address"),prefix=Number(read(form,"prefix"));
    const start=read(form,"start"),end=read(form,"end"),dns=[read(form,"dns1"),read(form,"dns2")].filter(Boolean);
    if(![address,start,end,...dns].every(ipv4)){status("Adresse IPv4 ou DNS incorrect.",true);return;}
@@ -164,6 +195,12 @@ export function mountBoxAdmin({root,registry,assetId,onChange}={}){
   }
  }
  function change(e){
+  if(e.target.matches("[data-wan-mode]")){
+   const newMode=e.target.value;
+   wan=newMode==="dhcp"?{mode:"dhcp",address:"",prefix:null,gateway:"",dns:[]}:
+    {...wan,mode:"static",address:wan.address||"",prefix:wan.prefix??24,gateway:wan.gateway||"",dns:wan.dns||[]};
+   feedback="";render();return;
+  }
   if(e.target.matches("[data-ssid-select]")){ssidIndex=Number(e.target.value);feedback="";render();}
   if(e.target.matches("[data-global-wifi]")){
    const next={...wifi,enabled:e.target.checked},r=registry.setBoxWifiConfig(id,next);
@@ -173,6 +210,6 @@ export function mountBoxAdmin({root,registry,assetId,onChange}={}){
  }
  root.addEventListener("click",click);root.addEventListener("change",change);root.addEventListener("submit",submit);
  render();
- return {render,setAssetId(next){id=next;page="overview";ssidIndex=0;feedback="";lan=copy(get().boxConfig.lan);wifi=copy(get().boxConfig.wifi);render();},
+ return {render,setAssetId(next){id=next;page="overview";ssidIndex=0;feedback="";lan=copy(get().boxConfig.lan);wifi=copy(get().boxConfig.wifi);wan=copy(get().boxConfig.wan);render();},
   destroy(){root.removeEventListener("click",click);root.removeEventListener("change",change);root.removeEventListener("submit",submit);root.replaceChildren();}};
 }
