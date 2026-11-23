@@ -84,3 +84,72 @@ export function createBoxInternetSession({registry,boxId,clients=[],services=[]}
  return {success:true,code:"internet_session",boxId,
   request,lanSession:lan,listNat:()=>[...nat].map(([key,externalPort])=>({key,externalPort}))};
 }
+
+/* Accès Internet en mode bridge : passage logique strict LAN 1 <-> WAN.
+ * L'IPv4 du PC est une configuration explicite du scénario, sans DHCP de box,
+ * sans adresse inventée et sans traduction NAT/PAT.
+ */
+export function createBoxBridgeInternetSession({registry,boxId,clients=[],services=[]}={}){
+ const box=registry?.getAsset?.(boxId);
+ if(!box?.boxConfig)return fail("box_missing","Box introuvable.");
+ if(box.status!=="En service")return fail("box_offline","Box hors service.");
+ if(box.boxConfig.mode!=="bridge")return fail("router_mode","La box doit être en mode Bridge.");
+ if(!Array.isArray(clients)||clients.length!==1||!clients[0]?.assetId)
+  return fail("clients_invalid","Indiquer un seul PC ou routeur sur LAN 1.");
+ if(!Array.isArray(services)||services.some(s=>!s||typeof s.id!=="string"||!s.id||
+    ipNumber(s.address)===null||!["http","https","dns"].includes(s.kind)||
+    typeof s.available!=="boolean"))
+  return fail("service_catalog","Services Internet invalides.");
+ if(new Set(services.map(s=>s.address+":"+s.kind)).size!==services.length)
+  return fail("service_duplicate","Services Internet ambigus.");
+ const {assetId:clientId}=clients[0];
+ const firstWan=registry.getBoxWanEffective?.(boxId);
+ const firstLan1=box.boxConfig.ports.lanPortIds[0];
+ function request({clientId:requestedId=clientId,targetAddress,service="http",
+   sourcePort=50000,clientIpv4}={}){
+  const current=registry.getAsset(boxId);
+  if(!current||current.status!=="En service")return fail("box_offline","Box hors service.");
+  if(current.boxConfig.mode!=="bridge")return fail("bridge_mode_changed","Box repassée en mode Routeur.");
+  if(requestedId!==clientId)return fail("client_missing","Client absent de la session Bridge.");
+  const wan=registry.getBoxWanEffective?.(boxId);
+  if(!wan||ipNumber(wan.address)===null||ipNumber(wan.gateway)===null||
+      !sameSubnet(wan.address,wan.gateway,wan.prefix))
+   return fail("wan_invalid","WAN sans adressage valide.");
+  if(JSON.stringify(wan)!==JSON.stringify(firstWan))
+   return fail("out_of_sync","Adressage WAN modifié : recréer la session.");
+  if(!["http","https","dns"].includes(service)||ipNumber(targetAddress)===null||
+      !Number.isInteger(sourcePort)||sourcePort<1024||sourcePort>65535)
+   return fail("request_invalid","Service, destination ou port source invalide.");
+  const client=registry.getAsset(clientId);
+  if(!client||client.status!=="En service"||client.id===boxId)
+   return fail("client_offline","PC ou routeur absent ou hors service.");
+  const cp=client.ports.filter(p=>p.type==="ethernet-rj45");
+  if(!cp.length)return fail("client_port","Équipement sans port Ethernet.");
+  const matches=cp.flatMap(port=>current.boxConfig.ports.lanPortIds.filter(id=>
+    registry.explorePhysicalPath(port.id,id).connected).map(lanPortId=>({port,lanPortId})));
+  if(matches.length!==1)return fail(matches.length?"ambiguous_lan":"link_down",
+    matches.length?"Plusieurs raccordements Ethernet vers la box.":"Aucun lien LAN valide.");
+  if(matches[0].lanPortId!==firstLan1)
+   return fail("bridge_port_inactive","Seul LAN 1 est actif en mode Bridge.");
+  if(!clientIpv4||ipNumber(clientIpv4.address)===null||
+     !Number.isInteger(clientIpv4.prefix)||clientIpv4.prefix<1||clientIpv4.prefix>30||
+     ipNumber(clientIpv4.gateway)===null)
+   return fail("client_ipv4_invalid","Configuration IPv4 statique du client invalide.");
+  if(clientIpv4.prefix!==wan.prefix||
+     !sameSubnet(clientIpv4.address,wan.address,wan.prefix)||
+     clientIpv4.address===wan.address||clientIpv4.address===wan.gateway||
+     clientIpv4.gateway!==wan.gateway)
+   return fail("client_network","IPv4/passerelle du PC incompatible avec le réseau WAN.");
+  // Pas de DNS imposé ; seuls les services déclarés sont testés par adresse IPv4.
+  const endpoint=services.find(s=>s.address===targetAddress&&s.kind===service);
+  if(!endpoint)return fail("service_unknown","Service Internet simulé inconnu.");
+  if(!endpoint.available)return fail("service_offline","Service Internet simulé arrêté.");
+  return {success:true,code:"bridge_internet_service_reached",clientId,service,
+    target:{id:endpoint.id,address:targetAddress,port:ports[service]},
+    client:{address:clientIpv4.address,prefix:clientIpv4.prefix,sourcePort},
+    route:{gateway:clientIpv4.gateway,wanGateway:wan.gateway,lanPortId:firstLan1},
+    nat:null,reason:"Service Internet atteint par passage LAN 1 vers WAN sans routage ni NAT/PAT de la box."};
+ }
+ return {success:true,code:"bridge_internet_session",boxId,request,
+  listNat:()=>[]};
+}
