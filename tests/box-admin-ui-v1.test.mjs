@@ -4,7 +4,7 @@ import {createAssetRegistry} from "../src/asset-profiles.js";
 import {mountBoxAdmin} from "../src/box-admin-ui-v1.js";
 
 const good=r=>assert.equal(r.success,true,JSON.stringify(r));
-function setup(){
+function setup(getInternetStatus){
  const registry=createAssetRegistry(),created=registry.createBoxComposite("BOX-01");good(created);
  const handlers=new Map(),root={
   innerHTML:"",
@@ -12,7 +12,7 @@ function setup(){
   removeEventListener:(event,callback)=>{if(handlers.get(event)===callback)handlers.delete(event);},
   replaceChildren(){this.innerHTML="";}
  };
- const ui=mountBoxAdmin({root,registry,assetId:created.asset.id});
+ const ui=mountBoxAdmin({root,registry,assetId:created.asset.id,getInternetStatus});
  const click=dataset=>handlers.get("click")({target:{closest:selector=>
   selector==="[data-page]"&&dataset.page?{dataset:{page:dataset.page}}:
   selector==="[data-action]"&&dataset.action?{dataset:{action:dataset.action}}:null}});
@@ -102,7 +102,7 @@ test("Box WAN UI 01 : onglet Internet et attribution DHCP Orange simulée",()=>{
  assert.match(f.root.innerHTML,/90.14.10.1/);
  assert.match(f.root.innerHTML,/80.10.246.2/);
  assert.match(f.root.innerHTML,/80.10.246.129/);
- assert.match(f.root.innerHTML,/Routage\/NAT sortant non encore simulés/);
+ assert.match(f.root.innerHTML,/Accès Internet non vérifié/);
  assert.match(f.root.innerHTML,/mode/);
 });
 test("Box WAN UI 02 : IPv4 statique dans la configuration commune",()=>{
@@ -122,4 +122,30 @@ test("Box WAN UI 03 : statique prérempli à partir des paramètres Orange DHCP"
  assert.match(f.root.innerHTML,/name="gateway"[^>]+value="90.14.10.1"/);
  assert.match(f.root.innerHTML,/name="dns1"[^>]+value="80.10.246.2"/);
  assert.match(f.root.innerHTML,/name="dns2"[^>]+value="80.10.246.129"/);
+});
+
+test("Box état Internet 01 : WAN adressé ne signifie pas connecté",()=>{
+ const f=setup();f.click({page:"wan"});
+ assert.match(f.root.innerHTML,/Accès Internet non vérifié/);
+ assert.doesNotMatch(f.root.innerHTML,/Connecté à Internet simulé/);
+});
+test("Box état Internet 02 : connexion affichée après observation réseau positive",()=>{
+ let observation=null;const f=setup(()=>observation);
+ f.click({page:"wan"});
+ assert.match(f.root.innerHTML,/Accès Internet non vérifié/);
+ observation={connected:true,wanAddress:"90.14.10.20"};
+ f.ui.render();
+ assert.match(f.root.innerHTML,/Connecté à Internet simulé/);
+ f.click({page:"overview"});
+ assert.match(f.root.innerHTML,/Connecté à Internet simulé/);
+});
+test("Box état Internet 03 : preuve WAN erronée et box hors service",()=>{
+ let observation={connected:true,wanAddress:"90.14.10.99"};
+ const f=setup(()=>observation);f.click({page:"wan"});
+ assert.match(f.root.innerHTML,/Accès Internet non vérifié/);
+ observation={connected:true,wanAddress:"90.14.10.20"};
+ good(f.registry.updateAsset(f.assetId,{status:"Hors service"}));
+ f.ui.render();
+ assert.match(f.root.innerHTML,/Box hors service/);
+ assert.doesNotMatch(f.root.innerHTML,/Connecté à Internet simulé/);
 });
