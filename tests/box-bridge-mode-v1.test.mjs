@@ -1,0 +1,51 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {createAssetRegistry,restoreAssetRegistry} from "../src/asset-profiles.js";
+import {mountBoxAdmin} from "../src/box-admin-ui-v1.js";
+
+const good=r=>assert.equal(r.success,true,JSON.stringify(r));
+
+test("Box bridge lot 1 : défaut, bascule, refus et conservation des réglages",()=>{
+ const reg=createAssetRegistry(),created=reg.createBoxComposite("BOX-01");good(created);
+ const id=created.asset.id,initial=reg.getAsset(id).boxConfig;
+ assert.equal(initial.mode,"router");
+ assert.equal(reg.setBoxMode(id,"bad").success,false);
+ assert.equal(reg.getAsset(id).boxConfig.mode,"router");
+ good(reg.setBoxMode(id,"bridge"));
+ const bridge=reg.getAsset(id).boxConfig;
+ assert.equal(bridge.mode,"bridge");
+ assert.deepEqual(bridge.lan,initial.lan);
+ assert.deepEqual(bridge.wifi,initial.wifi);
+ assert.deepEqual(bridge.patRules,initial.patRules);
+ assert.deepEqual(bridge.internalCableIds,initial.internalCableIds);
+ const restored=restoreAssetRegistry(reg.exportState());
+ assert.equal(restored.getAsset(id).boxConfig.mode,"bridge");
+ good(restored.setBoxMode(id,"router"));
+ assert.deepEqual(restored.getAsset(id).boxConfig.lan,initial.lan);
+ assert.deepEqual(restored.getAsset(id).boxConfig.wifi,initial.wifi);
+});
+
+test("Box bridge lot 1 : migration d'une sauvegarde précédente",()=>{
+ const reg=createAssetRegistry(),created=reg.createBoxComposite("BOX-01");good(created);
+ const previous=reg.exportState();
+ delete previous.assets[0].boxConfig.mode;
+ const restored=restoreAssetRegistry(previous);
+ assert.equal(restored.getAsset(created.asset.id).boxConfig.mode,"router");
+});
+
+test("Box bridge lot 1 : interface d'administration du mode",()=>{
+ const reg=createAssetRegistry(),created=reg.createBoxComposite("BOX-01");good(created);
+ const handlers=new Map(),root={innerHTML:"",
+  addEventListener:(name,fn)=>handlers.set(name,fn),
+  removeEventListener:(name)=>handlers.delete(name),
+  replaceChildren(){this.innerHTML="";}
+ };
+ const ui=mountBoxAdmin({root,registry:reg,assetId:created.asset.id});
+ assert.match(root.innerHTML,/data-form="box-mode"/);
+ assert.match(root.innerHTML,/value="router" selected/);
+ const form={dataset:{form:"box-mode"},elements:{namedItem:()=>({value:"bridge"})}};
+ handlers.get("submit")({target:{closest:()=>form},preventDefault(){}});
+ assert.equal(reg.getAsset(created.asset.id).boxConfig.mode,"bridge");
+ assert.match(root.innerHTML,/value="bridge" selected/);
+ ui.destroy();
+});
