@@ -47,5 +47,8 @@ test("Box bridge lot 1 : interface d'administration du mode",()=>{
  handlers.get("submit")({target:{closest:()=>form},preventDefault(){}});
  assert.equal(reg.getAsset(created.asset.id).boxConfig.mode,"bridge");
  assert.match(root.innerHTML,/value="bridge" selected/);
+ assert.match(root.innerHTML,/Mode Bridge activé/);
+ assert.match(root.innerHTML,/Inactif \(bridge\)/);
+ assert.match(root.innerHTML,/LAN 2 à 5 inactifs/);
  ui.destroy();
 });
