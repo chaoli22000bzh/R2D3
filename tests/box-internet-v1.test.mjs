@@ -113,45 +113,58 @@ test("Internet bridge : routage et PAT sortant refusés sans effacer la configur
  yes(f.start().request(request));
 });
 
-test("Internet bridge 01 : LAN 1 et IPv4 WAN explicite sans aucune translation",()=>{
- const f=fixture();
- yes(f.registry.setBoxMode(f.box.asset.id,"bridge"));
- const session=createBoxBridgeInternetSession({registry:f.registry,boxId:f.box.asset.id,
+test("Internet bridge 01 : le PC reprend les paramètres WAN sur LAN 1, sans NAT",()=>{
+ const f=fixture(),id=f.box.asset.id;yes(f.registry.setBoxMode(id,"bridge"));
+ const effective=f.registry.getBoxWanEffective(id);
+ const runtime=f.registry.getBoxWanRuntime(id);
+ assert.equal(runtime.owner,"lan1-client");
+ assert.equal(runtime.boxOwnsAddress,false);
+ assert.deepEqual(runtime.config,effective);
+ const session=createBoxBridgeInternetSession({registry:f.registry,boxId:id,
   clients:[{assetId:f.a.id}],services:f.services});yes(session);
  const result=session.request({clientId:f.a.id,targetAddress:"80.10.246.50",
-  clientIpv4:{address:"90.14.10.21",prefix:24,gateway:"90.14.10.1"}});yes(result);
+  clientIpv4:{address:effective.address,prefix:effective.prefix,
+   gateway:effective.gateway,dns:effective.dns}});yes(result);
  assert.equal(result.code,"bridge_internet_service_reached");
- assert.equal(result.client.address,"90.14.10.21");
+ assert.equal(result.client.address,effective.address);
+ assert.deepEqual(result.client.dns,effective.dns);
  assert.equal(result.nat,null);
  assert.deepEqual(session.listNat(),[]);
+ yes(f.registry.setBoxMode(id,"router"));
+ assert.equal(f.registry.getBoxWanRuntime(id).owner,"box");
+ assert.equal(f.registry.getBoxWanRuntime(id).boxOwnsAddress,true);
+ assert.deepEqual(f.registry.getBoxWanEffective(id),effective);
 });
 
 test("Internet bridge 02 : LAN 2 inactif malgré câble raccordé",()=>{
  const f=fixture();yes(f.registry.setBoxMode(f.box.asset.id,"bridge"));
  const s=createBoxBridgeInternetSession({registry:f.registry,boxId:f.box.asset.id,
   clients:[{assetId:f.b.id}],services:f.services});yes(s);
+ const wan=f.registry.getBoxWanEffective(f.box.asset.id);
  no(s.request({clientId:f.b.id,targetAddress:"80.10.246.50",
-  clientIpv4:{address:"90.14.10.22",prefix:24,gateway:"90.14.10.1"}}),"bridge_port_inactive");
+  clientIpv4:{address:wan.address,prefix:wan.prefix,gateway:wan.gateway,dns:wan.dns}}),"bridge_port_inactive");
 });
 
-test("Internet bridge 03 : mauvais adressage et absence de câble refusés",()=>{
+test("Internet bridge 03 : IPv4, passerelle, DNS incorrects ou câble absent refusés",()=>{
  const f=fixture();yes(f.registry.setBoxMode(f.box.asset.id,"bridge"));
  const s=createBoxBridgeInternetSession({registry:f.registry,boxId:f.box.asset.id,
   clients:[{assetId:f.a.id}],services:f.services});yes(s);
+ const wan=f.registry.getBoxWanEffective(f.box.asset.id);
  const request=config=>s.request({clientId:f.a.id,targetAddress:"80.10.246.50",clientIpv4:config});
- no(request({address:"192.168.1.100",prefix:24,gateway:"192.168.1.1"}),"client_network");
- no(request({address:"90.14.10.20",prefix:24,gateway:"90.14.10.1"}),"client_network");
- no(request({address:"90.14.10.21",prefix:24,gateway:"90.14.10.2"}),"client_network");
+ no(request({address:"192.168.1.100",prefix:24,gateway:"192.168.1.1",dns:wan.dns}),"client_network");
+ no(request({...wan,address:"90.14.10.21"}),"client_network");
+ no(request({...wan,gateway:"90.14.10.2"}),"client_network");
+ no(request({...wan,dns:["8.8.8.8",wan.dns[1]]}),"client_dns");
  yes(f.registry.disconnectCableEnd(f.cables[0],1));
- no(request({address:"90.14.10.21",prefix:24,gateway:"90.14.10.1"}),"link_down");
+ no(request(wan),"link_down");
 });
 
-test("Internet bridge 04 : service arrêté, changement de mode et pas de PAT",()=>{
+test("Internet bridge 04 : service arrêté, changement de mode et aucune translation",()=>{
  const f=fixture();yes(f.registry.setBoxMode(f.box.asset.id,"bridge"));
  const s=createBoxBridgeInternetSession({registry:f.registry,boxId:f.box.asset.id,
   clients:[{assetId:f.a.id}],services:f.services});yes(s);
  const request={clientId:f.a.id,targetAddress:"80.10.246.50",
-  clientIpv4:{address:"90.14.10.21",prefix:24,gateway:"90.14.10.1"}};
+  clientIpv4:f.registry.getBoxWanEffective(f.box.asset.id)};
  f.services[0].available=false;
  no(s.request(request),"service_offline");
  f.services[0].available=true;
