@@ -1,0 +1,45 @@
+/* Box Internet : complément aux styles de l'administration R2D3 partagée.
+   Sans VLAN, sans panneau d'administration de switch. */
+.switch-admin.v4.box-admin .admin-content{min-height:300px}
+.switch-admin.v4.box-admin .box-port-bank{display:flex;gap:13px;flex-wrap:wrap;margin:12px 0}
+.switch-admin.v4.box-admin .box-port{display:flex;align-items:center;flex-direction:column;gap:5px;min-width:62px;padding:7px 8px;border:1px solid var(--line);border-radius:6px}
+.switch-admin.v4.box-admin .box-port .mini-label{font-size:13px;font-weight:650}
+.switch-admin.v4.box-admin .box-port small{font-size:11px;color:var(--muted)}
+.switch-admin.v4.box-admin .mini-socket.box-linked{background:#47b889;border-color:#1a9d70}
+.switch-admin.v4.box-admin .mini-socket.box-linked:before{background:#47b889;border-color:#1a9d70}
+.switch-admin.v4.box-admin .box-note{max-width:660px;color:var(--muted);font-size:14px;line-height:1.45}
+.switch-admin.v4.box-admin .box-form{display:grid;grid-template-columns:repeat(2,minmax(0,210px));gap:12px 16px;max-width:470px;align-items:end}
+.switch-admin.v4.box-admin .box-form>label:not(.box-check){display:grid;gap:4px;min-width:0;width:auto;flex:none;font-size:14px}
+.switch-admin.v4.box-admin .box-form input:not([type="checkbox"]),.switch-admin.v4.box-admin .box-form select{width:100%;min-width:0;max-width:210px;min-height:35px;padding:6px 8px;font-size:15px}
+.switch-admin.v4.box-admin .box-form input.box-cidr{width:72px}
+.switch-admin.v4.box-admin .box-form input[type="number"]{-moz-appearance:textfield;appearance:textfield}
+.switch-admin.v4.box-admin .box-form input[type="number"]::-webkit-inner-spin-button,.switch-admin.v4.box-admin .box-form input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.switch-admin.v4.box-admin .box-span{grid-column:1/-1}
+.switch-admin.v4.box-admin .box-check{display:flex;gap:7px;align-items:center;min-width:0;width:auto;flex:none;font-size:14px;color:var(--ink)}
+.switch-admin.v4.box-admin .box-check input{appearance:auto;width:17px;height:17px;min-width:17px;min-height:17px;flex:none;margin:0;accent-color:#087b5e}
+.switch-admin.v4.box-admin .box-band-row{display:flex;flex-wrap:wrap;gap:9px 19px}
+.switch-admin.v4.box-admin fieldset{border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:0}
+.switch-admin.v4.box-admin .box-actions{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-bottom:15px}
+.switch-admin.v4.box-admin .box-actions label{display:grid;gap:5px;min-width:150px;max-width:250px;font-size:14px}
+.switch-admin.v4.box-admin .box-actions select{min-height:35px;padding:5px 7px;width:100%}
+.switch-admin.v4.box-admin .box-actions button{padding:7px 11px;border:1px solid var(--line);border-radius:5px;background:transparent;color:var(--ink)}
+.switch-admin.v4.box-admin .box-actions button:hover{border-color:var(--green)}
+.switch-admin.v4.box-admin .box-actions button:disabled{opacity:.4;cursor:default}
+.switch-admin.v4.box-admin .box-form .box-radio{grid-column:1/-1;display:grid;grid-template-columns:130px 190px;gap:9px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.switch-admin.v4.box-admin .box-radio label:last-child{display:grid;gap:4px;font-size:14px}
+.switch-admin.v4.box-admin .box-feedback{margin:15px 0;padding:10px 12px;border-radius:6px;border:1px solid #35a886;background:#e8f7f0;color:#075c46;font-size:14px}
+.switch-admin.v4.box-admin .box-feedback.error{border-color:#d87575;background:#fff0f0;color:#9a2525}
+@media(max-width:480px){
+ .switch-admin.v4.box-admin .device-bar{padding:12px 14px}
+ .switch-admin.v4.box-admin .device-tabs{padding:0 14px;gap:14px}
+ .switch-admin.v4.box-admin .menu-item{font-size:14px}
+ .switch-admin.v4.box-admin .admin-content{padding:15px 14px}
+ .switch-admin.v4.box-admin .box-form{grid-template-columns:repeat(2,minmax(0,1fr));max-width:100%;gap:10px}
+ .switch-admin.v4.box-admin .box-form .box-radio{grid-template-columns:1fr 1fr}
+ .switch-admin.v4.box-admin .box-port{min-width:56px}
+}
+@media(prefers-color-scheme:dark){
+ .switch-admin.v4.box-admin .box-actions button{color:var(--ink);border-color:var(--line)}
+ .switch-admin.v4.box-admin .box-feedback{background:#214d43;color:#e6eff6;border-color:#4bbf94}
+ .switch-admin.v4.box-admin .box-feedback.error{background:#4e3036;color:#ffd8d8;border-color:#ef7474}
+}
