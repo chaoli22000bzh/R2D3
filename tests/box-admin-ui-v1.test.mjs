@@ -31,8 +31,12 @@ function setup(){
 test("Box UI 01 : une administration unifiée sans VLAN ni switch administrable",()=>{
  const f=setup();
  assert.match(f.root.innerHTML,/LAN et DHCP/);
- assert.match(f.root.innerHTML,/Réseaux Wi-Fi/);
- assert.match(f.root.innerHTML,/Radios/);
+ assert.match(f.root.innerHTML,/data-page="wifi"[^>]*>Wi-Fi<\/button>/);
+ assert.doesNotMatch(f.root.innerHTML,/data-page="radios"/);
+ f.click({page:"wifi"});
+ assert.match(f.root.innerHTML,/data-form="box-ssid"/);
+ assert.match(f.root.innerHTML,/data-form="box-radios"/);
+ assert.match(f.root.innerHTML,/Interfaces radio/);
  assert.doesNotMatch(f.root.innerHTML,/data-page="vlan"/);
  assert.match(f.root.innerHTML,/LAN 1 à 6 appartiennent au même réseau/);
  assert.match(f.root.innerHTML,/modem/i);
@@ -72,4 +76,21 @@ test("Box UI 04 : SSID ajouté sans VLAN et Wi-Fi désactivable",()=>{
  assert.equal(Object.hasOwn(box.boxConfig.wifi.ssids[1],"vlanNumber"),false);
  f.change("[data-global-wifi]",false);
  assert.equal(f.registry.getAsset(f.assetId).boxConfig.wifi.enabled,false);
+});
+
+test("Box UI 05 : SSID et radios ont des enregistrements indépendants sur la même page",()=>{
+ const f=setup();f.click({page:"wifi"});
+ assert.equal((f.root.innerHTML.match(/data-page=/g)||[]).length,3);
+ const original=f.registry.getAsset(f.assetId).boxConfig.wifi;
+ f.submit("box-radios",{
+  "enabled-2.4":true,"channel-2.4":"6",
+  "enabled-5":true,"channel-5":"36",
+  "enabled-6":false,"channel-6":"auto"
+ });
+ const after=f.registry.getAsset(f.assetId).boxConfig.wifi;
+ assert.equal(after.radios["2.4"].channel,6);
+ assert.equal(after.radios["5"].channel,36);
+ assert.deepEqual(after.ssids,original.ssids);
+ assert.match(f.root.innerHTML,/data-form="box-ssid"/);
+ assert.match(f.root.innerHTML,/data-form="box-radios"/);
 });
