@@ -201,7 +201,10 @@ export function mountBoxAdmin({root,registry,assetId,onChange}={}){
   if(e.target.matches("[data-wan-mode]")){
    const newMode=e.target.value;
    wan=newMode==="dhcp"?{mode:"dhcp",address:"",prefix:null,gateway:"",dns:[]}:
-    {...wan,mode:"static",address:wan.address||"",prefix:wan.prefix??24,gateway:wan.gateway||"",dns:wan.dns||[]};
+    {...wan,mode:"static",address:wan.address||registry.getBoxWanEffective?.(id)?.address||"",
+     prefix:wan.prefix??registry.getBoxWanEffective?.(id)?.prefix??24,
+     gateway:wan.gateway||registry.getBoxWanEffective?.(id)?.gateway||"",
+     dns:wan.dns?.length?wan.dns:(registry.getBoxWanEffective?.(id)?.dns??[])};
    feedback="";render();return;
   }
   if(e.target.matches("[data-ssid-select]")){ssidIndex=Number(e.target.value);feedback="";render();}
