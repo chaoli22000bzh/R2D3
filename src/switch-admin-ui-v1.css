@@ -851,3 +851,12 @@
   max-width:320px;
  }
 }
+
+/* Les trois actions d'une règle PAT restent alignées. Sur écran étroit,
+   la table défile horizontalement plutôt que de casser les boutons. */
+.switch-admin.v4 .pat-admin .pat-row-actions{
+ display:flex;align-items:center;gap:4px;flex-wrap:nowrap;white-space:nowrap;
+}
+.switch-admin.v4 .pat-admin .pat-row-actions button{
+ flex:0 0 auto;margin:0;padding:5px 6px;
+}
