@@ -49,7 +49,10 @@ test("Box DHCP 02 : aucun bail si le client filaire n'est pas connecté",()=>{
 test("Box DHCP 03 : rupture de câble détectée après ouverture de session",()=>{
  const f=fixture(),s=createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,clients:f.clients});good(s);
  good(f.registry.disconnectCableEnd(f.wires[0],1));
- err(s.request(f.wire1.id),"link_down");
+ const apipa=s.request(f.wire1.id);good(apipa);
+ assert.equal(apipa.code,"apipa");
+ assert.match(apipa.address,/^169\.254\./);
+ assert.equal(apipa.gateway,null);
  good(s.request(f.wire2.id));
 });
 test("Box DHCP 04 : mot de passe Wi-Fi incorrect refusé par le moteur AP",()=>{
@@ -95,4 +98,22 @@ test("Box DHCP 09 : aucun VLAN sur switch, routeur ou SSID",()=>{
  const wifi=structuredClone(asset.boxConfig.wifi);
  wifi.ssids[0].vlanNumber=10;
  err(f.registry.setBoxWifiConfig(asset.id,wifi),"invalid_box_wifi");
+});
+
+test("Box DHCP 10 : reconnexion LAN, APIPA remplacée par bail du même routeur",()=>{
+ const f=fixture(),s=createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,clients:f.clients});good(s);
+ good(f.registry.disconnectCableEnd(f.wires[0],1));
+ const noLink=s.request(f.wire1.id);good(noLink);assert.equal(noLink.code,"apipa");
+ good(f.registry.connectCableEnd(f.wires[0],1,f.box.config.ports.lanPortIds[0]));
+ const recovered=s.request(f.wire1.id);good(recovered);
+ assert.equal(recovered.code,"lease");
+ assert.equal(recovered.address,"192.168.1.100");
+});
+test("Box DHCP 11 : bail encore valide maintenu après coupure LAN",()=>{
+ const f=fixture(),s=createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,clients:f.clients});good(s);
+ const initial=s.request(f.wire1.id);good(initial);
+ good(f.registry.disconnectCableEnd(f.wires[0],1));
+ const retained=s.request(f.wire1.id);good(retained);
+ assert.equal(retained.code,"lease-retained");
+ assert.equal(retained.address,initial.address);
 });
