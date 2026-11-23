@@ -29,15 +29,15 @@ export function mountBoxAdmin({root,registry,assetId,onChange}={}){
    '<small>'+esc(internal?"Interne":active?"Raccordé":"Libre")+'</small></div>';
  };
  function overview(a){
-  const c=a.boxConfig;
+  const c=a.boxConfig,effective=registry.getBoxWanEffective?.(id);
   return '<section class="admin-panel"><h3>Équipement</h3><dl class="device-details">'+
    info("Type","Box Internet")+
    info("Mode matériel","Routeur + switch L2 6 ports + point d’accès Wi-Fi")+
    info("Passerelle LAN",c.lan.address+"/"+c.lan.prefix)+
    info("Serveur DHCP",c.lan.dhcpEnabled?"Actif":"Arrêté")+
    info("Wi-Fi",c.wifi.enabled?"Actif":"Arrêté")+
-   info("WAN IPv4",c.wan?.mode==="static"?c.wan.address+"/"+c.wan.prefix:"Client DHCP (adresse non attribuée)")+
-   info("Accès Internet","Non simulé pour ce lot")+
+   info("WAN IPv4",effective?effective.address+"/"+effective.prefix:"Non configurée")+
+   info("Accès Internet","Routage et NAT/PAT sortant à développer")+
    info("VLAN","Non administrables")+
    '</dl></section>'+
    '<section class="admin-panel"><h3>Connectiques externes</h3><div class="box-port-bank">'+
@@ -45,7 +45,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange}={}){
    c.ports.lanPortIds.map((p,i)=>portButton(p,"LAN "+(i+1))).join("")+
    '</div><p class="box-note">Switch interne non administrable : LAN 1 à 6 appartiennent au même réseau. Le port 5 relie le Wi-Fi ; le port 6 relie le routeur. Ces deux connexions sont permanentes.</p></section>'+
    '<section class="admin-panel"><h3>Connexion Internet</h3>'+
-   '<p class="box-note">Le modem reste un équipement externe, raccordé au port WAN. L’administration IPv4 WAN, le NAT/PAT, les VPN et le mode bridge seront intégrés dans les lots suivants. Leur fonctionnement n’est pas simulé par cette interface.</p></section>';
+   '<p class="box-note">Le WAN est relié directement à l’Internet simulé, sans équipement modem ni FAI à représenter. L’adressage WAN IPv4 est disponible ; le routage Internet, le NAT/PAT et le mode bridge restent à intégrer.</p></section>';
  }
  const field=(name,label,value,type="text",extra="")=>'<label>'+esc(label)+'<input name="'+name+'" type="'+type+'" value="'+esc(value)+'" '+extra+'></label>';
  function lanPanel(){
@@ -65,13 +65,16 @@ export function mountBoxAdmin({root,registry,assetId,onChange}={}){
    '<div class="form-actions box-span"><button class="primary" type="submit">Enregistrer LAN et DHCP</button></div></form></section>';
  }
  function wanPanel(){
-  const c=wan,box=get(),connected=physical(box.boxConfig.ports.wanPortId);
+  const c=wan,effective=registry.getBoxWanEffective?.(id);
   return '<section class="admin-panel"><h3>Connexion Internet : WAN IPv4</h3>'+
-   '<p class="box-note">Le modem est un équipement externe. La présence du câble ne prouve pas l’obtention d’une adresse ni l’accès à Internet.</p>'+
-   '<dl class="device-details">'+info("Câble WAN",connected?"Raccordé":"Débranché")+
+   '<p class="box-note">La box est directement reliée à l’Internet simulé. Aucun modem ni équipement FAI n’est à installer.</p>'+
+   '<dl class="device-details">'+
    info("Configuration",c.mode==="dhcp"?"Client DHCP":"IPv4 statique")+
-   info("Adresse WAN",c.mode==="static"?c.address+"/"+c.prefix:"Non attribuée")+
-   info("Connexion Internet","Non simulée (lot d’adressage)")+'</dl></section>'+
+   info("Adresse WAN",effective?effective.address+"/"+effective.prefix:"Non configurée")+
+   info("Passerelle",effective?.gateway??"Non configurée")+
+   info("DNS 1",effective?.dns?.[0]??"Non configuré")+
+   info("DNS 2",effective?.dns?.[1]??"Non configuré")+
+   info("Connexion Internet","Routage/NAT sortant non encore simulés")+'</dl></section>'+
    '<section class="admin-panel"><h3>Paramètres WAN IPv4</h3>'+
    '<form data-form="box-wan" class="box-form">'+
    '<label>Mode d’adressage<select name="mode" data-wan-mode>'+
@@ -82,7 +85,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange}={}){
      field("gateway","Passerelle",c.gateway,"text",'required inputmode="decimal"')+
      field("dns1","DNS 1",c.dns[0]??"")+
      field("dns2","DNS 2",c.dns[1]??""):
-     '<p class="box-note box-span">L’adresse IPv4, le préfixe, la passerelle et les DNS seront obtenus du serveur DHCP situé côté WAN, lors du prochain lot fonctionnel.</p>')+
+     '<p class="box-note box-span">L’Internet simulé attribue automatiquement l’adresse WAN, le préfixe, la passerelle et les DNS Orange de référence. Aucun équipement FAI n’est représenté.</p>')+
    '<div class="form-actions box-span"><button type="submit" class="primary">Enregistrer le WAN IPv4</button></div></form></section>';
  }
  function wifiPanel(){
