@@ -114,7 +114,7 @@ export function createBoxBridgeInternetSession({registry,boxId,clients=[],servic
    return fail("wan_invalid","Attribution WAN Internet indisponible.");
   // Le serveur Internet reste un objet virtuel du scénario Core, jamais un actif R2D3.
   // Une seule adresse WAN disponible dans ce scénario pédagogique.
-  const clientMac=String(clientId).match(/\\d+$/)?.[0]??"0";
+  const clientMac=String(clientId).match(/\d+$/)?.[0]??"0";
   const n=Number(clientMac);
   const mac=[2,0,0,(n>>>16)&255,(n>>>8)&255,n&255]
     .map(x=>x.toString(16).padStart(2,"0").toUpperCase()).join("-");
