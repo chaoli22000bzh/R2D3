@@ -149,3 +149,12 @@ test("Box état Internet 03 : preuve WAN erronée et box hors service",()=>{
  assert.match(f.root.innerHTML,/Box hors service/);
  assert.doesNotMatch(f.root.innerHTML,/Connecté à Internet simulé/);
 });
+
+test("Box WAN visuel : Internet virtuel affiché sans câble ni fausse connexion validée",()=>{
+ const f=setup();
+ assert.match(f.root.innerHTML,/class="box-port box-port-wan"/);
+ assert.match(f.root.innerHTML,/box-wan-virtual/);
+ assert.match(f.root.innerHTML,/<small>Internet<\/small>/);
+ assert.doesNotMatch(f.root.innerHTML,/WAN<\/span>[\s\S]*?<small>Libre<\/small>/);
+ assert.match(f.root.innerHTML,/Accès Internet non vérifié/);
+});
