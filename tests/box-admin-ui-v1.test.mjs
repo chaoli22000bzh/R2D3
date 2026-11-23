@@ -33,13 +33,13 @@ test("Box UI 01 : une administration unifiée sans VLAN ni switch administrable"
  assert.match(f.root.innerHTML,/LAN et DHCP/);
  assert.match(f.root.innerHTML,/data-page="wifi"[^>]*>Wi-Fi<\/button>/);
  assert.doesNotMatch(f.root.innerHTML,/data-page="radios"/);
+ assert.doesNotMatch(f.root.innerHTML,/data-page="vlan"/);
+ assert.match(f.root.innerHTML,/LAN 1 à 6 appartiennent au même réseau/);
+ assert.match(f.root.innerHTML,/modem/i);
  f.click({page:"wifi"});
  assert.match(f.root.innerHTML,/data-form="box-ssid"/);
  assert.match(f.root.innerHTML,/data-form="box-radios"/);
  assert.match(f.root.innerHTML,/Interfaces radio/);
- assert.doesNotMatch(f.root.innerHTML,/data-page="vlan"/);
- assert.match(f.root.innerHTML,/LAN 1 à 6 appartiennent au même réseau/);
- assert.match(f.root.innerHTML,/modem/i);
  f.ui.destroy();
  assert.equal(f.root.innerHTML,"");
 });
