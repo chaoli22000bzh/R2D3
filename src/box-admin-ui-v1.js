@@ -31,39 +31,42 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
  };
  function status(message,error=false){feedback=message;feedbackError=error;render();}
  const info=(title,value)=>'<div><dt>'+esc(title)+'</dt><dd>'+esc(value)+'</dd></div>';
- const portButton=(id,label,internal=false)=>{
+ const portButton=(id,label,internal=false,disabled=false)=>{
   const active=internal||physical(id);
   return '<div class="box-port" title="'+esc(label)+'">'+
    '<span class="mini-label">'+esc(label)+'</span>'+
-   '<span class="mini-socket '+(active?'box-linked':'')+'"><span></span></span>'+
-   '<small>'+esc(internal?"Interne":active?"Raccordé":"Libre")+'</small></div>';
+   '<span class="mini-socket '+(!disabled&&active?'box-linked':'')+'"><span></span></span>'+
+   '<small>'+esc(disabled?"Inactif":internal?"Interne":active?"Actif · raccordé":"Actif · libre")+'</small></div>';
  };
  function overview(a){
-  const c=a.boxConfig,effective=registry.getBoxWanEffective?.(id);
+  const c=a.boxConfig,effective=registry.getBoxWanEffective?.(id),bridge=c.mode==="bridge";
   return '<section class="admin-panel"><h3>Équipement</h3><dl class="device-details">'+
    info("Type","Box Internet")+
    info("Mode de fonctionnement",c.mode==="bridge"?"Bridge":"Routeur")+
    info("Mode matériel","Routeur + switch L2 6 ports + point d’accès Wi-Fi")+
    info("Passerelle LAN",c.lan.address+"/"+c.lan.prefix)+
-   info("Serveur DHCP",c.lan.dhcpEnabled?"Actif":"Arrêté")+
-   info("Wi-Fi",c.wifi.enabled?"Actif":"Arrêté")+
+   info("Serveur DHCP",bridge?"Inactif (bridge)":c.lan.dhcpEnabled?"Actif":"Arrêté")+
+   info("Wi-Fi",bridge?"Inactif (bridge)":c.wifi.enabled?"Actif":"Arrêté")+
+   info("Routage IPv4",bridge?"Inactif":"Actif")+
+   info("NAT/PAT",bridge?"Inactif":"Actif")+
    info("WAN IPv4",effective?effective.address+"/"+effective.prefix:"Non configurée")+
    info("Accès Internet",connection())+
    info("VLAN","Non administrables")+
    '</dl></section>'+
    '<section class="admin-panel"><h3>Mode de fonctionnement</h3><form data-form="box-mode" class="box-form">'+
    '<label>Mode<select name="mode">'+options([["router","Routeur"],["bridge","Bridge"]],c.mode??"router")+'</select></label>'+
-   '<p class="box-note box-span">Ce premier lot enregistre le mode. Les conséquences sur les ports et les communications réseau seront intégrées dans le lot suivant.</p>'+
+   '<p class="box-note box-span">En mode bridge, seuls LAN 1 et WAN sont utilisables. Wi-Fi, DHCP, routage et NAT/PAT sont neutralisés. Les réglages sont conservés.</p>'+ 
+   (feedback&&!feedbackError?'<p class="box-feedback box-span" role="status">'+esc(feedback)+'</p>':'')+
    '<div class="form-actions box-span"><button class="primary" type="submit">Enregistrer le mode</button></div></form></section>'+
    '<section class="admin-panel"><h3>Connectiques externes</h3><div class="box-port-bank">'+
    '<div class="box-port box-port-wan" title="WAN relié à Internet simulé">'+
     '<span class="mini-label">WAN</span>'+
     '<span class="mini-socket box-wan-virtual"><span></span></span>'+
     '<small>Internet</small></div>'+
-   c.ports.lanPortIds.map((p,i)=>portButton(p,"LAN "+(i+1))).join("")+
-   '</div><p class="box-note">Switch interne non administrable : LAN 1 à 6 appartiennent au même réseau. Le port 5 relie le Wi-Fi ; le port 6 relie le routeur. Ces deux connexions sont permanentes.</p></section>'+
+   c.ports.lanPortIds.map((p,i)=>portButton(p,"LAN "+(i+1),false,bridge&&i!==0)).join("")+
+   '</div><p class="box-note">'+(bridge?'Bridge : LAN 1 et WAN actifs, LAN 2 à 5 inactifs. LAN 6 conserve sa liaison interne ; passage WAN logique réservé au LAN 1. Les câbles restent branchés.':'Mode routeur : LAN 1 à 6 appartiennent au même réseau. LAN 5 relie le Wi-Fi ; LAN 6 relie le routeur. Les liaisons internes sont permanentes.')+'</p></section>'+ 
    '<section class="admin-panel"><h3>Connexion Internet</h3>'+
-   '<p class="box-note">Le WAN est relié directement à l’Internet simulé, sans équipement modem ni FAI à représenter. Le routage et le PAT sortant sont disponibles pour les services Internet simulés. L’état « Connecté » nécessite une communication validée avec un service distant. Le comportement réseau du mode bridge reste à intégrer.</p></section>';
+   '<p class="box-note">'+(bridge?'Mode bridge : aucune traduction NAT/PAT, aucun routage ni service DHCP/Wi-Fi de la box. Le WAN reste logiquement destiné au seul LAN 1 ; la communication directe avec un pare-feu externe fera l’objet d’une recette propre.':'Le WAN est relié directement à Internet simulé. Routage et PAT sortant disponibles pour les services déclarés ; une connexion doit être prouvée par un test.')+'</p></section>';
  }
  const field=(name,label,value,type="text",extra="")=>'<label>'+esc(label)+'<input name="'+name+'" type="'+type+'" value="'+esc(value)+'" '+extra+'></label>';
  function lanPanel(){
@@ -156,7 +159,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
   if(kind==="box-mode"){
     const result=registry.setBoxMode(id,read(form,"mode"));
     if(result.success)onChange?.();
-    status(result.message,!result.success);
+    status(result.success?(result.mode==="bridge"?"Mode Bridge activé.":"Mode Routeur activé."):result.message,!result.success);
    }else if(kind==="pat-rule"){
    const result=submitPatAdmin({registry,assetId:id,kind:"box",editingRuleId:editingPatId,form});
    if(result.success){editingPatId=null;onChange?.();}
