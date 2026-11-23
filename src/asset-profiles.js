@@ -591,8 +591,8 @@ export function createAssetRegistry(saved){
   if(c.ends[end]?.portId===portId)return result(true,"already_connected","Extrémité déjà raccordée.");
   if(c.ends[end])return result(false,"end_connected","Débrancher cette extrémité avant de la raccorder ailleurs.");
   if(c.ends[1-end]?.portId===portId)return result(false,"same_port","Un câble ne peut pas relier un port à lui-même.");
-  if(occupiedBy(portId))return result(false,"port_occupied","Ce port possède déjà un câble.");
   if(isInternalPort(portId)||c.internalBoxId)return result(false,"internal_connection","Liaison interne de box protégée.");
+  if(occupiedBy(portId))return result(false,"port_occupied","Ce port possède déjà un câble.");
   const socket=found.infrastructure?"rj45-female":physicalPortConnector[found.port.type];
   if(!socket)return result(false,"unsupported_port","Ce type de port n'a pas encore de connecteur physique défini pour le raccordement.");
   if(!isCompatible(c.connectors[end],socket))
