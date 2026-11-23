@@ -56,9 +56,11 @@ export function createBoxInternetSession({registry,boxId,clients=[],services=[]}
   // Le Core peut conserver un bail après déconnexion : il ne donne pas un accès Internet.
   if(client.ports.some(p=>p.type==="ethernet-rj45")){
    const cp=client.ports.filter(p=>p.type==="ethernet-rj45");
-   if(cp.length!==1||!current.boxConfig.ports.lanPortIds.some(p=>
-     registry.explorePhysicalPath(cp[0].id,p).connected))
-    return fail("link_down","PC non raccordé au LAN.");
+   const linked=cp.flatMap(port=>current.boxConfig.ports.lanPortIds.filter(p=>
+     registry.explorePhysicalPath(port.id,p).connected).map(lanPortId=>({port,lanPortId})));
+   if(linked.length!==1)
+    return fail(linked.length?"ambiguous_lan":"link_down",
+     linked.length?"Plusieurs ports Ethernet du PC sont raccordés au LAN.":"PC non raccordé au LAN.");
   }
   const endpoint=services.find(s=>s.address===targetAddress&&s.kind===service);
   if(!endpoint)return fail("service_unknown","Aucun service Internet simulé à cette destination.");
