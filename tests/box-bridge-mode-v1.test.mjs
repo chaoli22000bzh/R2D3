@@ -67,7 +67,7 @@ test("Box bridge : onglet LAN et DHCP désactivé, restauration de la case au re
  goToLan();
  assert.match(root.innerHTML,/name="enabled" checked/);
  good(reg.setBoxMode(id,"bridge"));ui.render();
- assert.match(root.innerHTML,/Serveur DHCP désactivé par le mode Bridge/);
+ assert.match(root.innerHTML,/<p class="box-feedback" role="status">Serveur DHCP désactivé en mode Bridge/);
  assert.match(root.innerHTML,/<fieldset[^>]* disabled/);
  assert.doesNotMatch(root.innerHTML,/name="enabled" checked/);
  assert.match(root.innerHTML,/type="submit" disabled>Enregistrer LAN et DHCP/);
