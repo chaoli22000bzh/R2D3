@@ -626,6 +626,8 @@ export function createAssetRegistry(saved){
   if(c.ends[end])return result(false,"end_connected","Débrancher cette extrémité avant de la raccorder ailleurs.");
   if(c.ends[1-end]?.portId===portId)return result(false,"same_port","Un câble ne peut pas relier un port à lui-même.");
   if(isInternalPort(portId)||c.internalBoxId)return result(false,"internal_connection","Liaison interne de box protégée.");
+  if(s.assets.some(a=>a.boxConfig?.ports?.wanPortId===portId))
+   return result(false,"box_wan_virtual","Le WAN de la box est relié directement à Internet simulé : aucun câble à raccorder.");
   if(occupiedBy(portId))return result(false,"port_occupied","Ce port possède déjà un câble.");
   const socket=found.infrastructure?"rj45-female":physicalPortConnector[found.port.type];
   if(!socket)return result(false,"unsupported_port","Ce type de port n'a pas encore de connecteur physique défini pour le raccordement.");
@@ -672,7 +674,7 @@ export function createAssetRegistry(saved){
  }
  function listCablePoints(){
   return clone([
-   ...s.assets.flatMap(a=>a.ports.filter(p=>p.connector!==null&&!isInternalPort(p.id)).map(p=>({
+   ...s.assets.flatMap(a=>a.ports.filter(p=>p.connector!==null&&!isInternalPort(p.id)&&p.id!==a.boxConfig?.ports?.wanPortId).map(p=>({
     portId:p.id,assetId:a.id,assetName:a.name,portName:p.name,portType:p.type,
     socket:physicalPortConnector[p.type]||null,occupied:!!occupiedBy(p.id)
    }))),
