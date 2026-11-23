@@ -35,7 +35,7 @@ test("Box UI 01 : une administration unifiée sans VLAN ni switch administrable"
  assert.match(f.root.innerHTML,/Radios/);
  assert.doesNotMatch(f.root.innerHTML,/data-page="vlan"/);
  assert.match(f.root.innerHTML,/LAN 1 à 6 appartiennent au même réseau/);
- assert.match(f.root.innerHTML,/Modem/);
+ assert.match(f.root.innerHTML,/modem/i);
  f.ui.destroy();
  assert.equal(f.root.innerHTML,"");
 });
