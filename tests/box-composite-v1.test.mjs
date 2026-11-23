@@ -38,9 +38,9 @@ test("Box composition 02 : câblage interne fixe sur ports LAN 5 et LAN 6",()=>{
  assert.equal(reg.explorePhysicalPath(config.components.wifi.ethernetPortId,config.components.switch.lanPortIds[4]).connected,true);
  assert.equal(reg.explorePhysicalPath(config.components.router.lanPortId,config.components.wifi.ethernetPortId).connected,false);
 });
-test("Box composition 03 : seul WAN et LAN 1 à 4 sont accessibles au brassage",()=>{
+test("Box composition 03 : seuls LAN 1 à 4 sont accessibles au brassage",()=>{
  const {reg,config}=fixture();
- assert.deepEqual(reg.listCablePoints().map(x=>x.portName),["WAN1","LAN1","LAN2","LAN3","LAN4"]);
+ assert.deepEqual(reg.listCablePoints().map(x=>x.portName),["LAN1","LAN2","LAN3","LAN4"]);
  assert.equal(reg.listCables().length,0);
  assert.equal(reg.getCable(config.internalCableIds[0]),null);
  const cable=reg.createCable().cable;
@@ -74,7 +74,7 @@ test("Box composition 06 : déplacement sans câble externe, suppression protég
  const place=reg.createPlace({name:"Bâtiment A"});good(place);
  good(reg.moveAssetToPlace(asset.id,place.place.id));
  const cable=reg.createCable().cable;
- good(reg.connectCableEnd(cable.id,0,config.ports.wanPortId));
+ good(reg.connectCableEnd(cable.id,0,config.ports.lanPortIds[0]));
  failed(reg.moveAssetToPlace(asset.id,null),"asset_connected");
  failed(reg.removeAsset(asset.id),"asset_connected");
  good(reg.disconnectCableEnd(cable.id,0));
