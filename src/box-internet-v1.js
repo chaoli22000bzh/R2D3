@@ -54,7 +54,11 @@ export function createBoxInternetSession({registry,boxId,clients=[],services=[]}
   const client=registry.getAsset(clientId);
   if(!client||client.status!=="En service")return fail("client_offline","PC hors service.");
   // Le Core peut conserver un bail après déconnexion : il ne donne pas un accès Internet.
-  if(client.ports.some(p=>p.type==="ethernet-rj45")){
+  const admission=lan.clients.find(x=>x.assetId===clientId);
+  if(!admission)return fail("client_missing","PC absent de la session LAN.");
+  // Un PC peut disposer simultanément de RJ45 et de Wi-Fi : seul le
+  // support choisi pour cette session doit servir à valider son accès.
+  if(admission.medium==="ethernet"){
    const cp=client.ports.filter(p=>p.type==="ethernet-rj45");
    const linked=cp.flatMap(port=>current.boxConfig.ports.lanPortIds.filter(p=>
      registry.explorePhysicalPath(port.id,p).connected).map(lanPortId=>({port,lanPortId})));
