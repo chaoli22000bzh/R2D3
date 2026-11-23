@@ -61,3 +61,12 @@ test("Box WAN 08 : ancienne sauvegarde sans bail migrée sans modifier le LAN",(
  assert.equal(restored.getBoxWanEffective(id).address,"90.14.10.20");
  assert.deepEqual(restored.getAsset(id).boxConfig.lan,before);
 });
+
+test("Box WAN 09 : port WAN virtuel absent des prises raccordables et câble refusé",()=>{
+ const {registry,id}=fixture(),box=registry.getAsset(id);
+ const wanPort=box.boxConfig.ports.wanPortId;
+ assert.equal(registry.listCablePoints().some(p=>p.portId===wanPort),false);
+ assert.equal(registry.listCablePoints().filter(p=>p.assetId===id).some(p=>p.portName==="LAN1"),true);
+ const c=registry.createCable();good(c);
+ bad(registry.connectCableEnd(c.cable.id,0,wanPort),"box_wan_virtual");
+});
