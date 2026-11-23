@@ -44,11 +44,12 @@ function admitClient(registry,box,entry){
  const medium=entry.medium;
  if(medium==="ethernet"){
   const cp=ethernet(client);
-  if(cp.length!==1)return fail("client_port","Un seul port Ethernet de client est attendu.");
-  const matched=c.ports.lanPortIds.filter(id=>registry.explorePhysicalPath(cp[0].id,id).connected);
+  if(!cp.length)return fail("client_port","Le client ne possède aucun port Ethernet RJ45.");
+  const matched=cp.flatMap(port=>c.ports.lanPortIds.filter(id=>
+   registry.explorePhysicalPath(port.id,id).connected).map(lanPortId=>({port,lanPortId})));
   if(matched.length!==1)return fail(matched.length?"ambiguous_lan":"link_down",
-   matched.length?"Plusieurs prises LAN raccordées au client.":"Client non raccordé au LAN.");
-  return {success:true,client,port:cp[0],medium,lanPortId:matched[0]};
+   matched.length?"Plusieurs prises Ethernet du client sont raccordées au LAN de la box.":"Client non raccordé au LAN.");
+  return {success:true,client,port:matched[0].port,medium,lanPortId:matched[0].lanPortId};
  }
  if(medium==="wifi"){
   if(!client.ports.some(p=>p.type==="wifi"))return fail("wifi_port_missing","Client sans interface Wi-Fi.");
