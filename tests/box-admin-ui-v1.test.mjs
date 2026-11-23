@@ -35,7 +35,7 @@ test("Box UI 01 : une administration unifiée sans VLAN ni switch administrable"
  assert.doesNotMatch(f.root.innerHTML,/data-page="radios"/);
  assert.doesNotMatch(f.root.innerHTML,/data-page="vlan"/);
  assert.match(f.root.innerHTML,/LAN 1 à 6 appartiennent au même réseau/);
- assert.match(f.root.innerHTML,/modem/i);
+ assert.match(f.root.innerHTML,/Internet simulé/);
  f.click({page:"wifi"});
  assert.match(f.root.innerHTML,/data-form="box-ssid"/);
  assert.match(f.root.innerHTML,/data-form="box-radios"/);
@@ -95,11 +95,14 @@ test("Box UI 05 : SSID et radios ont des enregistrements indépendants sur la m�
  assert.match(f.root.innerHTML,/data-form="box-radios"/);
 });
 
-test("Box WAN UI 01 : onglet Internet, DHCP initial, sans attribution fictive",()=>{
+test("Box WAN UI 01 : onglet Internet et attribution DHCP Orange simulée",()=>{
  const f=setup();f.click({page:"wan"});
  assert.match(f.root.innerHTML,/data-form="box-wan"/);
- assert.match(f.root.innerHTML,/Non attribuée/);
- assert.match(f.root.innerHTML,/Non simulée/);
+ assert.match(f.root.innerHTML,/90.14.10.20/);
+ assert.match(f.root.innerHTML,/90.14.10.1/);
+ assert.match(f.root.innerHTML,/80.10.246.2/);
+ assert.match(f.root.innerHTML,/80.10.246.129/);
+ assert.match(f.root.innerHTML,/Routage\/NAT sortant non encore simulés/);
  assert.match(f.root.innerHTML,/mode/);
 });
 test("Box WAN UI 02 : IPv4 statique dans la configuration commune",()=>{
