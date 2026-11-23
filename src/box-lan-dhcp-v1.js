@@ -91,11 +91,15 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
  };
  const server=createRouterDhcpCoreObject(source,router.id);
  if(!server)return fail("router_projection","Projection du serveur DHCP impossible.");
- const links=accepted.map((item,i)=>({
-  id:"box-lan-link-"+(i+1),kind:"ethernet-cable",connected:true,
-  endpoints:[{objectId:item.client.id,portId:item.port.id},
-   {objectId:router.id,portId:box.boxConfig.components.router.lanPortId}]
- }));
+ // Chaque client reçoit un point de liaison Core virtuel sur le même
+ // serveur DHCP. Cela ne crée aucun port physique ni câble supplémentaire.
+ const links=accepted.map((item,i)=>{
+  const id="box-core-lan-"+(i+1);
+  server.ports.push({id,type:"rj45"});
+  return {id:"box-lan-link-"+(i+1),kind:"ethernet-cable",connected:true,
+   endpoints:[{objectId:item.client.id,portId:item.port.id},
+    {objectId:router.id,portId:id}]};
+ });
  let engine;
  try{
   engine=createEngine({format:"r2d3-scenario",schemaVersion:1,
