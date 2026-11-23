@@ -8,7 +8,7 @@ const copy=x=>JSON.parse(JSON.stringify(x));
 const options=(items,selected)=>items.map(([v,label])=>'<option value="'+esc(v)+'"'+(String(v)===String(selected)?' selected':'')+'>'+esc(label)+'</option>').join("");
 const security=[["open","Ouvert"],["wpa2-personal","WPA2-Personal"],["wpa3-personal","WPA3-Personal"],["wpa2-wpa3-personal","WPA2/WPA3-Personal"]];
 const bands=[["2.4","2,4 GHz"],["5","5 GHz"],["6","6 GHz"]];
-const tabs=[["overview","Vue d’ensemble"],["lan","LAN et DHCP"],["wifi","Réseaux Wi-Fi"],["radios","Radios"]];
+const tabs=[["overview","Vue d’ensemble"],["lan","LAN et DHCP"],["wifi","Wi-Fi"]];
 const checked=x=>x?" checked":"";
 const ipv4=x=>typeof x==="string"&&/^(\d{1,3}\.){3}\d{1,3}$/.test(x)&&x.split(".").every(o=>Number(o)<=255);
 
@@ -83,7 +83,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange}={}){
       bands.map(([id,label])=>'<label class="box-check"><input type="checkbox" name="band-'+id+'"'+checked(sel.bands.includes(id))+'> '+label+'</label>').join("")+
       '</div></fieldset>'+
      '<div class="box-span form-actions"><button type="submit" class="primary">Enregistrer le SSID</button></div></form>':'')+
-   '</section>';
+   '</section>'+radiosPanel();
  }
  function radiosPanel(){
   return '<section class="admin-panel"><h3>Interfaces radio</h3>'+
@@ -100,7 +100,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange}={}){
   const a=get();
   root.innerHTML='<div class="switch-admin v4 router-admin box-admin"><header class="device-bar"><div class="device-ident"><h2>'+esc(a.name)+'</h2><span>Box Internet</span><span class="device-state">'+esc(a.status)+'</span></div></header>'+
    '<nav class="device-tabs">'+tabs.map(([key,label])=>'<button type="button" data-page="'+key+'" class="menu-item'+(page===key?' active':'')+'">'+label+'</button>').join("")+'</nav>'+
-   '<main class="admin-content">'+(page==="overview"?overview(a):page==="lan"?lanPanel():page==="wifi"?wifiPanel():radiosPanel())+
+   '<main class="admin-content">'+(page==="overview"?overview(a):page==="lan"?lanPanel():wifiPanel())+
    (feedback?'<p class="box-feedback'+(feedbackError?' error':'')+'" role="status">'+esc(feedback)+'</p>':'')+
    '</main></div>';
  }
