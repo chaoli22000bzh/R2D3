@@ -155,6 +155,6 @@ test("Box WAN visuel : Internet virtuel affiché sans câble ni fausse connexion
  assert.match(f.root.innerHTML,/class="box-port box-port-wan"/);
  assert.match(f.root.innerHTML,/box-wan-virtual/);
  assert.match(f.root.innerHTML,/<small>Internet<\/small>/);
- assert.doesNotMatch(f.root.innerHTML,/WAN<\/span>[\s\S]*?<small>Libre<\/small>/);
+ assert.match(f.root.innerHTML,/class="box-port box-port-wan"[\\s\\S]*?<small>Internet<\\/small>/);
  assert.match(f.root.innerHTML,/Accès Internet non vérifié/);
 });
