@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {createAssetRegistry} from "../src/asset-profiles.js";
-import {createBoxInternetSession} from "../src/box-internet-v1.js";
+import {createBoxInternetSession,createBoxBridgeInternetSession} from "../src/box-internet-v1.js";
 const yes=r=>assert.equal(r.success,true,JSON.stringify(r));
 const no=(r,code)=>{assert.equal(r.success,false,JSON.stringify(r));assert.equal(r.code,code);};
 function fixture(){
@@ -111,4 +111,53 @@ test("Internet bridge : routage et PAT sortant refusés sans effacer la configur
  yes(f.registry.setBoxMode(f.box.asset.id,"router"));
  assert.deepEqual(f.registry.getAsset(f.box.asset.id).boxConfig.lan,before.lan);
  yes(f.start().request(request));
+});
+
+test("Internet bridge 01 : LAN 1 et IPv4 WAN explicite sans aucune translation",()=>{
+ const f=fixture();
+ yes(f.registry.setBoxMode(f.box.asset.id,"bridge"));
+ const session=createBoxBridgeInternetSession({registry:f.registry,boxId:f.box.asset.id,
+  clients:[{assetId:f.a.id}],services:f.services});yes(session);
+ const result=session.request({clientId:f.a.id,targetAddress:"80.10.246.50",
+  clientIpv4:{address:"90.14.10.21",prefix:24,gateway:"90.14.10.1"}});yes(result);
+ assert.equal(result.code,"bridge_internet_service_reached");
+ assert.equal(result.client.address,"90.14.10.21");
+ assert.equal(result.nat,null);
+ assert.deepEqual(session.listNat(),[]);
+});
+
+test("Internet bridge 02 : LAN 2 inactif malgré câble raccordé",()=>{
+ const f=fixture();yes(f.registry.setBoxMode(f.box.asset.id,"bridge"));
+ const s=createBoxBridgeInternetSession({registry:f.registry,boxId:f.box.asset.id,
+  clients:[{assetId:f.b.id}],services:f.services});yes(s);
+ no(s.request({clientId:f.b.id,targetAddress:"80.10.246.50",
+  clientIpv4:{address:"90.14.10.22",prefix:24,gateway:"90.14.10.1"}}),"bridge_port_inactive");
+});
+
+test("Internet bridge 03 : mauvais adressage et absence de câble refusés",()=>{
+ const f=fixture();yes(f.registry.setBoxMode(f.box.asset.id,"bridge"));
+ const s=createBoxBridgeInternetSession({registry:f.registry,boxId:f.box.asset.id,
+  clients:[{assetId:f.a.id}],services:f.services});yes(s);
+ const request=config=>s.request({clientId:f.a.id,targetAddress:"80.10.246.50",clientIpv4:config});
+ no(request({address:"192.168.1.100",prefix:24,gateway:"192.168.1.1"}),"client_network");
+ no(request({address:"90.14.10.20",prefix:24,gateway:"90.14.10.1"}),"client_network");
+ no(request({address:"90.14.10.21",prefix:24,gateway:"90.14.10.2"}),"client_network");
+ yes(f.registry.disconnectCableEnd(f.cables[0],1));
+ no(request({address:"90.14.10.21",prefix:24,gateway:"90.14.10.1"}),"link_down");
+});
+
+test("Internet bridge 04 : service arrêté, changement de mode et pas de PAT",()=>{
+ const f=fixture();yes(f.registry.setBoxMode(f.box.asset.id,"bridge"));
+ const s=createBoxBridgeInternetSession({registry:f.registry,boxId:f.box.asset.id,
+  clients:[{assetId:f.a.id}],services:f.services});yes(s);
+ const request={clientId:f.a.id,targetAddress:"80.10.246.50",
+  clientIpv4:{address:"90.14.10.21",prefix:24,gateway:"90.14.10.1"}};
+ f.services[0].available=false;
+ no(s.request(request),"service_offline");
+ f.services[0].available=true;
+ yes(s.request(request));
+ assert.equal(s.listNat().length,0);
+ yes(f.registry.setBoxMode(f.box.asset.id,"router"));
+ no(s.request(request),"bridge_mode_changed");
+ yes(f.start().request({clientId:f.a.id,targetAddress:"80.10.246.50"}));
 });
