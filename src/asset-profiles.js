@@ -328,6 +328,7 @@ export function createAssetRegistry(saved){
  }
  function duplicateProfile(id,name){
   const p=getP(id);if(!p)return result(false,"not_found","Profil introuvable.");
+  if(p.networkCapabilities.includes("box-internet"))return result(false,"composite_fixed","La box utilise un profil matériel fixe.");
   const r=createProfile(name||p.name+" (copie)");if(!r.success)return r;
   const target=getP(r.profile.id);target.fields=clone(p.fields);target.portGroups=clone(p.portGroups).map(g=>({...g,id:"portgroup-"+s.nextPortGroup++}));target.networkCapabilities=clone(p.networkCapabilities);target.poe=p.poe;s.revision++;
   return result(true,"duplicated","Profil dupliqué.",{profile:clone(target)});
@@ -434,6 +435,7 @@ export function createAssetRegistry(saved){
  function addPortGroup(profileId,raw){
   const p=getP(profileId);
   if(!p)return result(false,"not_found","Profil introuvable.");
+  if(p.networkCapabilities.includes("box-internet"))return result(false,"composite_fixed","Ports matériels de la box figés.");
   const g={type:raw?.type,prefix:trim(raw?.prefix),start:Number(raw?.start),count:Number(raw?.count),digits:Number(raw?.digits??2)};
   if(!portGroupValid(g)||!Number.isInteger(g.digits)||g.digits<1||g.digits>5)return result(false,"invalid_port_group","Type, préfixe ou quantité de ports invalide.");
   const taken=new Set(p.portGroups.flatMap(portNames));
@@ -444,6 +446,7 @@ export function createAssetRegistry(saved){
  }
  function removePortGroup(profileId,groupId){
   const p=getP(profileId),i=p?.portGroups.findIndex(g=>g.id===groupId)??-1;
+  if(p?.networkCapabilities.includes("box-internet"))return result(false,"composite_fixed","Ports matériels de la box figés.");
   if(i<0)return result(false,"not_found","Groupe de ports introuvable.");
    if(p.networkCapabilities.includes("ipv4-router")&&p.portGroups.filter((g,j)=>j!==i&&(g.type==="ethernet-rj45"||g.type==="ethernet-fibre")).reduce((n,g)=>n+g.count,0)<2)return result(false,"router_requires_ports","Il faut conserver deux ports Ethernet au minimum.");
   if(p.networkCapabilities.includes("ethernet-switching") &&
@@ -462,6 +465,7 @@ export function createAssetRegistry(saved){
  function addExtension(assetId,raw){
   const a=getA(assetId);
   if(!a)return result(false,"not_found","Équipement introuvable.");
+  if(a.boxConfig)return result(false,"composite_fixed","Ports matériels de la box figés.");
   const g={type:raw?.type,prefix:trim(raw?.prefix),start:Number(raw?.start),count:Number(raw?.count),digits:Number(raw?.digits??2)};
   if(!portGroupValid(g)||!Number.isInteger(g.digits)||g.digits<1||g.digits>5)return result(false,"invalid_port_group","Type, préfixe ou quantité invalides.");
   const names=portNames(g),used=new Set(a.ports.map(p=>p.name));
@@ -477,6 +481,7 @@ export function createAssetRegistry(saved){
  function removeExtension(assetId,extensionId){
   const a=getA(assetId);
   if(!a)return result(false,"not_found","Équipement introuvable.");
+  if(a.boxConfig)return result(false,"composite_fixed","Ports matériels de la box figés.");
   const ports=a.ports.filter(p=>p.origin==="extension"&&p.groupId===extensionId);
   if(!ports.length)return result(false,"not_found","Extension introuvable.");
   if(ports.some(p=>p.connectedCableIds?.length))return result(false,"extension_connected","Débrancher les câbles avant de retirer l’extension.");
@@ -487,7 +492,6 @@ export function createAssetRegistry(saved){
  }
 
  const isInternalPort=portId=>s.assets.some(a=>a.boxConfig?.internalPortIds?.includes(portId));
- const isInternalCable=id=>s.cables.some(c=>c.id===id&&c.internalBoxId);
  const findPort=portId=>{
   for(const asset of s.assets){
    const port=asset.ports.find(p=>p.id===portId);
