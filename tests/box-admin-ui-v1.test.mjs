@@ -80,7 +80,7 @@ test("Box UI 04 : SSID ajouté sans VLAN et Wi-Fi désactivable",()=>{
 
 test("Box UI 05 : SSID et radios ont des enregistrements indépendants sur la même page",()=>{
  const f=setup();f.click({page:"wifi"});
- assert.equal((f.root.innerHTML.match(/data-page=/g)||[]).length,4);
+ assert.equal((f.root.innerHTML.match(/data-page=/g)||[]).length,5);
  const original=f.registry.getAsset(f.assetId).boxConfig.wifi;
  f.submit("box-radios",{
   "enabled-2.4":true,"channel-2.4":"6",
@@ -156,4 +156,11 @@ test("Box WAN visuel : Internet virtuel affiché sans câble ni fausse connexion
  assert.match(f.root.innerHTML,/box-wan-virtual/);
  assert.match(f.root.innerHTML,/<small>Internet<\/small>/);
  assert.match(f.root.innerHTML,/Accès Internet non vérifié/);
+});
+
+test("Box PAT UI : onglet commun, règles visibles et serveur LAN",()=>{
+ const f=setup();f.click({page:"pat"});
+ assert.match(f.root.innerHTML,/data-form="pat-rule"/);
+ assert.match(f.root.innerHTML,/PAT entrant/);
+ assert.match(f.root.innerHTML,/WAN \(Internet simulé\)/);
 });
