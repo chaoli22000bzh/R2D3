@@ -33,6 +33,13 @@ function validBoxLan(asset,lan){
 }
 /* WAN IPv4 de la box : configuration seulement, pas un bail DHCP fictif. */
 const defaultBoxWan=()=>({mode:"dhcp",address:"",prefix:null,gateway:"",dns:[]});
+// Paramètres Internet V1 validés : plage publique Orange utilisée exclusivement en simulation.
+const boxInternet={prefix:24,gateway:"90.14.10.1",dns:["80.10.246.2","80.10.246.129"]};
+const boxWanLease=address=>({address,prefix:boxInternet.prefix,gateway:boxInternet.gateway,dns:[...boxInternet.dns],source:"internet-simule"});
+function effectiveBoxWan(config){
+ if(config.wan.mode==="static")return {...clone(config.wan),source:"statique"};
+ return config.wanDhcpLease?clone(config.wanDhcpLease):null;
+}
 function validBoxWan(asset,wan){
  if(!wan||!["dhcp","static"].includes(wan.mode)||!Array.isArray(wan.dns)||
     wan.dns.length>2||wan.dns.some(x=>!routerIpv4(x)))return false;
@@ -766,8 +773,19 @@ export function createAssetRegistry(saved){
  function setBoxWanConfig(id,wan){
   const a=getA(id);if(!a?.boxConfig)return result(false,"box_missing","Box introuvable.");
   if(!validBoxWan(a,wan))return result(false,"invalid_box_wan","Configuration IPv4 WAN invalide.");
-  a.boxConfig.wan=clone(wan);s.revision++;
-  return result(true,"box_wan_updated","Configuration WAN IPv4 enregistrée.",{wan:clone(wan)});
+  if(wan.mode==="static"&&s.assets.some(other=>other.id!==id&&other.boxConfig&&
+    (other.boxConfig.wan?.mode==="static"?other.boxConfig.wan.address:other.boxConfig.wanDhcpLease?.address)===wan.address))
+    return result(false,"wan_ip_conflict","Cette adresse IPv4 WAN est déjà utilisée par une autre box.");
+  a.boxConfig.wan=clone(wan);
+  if(wan.mode==="dhcp"&&!a.boxConfig.wanDhcpLease){
+   const occupied=new Set(s.assets.filter(other=>other.id!==id&&other.boxConfig).map(other=>
+    other.boxConfig.wan?.mode==="static"?other.boxConfig.wan.address:other.boxConfig.wanDhcpLease?.address));
+   const index=Array.from({length:210},(_,i)=>i+20).find(n=>!occupied.has("90.14.10."+n));
+   if(index===undefined)return result(false,"box_wan_pool_full","Plage WAN simulée épuisée.");
+   a.boxConfig.wanDhcpLease=boxWanLease("90.14.10."+index);
+  }
+  s.revision++;
+  return result(true,"box_wan_updated","Configuration WAN IPv4 enregistrée.",{wan:clone(wan),effective:effectiveBoxWan(a.boxConfig)});
  }
  function setBoxWifiConfig(id,wifi){
   const a=getA(id);if(!a?.boxConfig)return result(false,"box_missing","Box introuvable.");
@@ -965,6 +983,7 @@ export function createAssetRegistry(saved){
    ports:{wanPortId:byName("WAN1"),lanPortIds:[1,2,3,4].map(i=>byName("LAN"+i))},
    internalPortIds,internalCableIds,
    wan:defaultBoxWan(),
+   wanDhcpLease:null,
    lan:{address:"192.168.1.1",prefix:24,dhcpEnabled:true,
     pools:[{id:"box-lan",portId:byName("RTLAN1"),
      start:"192.168.1.100",end:"192.168.1.200",prefix:24,
@@ -972,6 +991,13 @@ export function createAssetRegistry(saved){
    wifi:{enabled:true,radios:defaultWifiRadios(),
     ssids:[{id:"ssid-1",name:"BOX-WIFI",enabled:true,security:"wpa2-personal",password:"12345678",
       bands:["2.4","5"],clientIsolation:false}]}};
+  // Attribution déterministe d'une IPv4 de la plage Internet simulée, sans équipement FAI.
+  // Une attribution est propre à la box et persistée dans son actif.
+  const occupied=new Set(s.assets.filter(a=>a.boxConfig).flatMap(a=>
+   [a.boxConfig.wanDhcpLease?.address,a.boxConfig.wan?.mode==="static"?a.boxConfig.wan.address:null].filter(Boolean)));
+  const index=Array.from({length:210},(_,i)=>i+20).find(n=>!occupied.has("90.14.10."+n));
+  if(index===undefined)return result(false,"box_wan_pool_full","Plage WAN simulée épuisée.");
+  config.wanDhcpLease=boxWanLease("90.14.10."+index);
   const asset={id,profileId,name,manufacturer:"",model:"",serialNumber:"",
    status:"En service",location:"",placeId:null,reservable:false,values:{},
    ports,networkCapabilities:["box-internet"],poe:false,boxConfig:config};
@@ -995,7 +1021,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,createBoxComposite,setBoxLanConfig,setBoxWanConfig,setBoxWifiConfig,setAssetWifiConfig,setAssetRouterConfig,setAssetDhcpServerConfig,setAssetManagementConfig,setAssetVlanConfig,updateAssetVlanDefinition,removeAssetVlanDefinition,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,updateAsset,
+ return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,createBoxComposite,setBoxLanConfig,setBoxWanConfig,getBoxWanEffective:id=>{const a=getA(id);return a?.boxConfig?effectiveBoxWan(a.boxConfig):null;},setBoxWifiConfig,setAssetWifiConfig,setAssetRouterConfig,setAssetDhcpServerConfig,setAssetManagementConfig,setAssetVlanConfig,updateAssetVlanDefinition,removeAssetVlanDefinition,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,updateAsset,
  listWallOutlets:()=>clone(s.wallOutlets),listPanels:()=>clone(s.panels),getPanel:id=>clone(s.panels.find(p=>p.id===id)||null),listCables:()=>clone(s.cables.filter(c=>!c.internalBoxId)),getCable:id=>clone(s.cables.find(x=>x.id===id&&!x.internalBoxId)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);
