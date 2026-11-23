@@ -117,3 +117,13 @@ test("Box DHCP 11 : bail encore valide maintenu après coupure LAN",()=>{
  assert.equal(retained.code,"lease-retained");
  assert.equal(retained.address,initial.address);
 });
+
+test("Box bridge : le DHCP LAN et le Wi-Fi sont neutralisés, y compris en session ouverte",()=>{
+ const f=fixture(),session=createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,clients:f.clients});good(session);
+ good(f.registry.setBoxMode(f.box.asset.id,"bridge"));
+ err(session.request(f.wire1.id),"bridge_mode");
+ err(session.request(f.wifi.id),"bridge_mode");
+ err(createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,clients:f.clients}),"bridge_mode");
+ good(f.registry.setBoxMode(f.box.asset.id,"router"));
+ good(createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,clients:f.clients}));
+});
