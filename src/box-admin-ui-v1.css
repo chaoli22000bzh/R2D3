@@ -5,6 +5,8 @@
 .switch-admin.v4.box-admin .box-port{display:flex;align-items:center;flex-direction:column;gap:5px;min-width:62px;padding:7px 8px;border:1px solid var(--line);border-radius:6px}
 .switch-admin.v4.box-admin .box-port .mini-label{font-size:13px;font-weight:650}
 .switch-admin.v4.box-admin .box-port small{font-size:11px;color:var(--muted)}
+.switch-admin.v4.box-admin .mini-socket.box-wan-virtual{background:#4c9dc9;border-color:#2f79a6}
+.switch-admin.v4.box-admin .mini-socket.box-wan-virtual:before{background:#4c9dc9;border-color:#2f79a6}
 .switch-admin.v4.box-admin .mini-socket.box-linked{background:#47b889;border-color:#1a9d70}
 .switch-admin.v4.box-admin .mini-socket.box-linked:before{background:#47b889;border-color:#1a9d70}
 .switch-admin.v4.box-admin .box-note{max-width:660px;color:var(--muted);font-size:14px;line-height:1.45}
