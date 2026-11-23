@@ -268,6 +268,16 @@ export function createAssetRegistry(saved){
   while(current.parentId!=null){if(seen.has(current.parentId))throw Error("Cycle dans les lieux");seen.add(current.parentId);current=s.places.find(p=>p.id===current.parentId)}
  }
  for(const asset of s.assets){asset.placeId??=null;if(asset.placeId!==null&&!placeIds.has(asset.placeId))throw Error("Localisation d'équipement inconnue");}
+ // Compatibilité : réattribuer un WAN de démonstration aux box sauvegardées
+ // avant l'introduction du réseau Internet implicite.
+ const occupiedWan=new Set(s.assets.filter(a=>a.boxConfig).flatMap(a=>
+  [a.boxConfig.wanDhcpLease?.address,a.boxConfig.wan?.mode==="static"?a.boxConfig.wan.address:null].filter(Boolean)));
+ for(const asset of s.assets.filter(a=>a.boxConfig&&!a.boxConfig.wanDhcpLease)){
+  const index=Array.from({length:210},(_,i)=>i+20).find(n=>!occupiedWan.has("90.14.10."+n));
+  if(index===undefined)throw Error("Plage WAN simulée épuisée.");
+  const address="90.14.10."+index;
+  asset.boxConfig.wanDhcpLease=boxWanLease(address);occupiedWan.add(address);
+ }
  for(const p of s.profiles){
    p.poe??=false;
    if(typeof p.poe!=="boolean")throw Error("Propriété PoE du profil invalide");
