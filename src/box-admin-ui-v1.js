@@ -50,7 +50,10 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
    info("VLAN","Non administrables")+
    '</dl></section>'+
    '<section class="admin-panel"><h3>Connectiques externes</h3><div class="box-port-bank">'+
-   portButton(c.ports.wanPortId,"WAN")+
+   '<div class="box-port box-port-wan" title="WAN relié à Internet simulé">'+
+    '<span class="mini-label">WAN</span>'+
+    '<span class="mini-socket box-wan-virtual"><span></span></span>'+
+    '<small>Internet</small></div>'+
    c.ports.lanPortIds.map((p,i)=>portButton(p,"LAN "+(i+1))).join("")+
    '</div><p class="box-note">Switch interne non administrable : LAN 1 à 6 appartiennent au même réseau. Le port 5 relie le Wi-Fi ; le port 6 relie le routeur. Ces deux connexions sont permanentes.</p></section>'+
    '<section class="admin-panel"><h3>Connexion Internet</h3>'+
