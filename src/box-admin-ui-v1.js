@@ -82,7 +82,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
    field("leaseSeconds","Bail (secondes)",pool.leaseSeconds,"number",'min="60" max="2592000" required')+
    field("dns1","DNS 1",pool.dns[0]||"")+
    field("dns2","DNS 2",pool.dns[1]||"")+
-   '<p class="box-note box-span">Le routeur reste l’unique serveur DHCP. Tous les PC filaires et Wi-Fi utilisent ce réseau et sa passerelle.</p>'+
+   '<p class="box-note box-span">'+(get().boxConfig.mode==="bridge"?"Mode bridge : serveur DHCP LAN inactif. La configuration est conservée pour le retour en mode routeur.":"Le routeur reste l’unique serveur DHCP. Tous les PC filaires et Wi-Fi utilisent ce réseau et sa passerelle.")+'</p>'+
    '<div class="form-actions box-span"><button class="primary" type="submit">Enregistrer LAN et DHCP</button></div></form></section>';
  }
  function wanPanel(){
@@ -113,7 +113,8 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
   const ssids=wifi.ssids,sel=ssids[ssidIndex]??ssids[0];
   if(!sel)ssidIndex=0;
   const optionsSsid=ssids.map((s,i)=>[i,s.name||"Sans nom"]);
-  return '<section class="admin-panel"><h3>Point d’accès intégré</h3>'+
+  return '<section class="admin-panel"><h3>Point d’accès intégré</h3>'+ 
+    (get().boxConfig.mode==="bridge"?'<p class="box-feedback">Wi-Fi inactif en mode bridge. Les paramètres ci-dessous sont conservés.</p>':'')+
    '<label class="box-check"><input data-global-wifi type="checkbox"'+checked(wifi.enabled)+'> Activer le Wi-Fi</label>'+
    '<p class="box-note">La borne est reliée en interne au port LAN 5. Les clients Wi-Fi appartiennent au même LAN que les PC filaires. Aucun VLAN par SSID.</p></section>'+
    '<section class="admin-panel"><h3>SSID ('+ssids.length+'/16)</h3>'+
@@ -147,7 +148,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
   const a=get();
   root.innerHTML='<div class="switch-admin v4 router-admin box-admin"><header class="device-bar"><div class="device-ident"><h2>'+esc(a.name)+'</h2><span>Box Internet</span><span class="device-state">'+esc(a.status)+'</span></div></header>'+
    '<nav class="device-tabs">'+tabs.map(([key,label])=>'<button type="button" data-page="'+key+'" class="menu-item'+(page===key?' active':'')+'">'+label+'</button>').join("")+'</nav>'+
-   '<main class="admin-content">'+(page==="overview"?overview(a):page==="lan"?lanPanel():page==="wan"?wanPanel():page==="pat"?renderPatAdmin({registry,assetId:id,kind:"box",editingRuleId:editingPatId}):wifiPanel())+
+   '<main class="admin-content">'+(page==="overview"?overview(a):page==="lan"?lanPanel():page==="wan"?wanPanel():page==="pat"?(get().boxConfig.mode==="bridge"?'<p class="box-feedback">PAT entrant inactif en mode bridge. Les règles restent enregistrées.</p>':'')+renderPatAdmin({registry,assetId:id,kind:"box",editingRuleId:editingPatId}):wifiPanel())+
    (feedback?'<p class="box-feedback'+(feedbackError?' error':'')+'" role="status">'+esc(feedback)+'</p>':'')+
    '</main></div>';
  }
