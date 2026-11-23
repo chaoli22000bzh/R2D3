@@ -70,20 +70,23 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
  }
  const field=(name,label,value,type="text",extra="")=>'<label>'+esc(label)+'<input name="'+name+'" type="'+type+'" value="'+esc(value)+'" '+extra+'></label>';
  function lanPanel(){
-  const pool=lan.pools[0];
+  const pool=lan.pools[0],bridge=get().boxConfig.mode==="bridge";
   return '<section class="admin-panel"><h3>Adresse IPv4 du routeur LAN</h3>'+
+   (bridge?'<p class="box-note">Serveur DHCP désactivé par le mode Bridge. Les paramètres sont conservés pour le retour en mode Routeur.</p>':'')+
    '<form data-form="box-lan" class="box-form">'+
+   '<fieldset class="box-span"'+(bridge?' disabled':'')+' style="display:contents">'+
    field("address","Adresse IPv4",lan.address,"text",'required inputmode="decimal"')+
    field("prefix","Préfixe CIDR",lan.prefix,"number",'min="1" max="30" required class="box-cidr"')+
-   '<label class="box-check"><input type="checkbox" name="enabled"'+checked(lan.dhcpEnabled)+'> Serveur DHCP actif</label>'+
+   '<label class="box-check"><input type="checkbox" name="enabled"'+(bridge?'':checked(lan.dhcpEnabled))+'> Serveur DHCP actif</label>'+
    '<h3 class="box-span">Plage DHCP du routeur</h3>'+
    field("start","Début de plage",pool.start,"text",'required inputmode="decimal"')+
    field("end","Fin de plage",pool.end,"text",'required inputmode="decimal"')+
    field("leaseSeconds","Bail (secondes)",pool.leaseSeconds,"number",'min="60" max="2592000" required')+
    field("dns1","DNS 1",pool.dns[0]||"")+
    field("dns2","DNS 2",pool.dns[1]||"")+
-   '<p class="box-note box-span">'+(get().boxConfig.mode==="bridge"?"Mode bridge : serveur DHCP LAN inactif. La configuration est conservée pour le retour en mode routeur.":"Le routeur reste l’unique serveur DHCP. Tous les PC filaires et Wi-Fi utilisent ce réseau et sa passerelle.")+'</p>'+
-   '<div class="form-actions box-span"><button class="primary" type="submit">Enregistrer LAN et DHCP</button></div></form></section>';
+   '</fieldset>'+
+   (!bridge?'<p class="box-note box-span">Le routeur reste l’unique serveur DHCP. Tous les PC filaires et Wi-Fi utilisent ce réseau et sa passerelle.</p>':'')+
+   '<div class="form-actions box-span"><button class="primary" type="submit"'+(bridge?' disabled':'')+'>Enregistrer LAN et DHCP</button></div></form></section>';
  }
  function wanPanel(){
   const c=wan,effective=registry.getBoxWanEffective?.(id);
@@ -174,6 +177,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
    if(result.success){wan=copy(result.wan);onChange?.();}
    status(result.message,!result.success);
   }else if(kind==="box-lan"){
+    if(get().boxConfig.mode==="bridge"){status("Paramètres LAN et DHCP non modifiables en mode Bridge.",true);return;}
    const address=read(form,"address"),prefix=Number(read(form,"prefix"));
    const start=read(form,"start"),end=read(form,"end"),dns=[read(form,"dns1"),read(form,"dns2")].filter(Boolean);
    if(![address,start,end,...dns].every(ipv4)){status("Adresse IPv4 ou DNS incorrect.",true);return;}
