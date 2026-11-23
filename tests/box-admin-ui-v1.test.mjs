@@ -114,3 +114,12 @@ test("Box WAN UI 02 : IPv4 statique dans la configuration commune",()=>{
   gateway:"203.0.113.1",dns:["1.1.1.1","8.8.8.8"]});
  assert.match(f.root.innerHTML,/203.0.113.10/);
 });
+
+test("Box WAN UI 03 : statique prérempli à partir des paramètres Orange DHCP",()=>{
+ const f=setup();f.click({page:"wan"});
+ f.change("[data-wan-mode]","static");
+ assert.match(f.root.innerHTML,/name="address"[^>]+value="90.14.10.20"/);
+ assert.match(f.root.innerHTML,/name="gateway"[^>]+value="90.14.10.1"/);
+ assert.match(f.root.innerHTML,/name="dns1"[^>]+value="80.10.246.2"/);
+ assert.match(f.root.innerHTML,/name="dns2"[^>]+value="80.10.246.129"/);
+});
