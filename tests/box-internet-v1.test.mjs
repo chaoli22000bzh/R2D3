@@ -99,3 +99,16 @@ test("Internet 09 : plusieurs connexions LAN d'un même PC refusées sans ambigu
   clients:[{assetId:pc.asset.id,medium:"ethernet"}],services:f.services});
  no(session,"ambiguous_lan");
 });
+
+test("Internet bridge : routage et PAT sortant refusés sans effacer la configuration",()=>{
+ const f=fixture(),s=f.start();yes(s);
+ const request={clientId:f.a.id,targetAddress:"80.10.246.50"};
+ yes(s.request(request));
+ const before=f.registry.getAsset(f.box.asset.id).boxConfig;
+ yes(f.registry.setBoxMode(f.box.asset.id,"bridge"));
+ no(s.request(request),"bridge_mode");
+ no(f.start(),"bridge_mode");
+ yes(f.registry.setBoxMode(f.box.asset.id,"router"));
+ assert.deepEqual(f.registry.getAsset(f.box.asset.id).boxConfig.lan,before.lan);
+ yes(f.start().request(request));
+});
