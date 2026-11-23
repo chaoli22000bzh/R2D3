@@ -4,6 +4,7 @@
  * par le scénario, jamais supposés répondre.
  */
 import {createBoxLanDhcpSession} from "./box-lan-dhcp-v1.js";
+import {createEngine} from "./r2d3-core.js";
 const fail=(code,message)=>({success:false,code,message});
 const ipNumber=v=>{
  if(typeof v!=="string"||!/^\d{1,3}(\.\d{1,3}){3}$/.test(v))return null;
@@ -105,6 +106,40 @@ export function createBoxBridgeInternetSession({registry,boxId,clients=[],servic
  const {assetId:clientId}=clients[0];
  const firstWan=registry.getBoxWanEffective?.(boxId);
  const firstLan1=box.boxConfig.ports.lanPortIds[0];
+ const wanMode=box.boxConfig.wan.mode;
+ const coreServerId=boxId+"/internet-dhcp",corePoolId="internet-wan",clientPortId="bridge-client";
+ let dhcpCore=null;
+ if(wanMode==="dhcp"){
+  if(!firstWan?.address||!firstWan?.gateway||!Array.isArray(firstWan.dns))
+   return fail("wan_invalid","Attribution WAN Internet indisponible.");
+  // Le serveur Internet reste un objet virtuel du scénario Core, jamais un actif R2D3.
+  // Une seule adresse WAN disponible dans ce scénario pédagogique.
+  const clientMac=String(clientId).match(/\\d+$/)?.[0]??"0";
+  const n=Number(clientMac);
+  const mac=[2,0,0,(n>>>16)&255,(n>>>8)&255,n&255]
+    .map(x=>x.toString(16).padStart(2,"0").toUpperCase()).join("-");
+  try{
+   dhcpCore=createEngine({format:"r2d3-scenario",schemaVersion:1,
+    scenarioId:"bridge-internet-"+boxId,scenarioVersion:"1.0.0",
+    capabilities:{network:true},
+    objects:[
+     {id:coreServerId,kind:"ethernet-endpoint",name:"DHCP Internet virtuel",
+      ports:[{id:"internet-port",type:"rj45"}],
+      config:{dhcpEnabled:true,dhcpPools:[{id:corePoolId,
+       start:firstWan.address,end:firstWan.address,prefix:firstWan.prefix,
+       gateway:firstWan.gateway,dns:[...firstWan.dns],leaseSeconds:3600}]}},
+     {id:clientId,kind:"pc-windows",name:"Client LAN 1 du bridge",
+      ports:[{id:clientPortId,type:"rj45"}],
+      config:{macAddress:mac,ipv4:{interfaceId:clientPortId,mode:"dhcp",
+       address:null,prefix:null,lease:null},
+       networkOptions:{gateway:null,dns:[]}}}
+    ],
+    links:[{id:"internet-bridge-link",kind:"ethernet-cable",connected:true,
+     endpoints:[{objectId:clientId,portId:clientPortId},
+       {objectId:coreServerId,portId:"internet-port"}]}]});
+  }catch(error){return fail("dhcp_core_invalid",error.message);}
+ }
+
  function request({clientId:requestedId=clientId,targetAddress,service="http",
    sourcePort=50000,clientIpv4}={}){
   const current=registry.getAsset(boxId);
@@ -131,29 +166,50 @@ export function createBoxBridgeInternetSession({registry,boxId,clients=[],servic
     matches.length?"Plusieurs raccordements Ethernet vers la box.":"Aucun lien LAN valide.");
   if(matches[0].lanPortId!==firstLan1)
    return fail("bridge_port_inactive","Seul LAN 1 est actif en mode Bridge.");
-  if(!clientIpv4||ipNumber(clientIpv4.address)===null||
-     !Number.isInteger(clientIpv4.prefix)||clientIpv4.prefix<1||clientIpv4.prefix>30||
-     ipNumber(clientIpv4.gateway)===null)
-   return fail("client_ipv4_invalid","Configuration IPv4 statique du client invalide.");
-  if(clientIpv4.prefix!==wan.prefix||
-     !sameSubnet(clientIpv4.address,wan.address,wan.prefix)||
-     clientIpv4.address!==wan.address||clientIpv4.address===wan.gateway||
-     clientIpv4.gateway!==wan.gateway)
-   return fail("client_network","Le PC doit reprendre l’adresse WAN de la box, son préfixe et sa passerelle.");
-  if(!Array.isArray(clientIpv4.dns)||clientIpv4.dns.length!==wan.dns.length||
-      clientIpv4.dns.some((x,i)=>ipNumber(x)===null||x!==wan.dns[i]))
-   return fail("client_dns","Le PC doit reprendre les serveurs DNS WAN de la box.");
-  // En mode bridge, l’IPv4 WAN est transmise au client : la box ne la consomme pas.
-  // Le DNS est vérifié comme paramètre statique ; aucun échange DNS réel n’est inventé.
+  let assigned;
+  if(wanMode==="dhcp"){
+   if(clientIpv4?.mode==="static" || clientIpv4?.address)
+    return fail("client_mode","Le WAN est en DHCP : le PC doit utiliser DHCP.");
+   const snap=dhcpCore.getSnapshot();
+   const response=dhcpCore.dispatch({commandVersion:1,
+    id:"bridge-wan-dhcp-"+(snap.revision+1),type:"dhcp.request",targetId:clientId,
+    params:{serverId:coreServerId,poolId:corePoolId}});
+   if(response.status!=="applied")
+    return fail("dhcp_core_rejected",response.message||response.code||"Requête DHCP refusée.");
+   const updated=dhcpCore.getSnapshot(),ipv4=updated.objectsById[clientId].config.ipv4;
+   const status=updated.runtime?.[clientId]?.dhcpStatus;
+   if(!["lease","lease-retained"].includes(status)||!ipv4.lease)
+    return fail("dhcp_unavailable","Aucun bail DHCP Internet attribué.");
+   assigned={mode:"dhcp",address:ipv4.address,prefix:ipv4.prefix,
+    gateway:updated.objectsById[clientId].config.networkOptions.gateway,
+    dns:[...updated.objectsById[clientId].config.networkOptions.dns],
+    lease:clone(ipv4.lease)};
+  }else{
+   if(clientIpv4?.mode==="dhcp")
+    return fail("client_mode","Le WAN est statique : configure le PC manuellement.");
+   if(!clientIpv4||ipNumber(clientIpv4.address)===null||
+      !Number.isInteger(clientIpv4.prefix)||clientIpv4.prefix<1||clientIpv4.prefix>30||
+      ipNumber(clientIpv4.gateway)===null)
+    return fail("client_ipv4_invalid","Configuration IPv4 statique du client invalide.");
+   assigned={mode:"static",...clientIpv4};
+  }
+  if(assigned.prefix!==wan.prefix||
+     !sameSubnet(assigned.address,wan.address,wan.prefix)||
+     assigned.address!==wan.address||assigned.address===wan.gateway||
+     assigned.gateway!==wan.gateway)
+   return fail("client_network","Le PC doit utiliser l'adresse WAN, son préfixe et sa passerelle.");
+  if(!Array.isArray(assigned.dns)||assigned.dns.length!==wan.dns.length||
+      assigned.dns.some((x,i)=>ipNumber(x)===null||x!==wan.dns[i]))
+   return fail("client_dns","Les DNS du client doivent correspondre aux DNS WAN.");
   const endpoint=services.find(s=>s.address===targetAddress&&s.kind===service);
   if(!endpoint)return fail("service_unknown","Service Internet simulé inconnu.");
   if(!endpoint.available)return fail("service_offline","Service Internet simulé arrêté.");
   return {success:true,code:"bridge_internet_service_reached",clientId,service,
     target:{id:endpoint.id,address:targetAddress,port:ports[service]},
-    client:{address:clientIpv4.address,prefix:clientIpv4.prefix,sourcePort,dns:[...clientIpv4.dns]},
+    client:{...assigned,sourcePort},
     route:{gateway:clientIpv4.gateway,wanGateway:wan.gateway,lanPortId:firstLan1},
     nat:null,reason:"Service Internet atteint par passage LAN 1 vers WAN sans routage ni NAT/PAT de la box."};
  }
  return {success:true,code:"bridge_internet_session",boxId,request,
-  listNat:()=>[]};
+  dhcpEngine:dhcpCore,listNat:()=>[]};
 }
