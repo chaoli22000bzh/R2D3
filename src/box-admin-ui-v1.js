@@ -15,7 +15,7 @@ const checked=x=>x?" checked":"";
 const ipv4=x=>typeof x==="string"&&/^(\d{1,3}\.){3}\d{1,3}$/.test(x)&&x.split(".").every(o=>Number(o)<=255);
 
 export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}={}){
- if(!root||!registry?.getAsset||!registry?.setBoxLanConfig||!registry?.setBoxWanConfig||!registry?.setBoxWifiConfig)
+ if(!root||!registry?.getAsset||!registry?.setBoxLanConfig||!registry?.setBoxWanConfig||!registry?.setBoxWifiConfig||!registry?.setBoxMode)
   throw Error("Registre R2D3 ou interface indisponible.");
  let id=assetId,page="overview",feedback="",feedbackError=false,ssidIndex=0,editingPatId=null;
  const get=()=>{const a=registry.getAsset(id);if(!a?.boxConfig)throw Error("Box Internet introuvable.");return a;};
@@ -42,6 +42,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
   const c=a.boxConfig,effective=registry.getBoxWanEffective?.(id);
   return '<section class="admin-panel"><h3>Équipement</h3><dl class="device-details">'+
    info("Type","Box Internet")+
+   info("Mode de fonctionnement",c.mode==="bridge"?"Bridge":"Routeur")+
    info("Mode matériel","Routeur + switch L2 6 ports + point d’accès Wi-Fi")+
    info("Passerelle LAN",c.lan.address+"/"+c.lan.prefix)+
    info("Serveur DHCP",c.lan.dhcpEnabled?"Actif":"Arrêté")+
@@ -50,6 +51,10 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
    info("Accès Internet",connection())+
    info("VLAN","Non administrables")+
    '</dl></section>'+
+   '<section class="admin-panel"><h3>Mode de fonctionnement</h3><form data-form="box-mode" class="box-form">'+
+   '<label>Mode<select name="mode">'+options([["router","Routeur"],["bridge","Bridge"]],c.mode??"router")+'</select></label>'+
+   '<p class="box-note box-span">Ce premier lot enregistre le mode. Les conséquences sur les ports et les communications réseau seront intégrées dans le lot suivant.</p>'+
+   '<div class="form-actions box-span"><button class="primary" type="submit">Enregistrer le mode</button></div></form></section>'+
    '<section class="admin-panel"><h3>Connectiques externes</h3><div class="box-port-bank">'+
    '<div class="box-port box-port-wan" title="WAN relié à Internet simulé">'+
     '<span class="mini-label">WAN</span>'+
@@ -58,7 +63,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
    c.ports.lanPortIds.map((p,i)=>portButton(p,"LAN "+(i+1))).join("")+
    '</div><p class="box-note">Switch interne non administrable : LAN 1 à 6 appartiennent au même réseau. Le port 5 relie le Wi-Fi ; le port 6 relie le routeur. Ces deux connexions sont permanentes.</p></section>'+
    '<section class="admin-panel"><h3>Connexion Internet</h3>'+
-   '<p class="box-note">Le WAN est relié directement à l’Internet simulé, sans équipement modem ni FAI à représenter. Le routage et le PAT sortant sont disponibles pour les services Internet simulés. L’état « Connecté » nécessite une communication validée avec un service distant. Le mode bridge reste à développer.</p></section>';
+   '<p class="box-note">Le WAN est relié directement à l’Internet simulé, sans équipement modem ni FAI à représenter. Le routage et le PAT sortant sont disponibles pour les services Internet simulés. L’état « Connecté » nécessite une communication validée avec un service distant. Le comportement réseau du mode bridge reste à intégrer.</p></section>';
  }
  const field=(name,label,value,type="text",extra="")=>'<label>'+esc(label)+'<input name="'+name+'" type="'+type+'" value="'+esc(value)+'" '+extra+'></label>';
  function lanPanel(){
@@ -148,7 +153,11 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
   const form=e.target.closest("form[data-form]");if(!form)return;
   e.preventDefault();
   const kind=form.dataset.form;
-  if(kind==="pat-rule"){
+  if(kind==="box-mode"){
+    const result=registry.setBoxMode(id,read(form,"mode"));
+    if(result.success)onChange?.();
+    status(result.message,!result.success);
+   }else if(kind==="pat-rule"){
    const result=submitPatAdmin({registry,assetId:id,kind:"box",editingRuleId:editingPatId,form});
    if(result.success){editingPatId=null;onChange?.();}
    status(result.message??(result.success?"Règle PAT enregistrée.":"Règle PAT refusée."),!result.success);
