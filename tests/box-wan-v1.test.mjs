@@ -52,3 +52,12 @@ test("Box WAN 07 : conflit entre deux box sur une même adresse refusé",()=>{
  bad(registry.setBoxWanConfig(id,collision),"wan_ip_conflict");
  assert.equal(registry.getBoxWanEffective(id).address,"90.14.10.20");
 });
+
+test("Box WAN 08 : ancienne sauvegarde sans bail migrée sans modifier le LAN",()=>{
+ const {registry,id}=fixture();const saved=registry.exportState();
+ const before=saved.assets.find(a=>a.id===id).boxConfig.lan;
+ delete saved.assets.find(a=>a.id===id).boxConfig.wanDhcpLease;
+ const restored=restoreAssetRegistry(saved);
+ assert.equal(restored.getBoxWanEffective(id).address,"90.14.10.20");
+ assert.deepEqual(restored.getAsset(id).boxConfig.lan,before);
+});
