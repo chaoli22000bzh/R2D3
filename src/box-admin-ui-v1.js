@@ -23,6 +23,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
  const physical=id=>registry.listCables().some(c=>c.ends.some(end=>end?.portId===id));
  const connection=()=>{
   const box=get(),wan=registry.getBoxWanEffective?.(id);
+  if(box.boxConfig.mode==="bridge")return "WAN transmis sur LAN 1 (bridge)";
   if(box.status!=="En service")return "Box hors service";
   if(!wan?.address||!wan?.gateway)return "WAN non configuré";
   const observation=typeof getInternetStatus==="function"?getInternetStatus(id):null;
@@ -89,18 +90,21 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
    '<div class="form-actions box-span"><button class="primary" type="submit"'+(bridge?' disabled':'')+'>Enregistrer LAN et DHCP</button></div></form></section>';
  }
  function wanPanel(){
-  const c=wan,effective=registry.getBoxWanEffective?.(id);
+  const c=wan,effective=registry.getBoxWanEffective?.(id),bridge=get().boxConfig.mode==="bridge";
   return '<section class="admin-panel"><h3>Connexion Internet : WAN IPv4</h3>'+
-   '<p class="box-note">La box est directement reliée à l’Internet simulé. Aucun modem ni équipement FAI n’est à installer.</p>'+
+   (bridge?'<p class="box-feedback" role="status">WAN en mode Bridge : l’adresse IPv4, la passerelle et les DNS WAN sont destinés à l’équipement raccordé au LAN 1. La box ne possède plus cette IPv4 pour le routage. Aucun NAT/PAT.</p>':'<p class="box-note">La box est directement reliée à l’Internet simulé. Aucun modem ni équipement FAI n’est à installer.</p>')+
    '<dl class="device-details">'+
-   info("Configuration",c.mode==="dhcp"?"Client DHCP":"IPv4 statique")+
-   info("Adresse WAN",effective?effective.address+"/"+effective.prefix:"Non configurée")+
+   info("Mode de fonctionnement",bridge?"Bridge : WAN vers LAN 1":"Routeur")+
+   info("Configuration mémorisée",c.mode==="dhcp"?"Client DHCP":"IPv4 statique")+
+   info(bridge?"IPv4 destinée au PC LAN 1":"Adresse WAN de la box",effective?effective.address+"/"+effective.prefix:"Non configurée")+
    info("Passerelle",effective?.gateway??"Non configurée")+
    info("DNS 1",effective?.dns?.[0]??"Non configuré")+
    info("DNS 2",effective?.dns?.[1]??"Non configuré")+
+   info("Routage et NAT/PAT",bridge?"Inactifs":"Disponibles")+
    info("Connexion Internet",connection())+'</dl></section>'+
    '<section class="admin-panel"><h3>Paramètres WAN IPv4</h3>'+
    '<form data-form="box-wan" class="box-form">'+
+   '<fieldset class="box-span"'+(bridge?' disabled':'')+' style="display:contents">'+
    '<label>Mode d’adressage<select name="mode" data-wan-mode>'+
    options([["dhcp","Automatique (DHCP)"],["static","Statique"]],c.mode)+'</select></label>'+
    (c.mode==="static"?
@@ -110,7 +114,9 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
      field("dns1","DNS 1",c.dns[0]??"")+
      field("dns2","DNS 2",c.dns[1]??""):
      '<p class="box-note box-span">L’Internet simulé attribue automatiquement l’adresse WAN, le préfixe, la passerelle et les DNS Orange de référence. Aucun équipement FAI n’est représenté.</p>')+
-   '<div class="form-actions box-span"><button type="submit" class="primary">Enregistrer le WAN IPv4</button></div></form></section>';
+   '</fieldset>'+
+   (bridge?'<p class="box-note box-span">Réglages WAN conservés et non modifiables en mode Bridge. Retourne en mode Routeur pour les modifier.</p>':'')+
+   '<div class="form-actions box-span"><button type="submit" class="primary"'+(bridge?' disabled':'')+'>Enregistrer le WAN IPv4</button></div></form></section>';
  }
  function wifiPanel(){
   const ssids=wifi.ssids,sel=ssids[ssidIndex]??ssids[0];
@@ -169,6 +175,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
    if(result.success){editingPatId=null;onChange?.();}
    status(result.message??(result.success?"Règle PAT enregistrée.":"Règle PAT refusée."),!result.success);
   }else if(kind==="box-wan"){
+    if(get().boxConfig.mode==="bridge"){status("WAN non modifiable en mode Bridge.",true);return;}
    const mode=read(form,"mode");
    const next=mode==="dhcp"?{mode:"dhcp",address:"",prefix:null,gateway:"",dns:[]}:{
     mode:"static",address:read(form,"address"),prefix:Number(read(form,"prefix")),
@@ -239,6 +246,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
  }
  function change(e){
   if(e.target.matches("[data-wan-mode]")){
+    if(get().boxConfig.mode==="bridge")return;
    const newMode=e.target.value;
    wan=newMode==="dhcp"?{mode:"dhcp",address:"",prefix:null,gateway:"",dns:[]}:
     {...wan,mode:"static",address:wan.address||registry.getBoxWanEffective?.(id)?.address||"",
