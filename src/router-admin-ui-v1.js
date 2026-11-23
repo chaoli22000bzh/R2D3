@@ -7,11 +7,12 @@ import {configureRemoteVpn,getRemoteVpnConfig} from "./router-vpn-remote-v1.js";
 import {configureSiteVpn,getSiteVpnConfig} from "./router-vpn-site-v01.js";
 import {getRouterDhcpConfig,configureRouterDhcp} from "./router-dhcp-service-v1.js";
 import {getAssetIpHelperConfig,setInterfaceIpHelper} from "./ip-helper-v1.js";
+import {renderPatAdmin,submitPatAdmin,actionPatAdmin} from "./pat-admin-ui-v1.js";
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const opt=(id,text,selected)=>'<option value="'+esc(id)+'"'+(String(id)===String(selected)?" selected":"")+'>'+esc(text)+'</option>';
 export function mountRouterAdmin({root,registry,assetId,onVpnChange}){
  if(!root||!registry?.getAsset)throw Error("Registre ou interface manquante");
- let id=assetId,page="overview",selectedPort=null,selectedDhcpPool=null,newDhcpPool=false,selectedHelperPort=null,feedback="",error=false;
+ let id=assetId,page="overview",selectedPort=null,selectedDhcpPool=null,newDhcpPool=false,selectedHelperPort=null,editingPatId=null,feedback="",error=false;
  const get=()=>{const a=registry.getAsset(id);if(!a?.networkCapabilities.includes("ipv4-router"))throw Error("Routeur indisponible");return a;};
  const report=r=>{feedback=r.message||"Opération refusée";error=!r.success;render();};
  const reportVpn=r=>{report(r);if(r.success)onVpnChange?.();};
@@ -27,7 +28,7 @@ export function mountRouterAdmin({root,registry,assetId,onVpnChange}){
   const a=get(),cfg=getRouterConfig(registry,id);
   if(!selectedPort||!cfg.interfaces[selectedPort])selectedPort=a.ports[0]?.id;
   const p=a.ports.find(p=>p.id===selectedPort),v=cfg.interfaces[selectedPort];
-  const tabs='<nav class="device-tabs">'+[['overview',"Vue d’ensemble"],['ports',"Ports et IPv4"],['dhcp',"Serveur DHCP"],['helper',"IP Helper"],['vpn',"VPN nomade"],['site-vpn',"VPN site à site"]].filter(([key])=>key!=="dhcp"||a.networkCapabilities.includes("dhcp-server")).filter(([key])=>key!=="helper"||a.networkCapabilities.includes("ip-helper")).map(([key,label])=>'<button type="button" class="menu-item'+(page===key?' active':'')+'" data-page="'+key+'">'+label+'</button>').join("")+'</nav>';
+  const tabs='<nav class="device-tabs">'+[['overview',"Vue d’ensemble"],['ports',"Ports et IPv4"],['dhcp',"Serveur DHCP"],['helper',"IP Helper"],['pat',"PAT entrant"],['vpn',"VPN nomade"],['site-vpn',"VPN site à site"]].filter(([key])=>key!=="dhcp"||a.networkCapabilities.includes("dhcp-server")).filter(([key])=>key!=="helper"||a.networkCapabilities.includes("ip-helper")).map(([key,label])=>'<button type="button" class="menu-item'+(page===key?' active':'')+'" data-page="'+key+'">'+label+'</button>').join("")+'</nav>';
   const overview='<section class="admin-panel"><h3>Équipement</h3><dl class="device-details">'+row("Nom",a.name)+row("Type","Routeur générique")+row("Interfaces Ethernet",a.ports.length)+row("WAN",Object.values(cfg.interfaces).filter(i=>i.role==="wan").length)+row("LAN",Object.values(cfg.interfaces).filter(i=>i.role==="lan").length)+row("DMZ",Object.values(cfg.interfaces).filter(i=>i.role==="dmz").length)+'</dl></section>'+table(a);
   const editor='<section class="admin-panel"><h3>Configurer '+esc(p.name)+'</h3><form data-form="router-port" class="form-grid" style="max-width:530px;grid-template-columns:repeat(2,minmax(0,1fr))">'+
    '<label>Rôle<select name="role">'+[["wan","WAN"],["lan","LAN"],["dmz","DMZ"]].map(x=>opt(...x,v.role)).join("")+'</select></label>'+
@@ -123,11 +124,16 @@ export function mountRouterAdmin({root,registry,assetId,onVpnChange}){
    '<label>IPv4 du serveur DHCP<input name="serverAddress" required placeholder="192.168.20.2" value="'+esc(selectedHelper?.serverAddress??'')+'"></label>'+
    '<label class="router-check"><input type="checkbox" name="enabled"'+(selectedHelper?.enabled?' checked':'')+'> Activer IP Helper</label>'+
    '<div class="form-actions"><button class="primary" type="submit">Enregistrer</button></div></form></section>';
-  root.innerHTML='<div class="switch-admin v4 router-admin"><header class="device-bar"><div class="device-ident"><h2>'+esc(a.name)+'</h2><span>Routeur générique</span><span class="device-state">En service</span></div></header>'+tabs+'<main class="admin-content">'+(page==="overview"?overview:page==="vpn"?vpnPanel:page==="site-vpn"?sitePanel:page==="dhcp"?dhcpPanel:page==="helper"?helperPanel:ports(a)+editor+table(a))+(feedback?'<p role="status" style="color:'+(error?'#aa2532':'#087b5e')+'">'+esc(feedback)+'</p>':'')+'</main></div>';
+  root.innerHTML='<div class="switch-admin v4 router-admin"><header class="device-bar"><div class="device-ident"><h2>'+esc(a.name)+'</h2><span>Routeur générique</span><span class="device-state">En service</span></div></header>'+tabs+'<main class="admin-content">'+(page==="overview"?overview:page==="vpn"?vpnPanel:page==="site-vpn"?sitePanel:page==="dhcp"?dhcpPanel:page==="helper"?helperPanel:page==="pat"?renderPatAdmin({registry,assetId:id,kind:"router",editingRuleId:editingPatId}):ports(a)+editor+table(a))+(feedback?'<p role="status" style="color:'+(error?'#aa2532':'#087b5e')+'">'+esc(feedback)+'</p>':'')+'</main></div>';
  }
  const click=e=>{
-  const button=e.target.closest("[data-port],[data-page],[data-action],[data-vpn-user-action],[data-router-dhcp-new],[data-router-dhcp-edit]");
+  const button=e.target.closest("[data-port],[data-page],[data-action],[data-vpn-user-action],[data-router-dhcp-new],[data-router-dhcp-edit],[data-pat-action]");
   if(!button||!root.contains(button))return;
+  if(button.dataset.patAction){
+   const result=actionPatAdmin({registry,assetId:id,kind:"router",action:button.dataset.patAction,ruleId:button.dataset.patId});
+   if(result.success)editingPatId=result.editingRuleId??null;
+   report({...result,message:result.message??(result.success?"Règle PAT mise à jour.":"Action PAT refusée.")});return;
+  }
   if(button.dataset.page){page=button.dataset.page;feedback="";render();}
   if(button.hasAttribute("data-router-dhcp-new")){newDhcpPool=true;selectedDhcpPool=null;feedback="";render();}
   if(button.dataset.routerDhcpEdit){newDhcpPool=false;selectedDhcpPool=button.dataset.routerDhcpEdit;feedback="";render();}
@@ -164,6 +170,11 @@ export function mountRouterAdmin({root,registry,assetId,onVpnChange}){
   });
  };
  const submit=e=>{
+  if(e.target.matches('form[data-form="pat-rule"]')){
+   e.preventDefault();const result=submitPatAdmin({registry,assetId:id,kind:"router",editingRuleId:editingPatId,form:e.target});
+   if(result.success)editingPatId=null;
+   report({...result,message:result.message??(result.success?"Règle PAT enregistrée.":"Règle PAT refusée.")});return;
+  }
   if(e.target.matches('form[data-form="router-dhcp-state"]')){
    e.preventDefault();const conf=getRouterDhcpConfig(registry,id),enabled=e.target.elements.enabled.checked;
    report(configureRouterDhcp(registry,id,{enabled,pools:conf.pools}));return;
@@ -220,5 +231,5 @@ export function mountRouterAdmin({root,registry,assetId,onVpnChange}){
  };
  root.addEventListener("click",click);root.addEventListener("change",change);root.addEventListener("submit",submit);
  render();
- return {setAssetId(next){id=next;page="overview";selectedPort=null;feedback="";render();},destroy(){root.removeEventListener("click",click);root.removeEventListener("change",change);root.removeEventListener("submit",submit);root.replaceChildren();}};
+ return {setAssetId(next){id=next;page="overview";selectedPort=null;editingPatId=null;feedback="";render();},destroy(){root.removeEventListener("click",click);root.removeEventListener("change",change);root.removeEventListener("submit",submit);root.replaceChildren();}};
 }
