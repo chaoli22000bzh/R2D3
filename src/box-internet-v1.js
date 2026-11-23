@@ -21,6 +21,7 @@ export function createBoxInternetSession({registry,boxId,clients=[],services=[]}
  const box=registry?.getAsset?.(boxId);
  if(!box?.boxConfig)return fail("box_missing","Box introuvable.");
  if(box.status!=="En service")return fail("box_offline","Box hors service.");
+ if(box.boxConfig.mode==="bridge")return fail("bridge_mode","Routage et PAT sortant désactivés en mode bridge.");
  if(!registry.getBoxWanEffective)return fail("wan_missing","Adressage WAN non disponible.");
  const lan=createBoxLanDhcpSession({registry,boxId,clients});
  if(!lan.success)return lan;
@@ -35,6 +36,7 @@ export function createBoxInternetSession({registry,boxId,clients=[],services=[]}
  function request({clientId,targetAddress,service="http",sourcePort=50000}={}){
   const current=registry.getAsset(boxId);
   if(!current||current.status!=="En service")return fail("box_offline","Box hors service.");
+  if(current.boxConfig.mode==="bridge")return fail("bridge_mode","Routage et PAT sortant désactivés en mode bridge.");
   const wan=registry.getBoxWanEffective(boxId);
   if(!wan||ipNumber(wan.address)===null||ipNumber(wan.gateway)===null||
      !sameSubnet(wan.address,wan.gateway,wan.prefix))
