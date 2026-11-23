@@ -802,7 +802,7 @@
 .switch-admin.v4 form[data-form="router-port"] input[name="prefix"],
 .switch-admin.v4 form[data-form="vpn"] input[name="vpnPrefix"],
 .switch-admin.v4 form[data-form="site-vpn"] input[name="remotePrefix"]{
- width:76px;
+ width:70px;
  max-width:100%;
  -moz-appearance:textfield;
  appearance:textfield;
