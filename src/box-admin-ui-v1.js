@@ -4,19 +4,20 @@
  * Un WAN adressé ne prouve jamais à lui seul l’accès Internet.
  */
 import {WIFI_RADIO_BANDS,WIFI_RADIO_OPTIONS} from "./wifi-radio-config-v1.js";
+import {renderPatAdmin,submitPatAdmin,actionPatAdmin} from "./pat-admin-ui-v1.js";
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const copy=x=>JSON.parse(JSON.stringify(x));
 const options=(items,selected)=>items.map(([v,label])=>'<option value="'+esc(v)+'"'+(String(v)===String(selected)?' selected':'')+'>'+esc(label)+'</option>').join("");
 const security=[["open","Ouvert"],["wpa2-personal","WPA2-Personal"],["wpa3-personal","WPA3-Personal"],["wpa2-wpa3-personal","WPA2/WPA3-Personal"]];
 const bands=[["2.4","2,4 GHz"],["5","5 GHz"],["6","6 GHz"]];
-const tabs=[["overview","Vue d’ensemble"],["lan","LAN et DHCP"],["wan","Internet (WAN)"],["wifi","Wi-Fi"]];
+const tabs=[["overview","Vue d’ensemble"],["lan","LAN et DHCP"],["wan","Internet (WAN)"],["pat","PAT entrant"],["wifi","Wi-Fi"]];
 const checked=x=>x?" checked":"";
 const ipv4=x=>typeof x==="string"&&/^(\d{1,3}\.){3}\d{1,3}$/.test(x)&&x.split(".").every(o=>Number(o)<=255);
 
 export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}={}){
  if(!root||!registry?.getAsset||!registry?.setBoxLanConfig||!registry?.setBoxWanConfig||!registry?.setBoxWifiConfig)
   throw Error("Registre R2D3 ou interface indisponible.");
- let id=assetId,page="overview",feedback="",feedbackError=false,ssidIndex=0;
+ let id=assetId,page="overview",feedback="",feedbackError=false,ssidIndex=0,editingPatId=null;
  const get=()=>{const a=registry.getAsset(id);if(!a?.boxConfig)throw Error("Box Internet introuvable.");return a;};
  let lan=copy(get().boxConfig.lan),wifi=copy(get().boxConfig.wifi),wan=copy(get().boxConfig.wan??{mode:"dhcp",address:"",prefix:null,gateway:"",dns:[]});
  const physical=id=>registry.listCables().some(c=>c.ends.some(end=>end?.portId===id));
@@ -138,7 +139,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
   const a=get();
   root.innerHTML='<div class="switch-admin v4 router-admin box-admin"><header class="device-bar"><div class="device-ident"><h2>'+esc(a.name)+'</h2><span>Box Internet</span><span class="device-state">'+esc(a.status)+'</span></div></header>'+
    '<nav class="device-tabs">'+tabs.map(([key,label])=>'<button type="button" data-page="'+key+'" class="menu-item'+(page===key?' active':'')+'">'+label+'</button>').join("")+'</nav>'+
-   '<main class="admin-content">'+(page==="overview"?overview(a):page==="lan"?lanPanel():page==="wan"?wanPanel():wifiPanel())+
+   '<main class="admin-content">'+(page==="overview"?overview(a):page==="lan"?lanPanel():page==="wan"?wanPanel():page==="pat"?renderPatAdmin({registry,assetId:id,kind:"box",editingRuleId:editingPatId}):wifiPanel())+
    (feedback?'<p class="box-feedback'+(feedbackError?' error':'')+'" role="status">'+esc(feedback)+'</p>':'')+
    '</main></div>';
  }
@@ -147,7 +148,11 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
   const form=e.target.closest("form[data-form]");if(!form)return;
   e.preventDefault();
   const kind=form.dataset.form;
-  if(kind==="box-wan"){
+  if(kind==="pat-rule"){
+   const result=submitPatAdmin({registry,assetId:id,kind:"box",editingRuleId:editingPatId,form});
+   if(result.success){editingPatId=null;onChange?.();}
+   status(result.message??(result.success?"Règle PAT enregistrée.":"Règle PAT refusée."),!result.success);
+  }else if(kind==="box-wan"){
    const mode=read(form,"mode");
    const next=mode==="dhcp"?{mode:"dhcp",address:"",prefix:null,gateway:"",dns:[]}:{
     mode:"static",address:read(form,"address"),prefix:Number(read(form,"prefix")),
@@ -191,6 +196,12 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
  }
  function click(e){
   const tab=e.target.closest("[data-page]");if(tab){page=tab.dataset.page;feedback="";render();return;}
+  const pat=e.target.closest("[data-pat-action]");
+  if(pat){
+   const result=actionPatAdmin({registry,assetId:id,kind:"box",action:pat.dataset.patAction,ruleId:pat.dataset.patId});
+   if(result.success){editingPatId=result.editingRuleId??null;if(!["new","edit"].includes(pat.dataset.patAction))onChange?.();}
+   status(result.message??(result.success?"Règle PAT mise à jour.":"Action PAT refusée."),!result.success);return;
+  }
   const action=e.target.closest("[data-action]");if(!action)return;
   if(action.dataset.action==="ssid-add"){
    if(wifi.ssids.length>=16)return;
@@ -228,6 +239,6 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
  }
  root.addEventListener("click",click);root.addEventListener("change",change);root.addEventListener("submit",submit);
  render();
- return {render,setAssetId(next){id=next;page="overview";ssidIndex=0;feedback="";lan=copy(get().boxConfig.lan);wifi=copy(get().boxConfig.wifi);wan=copy(get().boxConfig.wan);render();},
+ return {render,setAssetId(next){id=next;page="overview";ssidIndex=0;editingPatId=null;feedback="";lan=copy(get().boxConfig.lan);wifi=copy(get().boxConfig.wifi);wan=copy(get().boxConfig.wan);render();},
   destroy(){root.removeEventListener("click",click);root.removeEventListener("change",change);root.removeEventListener("submit",submit);root.replaceChildren();}};
 }
