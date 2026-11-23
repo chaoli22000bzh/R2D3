@@ -80,7 +80,7 @@ test("Box UI 04 : SSID ajouté sans VLAN et Wi-Fi désactivable",()=>{
 
 test("Box UI 05 : SSID et radios ont des enregistrements indépendants sur la même page",()=>{
  const f=setup();f.click({page:"wifi"});
- assert.equal((f.root.innerHTML.match(/data-page=/g)||[]).length,3);
+ assert.equal((f.root.innerHTML.match(/data-page=/g)||[]).length,4);
  const original=f.registry.getAsset(f.assetId).boxConfig.wifi;
  f.submit("box-radios",{
   "enabled-2.4":true,"channel-2.4":"6",
@@ -93,4 +93,21 @@ test("Box UI 05 : SSID et radios ont des enregistrements indépendants sur la m�
  assert.deepEqual(after.ssids,original.ssids);
  assert.match(f.root.innerHTML,/data-form="box-ssid"/);
  assert.match(f.root.innerHTML,/data-form="box-radios"/);
+});
+
+test("Box WAN UI 01 : onglet Internet, DHCP initial, sans attribution fictive",()=>{
+ const f=setup();f.click({page:"wan"});
+ assert.match(f.root.innerHTML,/data-form="box-wan"/);
+ assert.match(f.root.innerHTML,/Non attribuée/);
+ assert.match(f.root.innerHTML,/Non simulée/);
+ assert.match(f.root.innerHTML,/mode/);
+});
+test("Box WAN UI 02 : IPv4 statique dans la configuration commune",()=>{
+ const f=setup();f.click({page:"wan"});
+ f.submit("box-wan",{mode:"static",address:"203.0.113.10",prefix:"24",
+  gateway:"203.0.113.1",dns1:"1.1.1.1",dns2:"8.8.8.8"});
+ const w=f.registry.getAsset(f.assetId).boxConfig.wan;
+ assert.deepEqual(w,{mode:"static",address:"203.0.113.10",prefix:24,
+  gateway:"203.0.113.1",dns:["1.1.1.1","8.8.8.8"]});
+ assert.match(f.root.innerHTML,/203.0.113.10/);
 });
