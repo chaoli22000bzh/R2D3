@@ -78,6 +78,7 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
  const box=registry?.getAsset?.(boxId);
  if(!box?.boxConfig)return fail("box_missing","Box composite introuvable.");
  if(!live(box))return fail("box_offline","Box hors service.");
+ if(box.boxConfig.mode==="bridge")return fail("bridge_mode","Serveur DHCP LAN et Wi-Fi désactivés en mode bridge.");
  if(!Array.isArray(clients)||!clients.length)return fail("clients_missing","Indiquer les clients du LAN.");
  const ids=clients.map(x=>x.assetId);
  if(new Set(ids).size!==ids.length)return fail("duplicate_client","Client présent plusieurs fois.");
@@ -115,6 +116,7 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
    if(!initial)return fail("client_missing","Client absent de la session.");
    const currentBox=registry.getAsset(boxId);
    if(!currentBox||!live(currentBox))return fail("box_offline","Box indisponible.");
+    if(currentBox.boxConfig.mode==="bridge")return fail("bridge_mode","Serveur DHCP LAN et Wi-Fi désactivés en mode bridge.");
    const current=admitClient(registry,currentBox,
     clients.find(x=>x.assetId===clientId));
    // Convention pédagogique R2D3 : un client DHCP débranché sans bail
