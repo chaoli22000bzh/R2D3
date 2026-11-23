@@ -80,3 +80,31 @@ test("Box bridge : onglet LAN et DHCP désactivé, restauration de la case au re
  assert.doesNotMatch(root.innerHTML,/type="submit" disabled>Enregistrer LAN et DHCP/);
  ui.destroy();
 });
+
+test("Box bridge WAN : l'adresse est présentée comme transmise à LAN 1",()=>{
+ const reg=createAssetRegistry(),box=reg.createBoxComposite("BOX-WAN");good(box);
+ const handlers=new Map(),root={innerHTML:"",
+  addEventListener:(event,cb)=>handlers.set(event,cb),
+  removeEventListener:(event)=>handlers.delete(event),
+  replaceChildren(){this.innerHTML="";}
+ };
+ const ui=mountBoxAdmin({root,registry:reg,assetId:box.asset.id});
+ const wanTab=()=>handlers.get("click")({target:{closest:selector=>
+  selector==="[data-page]"?{dataset:{page:"wan"}}:null}});
+ wanTab();
+ assert.match(root.innerHTML,/Adresse WAN de la box/);
+ good(reg.setBoxMode(box.asset.id,"bridge"));ui.render();
+ assert.match(root.innerHTML,/WAN en mode Bridge/);
+ assert.match(root.innerHTML,/IPv4 destinée au PC LAN 1/);
+ assert.match(root.innerHTML,/Routage et NAT\/PAT/);
+ assert.match(root.innerHTML,/<fieldset[^>]* disabled/);
+ assert.match(root.innerHTML,/type="submit" class="primary" disabled/);
+ const before=reg.getAsset(box.asset.id).boxConfig.wan;
+ const form={dataset:{form:"box-wan"},elements:{namedItem:()=>({value:"static"})}};
+ handlers.get("submit")({target:{closest:()=>form},preventDefault(){}});
+ assert.deepEqual(reg.getAsset(box.asset.id).boxConfig.wan,before);
+ good(reg.setBoxMode(box.asset.id,"router"));ui.render();
+ assert.match(root.innerHTML,/Adresse WAN de la box/);
+ assert.doesNotMatch(root.innerHTML,/<fieldset[^>]* disabled/);
+ ui.destroy();
+});
