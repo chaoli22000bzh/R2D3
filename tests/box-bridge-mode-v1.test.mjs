@@ -52,3 +52,31 @@ test("Box bridge lot 1 : interface d'administration du mode",()=>{
  assert.match(root.innerHTML,/LAN 2 à 5 inactifs/);
  ui.destroy();
 });
+
+test("Box bridge : onglet LAN et DHCP désactivé, restauration de la case au retour Routeur",()=>{
+ const reg=createAssetRegistry(),created=reg.createBoxComposite("BOX-01");good(created);
+ const id=created.asset.id,stored=reg.getAsset(id).boxConfig.lan;
+ const handlers=new Map(),root={innerHTML:"",
+  addEventListener:(event,callback)=>handlers.set(event,callback),
+  removeEventListener:(event)=>handlers.delete(event),
+  replaceChildren(){this.innerHTML="";}
+ };
+ const ui=mountBoxAdmin({root,registry:reg,assetId:id});
+ const goToLan=()=>handlers.get("click")({target:{closest:selector=>
+  selector==="[data-page]"?{dataset:{page:"lan"}}:null}});
+ goToLan();
+ assert.match(root.innerHTML,/name="enabled" checked/);
+ good(reg.setBoxMode(id,"bridge"));ui.render();
+ assert.match(root.innerHTML,/Serveur DHCP désactivé par le mode Bridge/);
+ assert.match(root.innerHTML,/<fieldset[^>]* disabled/);
+ assert.doesNotMatch(root.innerHTML,/name="enabled" checked/);
+ assert.match(root.innerHTML,/type="submit" disabled>Enregistrer LAN et DHCP/);
+ const form={dataset:{form:"box-lan"},elements:{namedItem:()=>({value:"",checked:false})}};
+ handlers.get("submit")({target:{closest:()=>form},preventDefault(){}});
+ assert.deepEqual(reg.getAsset(id).boxConfig.lan,stored);
+ good(reg.setBoxMode(id,"router"));ui.render();
+ assert.doesNotMatch(root.innerHTML,/<fieldset[^>]* disabled/);
+ assert.match(root.innerHTML,/name="enabled" checked/);
+ assert.doesNotMatch(root.innerHTML,/type="submit" disabled>Enregistrer LAN et DHCP/);
+ ui.destroy();
+});
