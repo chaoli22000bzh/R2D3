@@ -315,8 +315,8 @@ export function createAssetRegistry(saved){
   if(placeId!==null&&!s.places.some(p=>p.id===placeId))return result(false,"not_found","Lieu introuvable.");
   if((asset.placeId??null)===placeId)return result(true,"unchanged","L'équipement est déjà à cet emplacement.",{asset:clone(asset)});
   const ports=new Set(asset.ports.map(p=>p.id));
-  if(s.cables.some(c=>c.ends.some(end=>end&&ports.has(end.portId))))
-   return result(false,"asset_connected","Débrancher tous les câbles de l'équipement avant de changer son lieu.");
+  if(s.cables.some(c=>!c.internalBoxId&&c.ends.some(end=>end&&ports.has(end.portId))))
+   return result(false,"asset_connected","Débrancher tous les câbles externes de l'équipement avant de changer son lieu.");
   asset.placeId=placeId;s.revision++;
   return result(true,"asset_moved","Localisation de l'équipement modifiée.",{asset:clone(asset)});
  }
@@ -695,6 +695,8 @@ export function createAssetRegistry(saved){
  }
  function createAsset(profileId,info){
   const p=getP(profileId);if(!p)return result(false,"not_found","Profil introuvable.");
+  if(p.networkCapabilities.includes("box-internet"))
+   return createBoxComposite(info?.name,profileId);
   const name=trim(info?.name);if(!name)return result(false,"invalid_name","Nom de matériel obligatoire.");
   const status=info.status||"En service";
   if(!["En service","Hors service","En stock"].includes(status))return result(false,"invalid_status","Statut incorrect.");
@@ -844,8 +846,14 @@ export function createAssetRegistry(saved){
   const index=s.assets.findIndex(a=>a.id===id);
   if(index<0)return result(false,"not_found","Équipement introuvable.");
   const asset=s.assets[index];
-  if(asset.boxConfig)return result(false,"composite_protected","Supprimer une box nécessite une opération composite dédiée.");
   const ports=new Set(asset.ports.map(p=>p.id));
+  if(asset.boxConfig){
+   if(s.cables.some(c=>!c.internalBoxId&&c.ends.some(end=>end&&ports.has(end.portId))))
+    return result(false,"asset_connected","Débrancher les câbles externes avant de supprimer la box.");
+   s.cables=s.cables.filter(c=>c.internalBoxId!==id);
+   s.assets.splice(index,1);s.revision++;
+   return result(true,"asset_removed","Box composite supprimée.",{assetId:id});
+  }
   // Les câbles sont la source de vérité. Une ancienne copie de
   // connectedCableIds ne doit pas permettre une suppression dangereuse.
   if(s.cables.some(c=>c.ends.some(e=>e&&ports.has(e.portId))))
@@ -856,11 +864,15 @@ export function createAssetRegistry(saved){
 
  // Création atomique de la structure d'une box : un actif, deux câbles internes
  // canoniques, visibles par le moteur mais protégés du brassage utilisateur.
- function createBoxComposite(name="BOX-01"){
+ function createBoxComposite(name="BOX-01",existingProfileId=null){
   name=trim(name);
   if(!name)return result(false,"invalid_name","Nom de box obligatoire.");
-  const profileId="profile-"+s.nextProfile++;
-  const groups=[
+  const old=existingProfileId?s.profiles.find(p=>p.id===existingProfileId):
+   s.profiles.find(p=>p.networkCapabilities.includes("box-internet"));
+  if(existingProfileId&&!old?.networkCapabilities.includes("box-internet"))
+   return result(false,"invalid_profile","Profil de box invalide.");
+  const profileId=old?.id??"profile-"+s.nextProfile++;
+  const groups=old?.portGroups??[
    {id:"group-"+s.nextPortGroup++,type:"ethernet-rj45",prefix:"WAN",start:1,count:1,digits:1},
    {id:"group-"+s.nextPortGroup++,type:"ethernet-rj45",prefix:"LAN",start:1,count:6,digits:1},
    {id:"group-"+s.nextPortGroup++,type:"ethernet-rj45",prefix:"RTLAN",start:1,count:1,digits:1},
@@ -895,7 +907,8 @@ export function createAssetRegistry(saved){
   const asset={id,profileId,name,manufacturer:"",model:"",serialNumber:"",
    status:"En service",location:"",placeId:null,reservable:false,values:{},
    ports,networkCapabilities:["box-internet"],poe:false,boxConfig:config};
-  s.profiles.push(profile);s.assets.push(asset);s.revision++;
+  if(!old)s.profiles.push(profile);
+  s.assets.push(asset);s.revision++;
   return result(true,"box_created","Box composite créée avec ses deux liaisons internes.",{
    asset:clone(asset),config:clone(config)});
  }
