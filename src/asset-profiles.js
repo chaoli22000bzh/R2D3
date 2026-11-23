@@ -45,8 +45,8 @@ function validBoxWan(asset,wan){
  return (num(wan.gateway)&mask)===network&&
    num(wan.address)!==network&&num(wan.address)!==broadcast&&
    num(wan.gateway)!==network&&num(wan.gateway)!==broadcast&&
-   ((num(wan.address)&mask)!==(num(asset.boxConfig.lan.address)&((0xffffffff<<(32-asset.boxConfig.lan.prefix))>>>0))||
-     wan.prefix!==asset.boxConfig.lan.prefix||wan.address!==asset.boxConfig.lan.address);
+   ((num(wan.address)&((0xffffffff<<(32-Math.min(wan.prefix,asset.boxConfig.lan.prefix)))>>>0))!==
+    (num(asset.boxConfig.lan.address)&((0xffffffff<<(32-Math.min(wan.prefix,asset.boxConfig.lan.prefix)))>>>0)));
 }
 function validBoxWifi(asset,wifi){
  if(!wifi||typeof wifi.enabled!=="boolean"||!validWifiRadios(wifi.radios)||
