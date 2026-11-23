@@ -28,10 +28,10 @@ export function renderPatAdmin({registry,assetId,kind,editingRuleId=null}={}){
   (ctx.rules.length?'<div class="table-scroll"><table class="admin-table"><thead><tr><th>WAN</th><th>Protocole</th><th>Port externe</th><th>Serveur LAN</th><th>Port interne</th><th>État</th><th>Actions</th></tr></thead><tbody>'+
    ctx.rules.map(r=>'<tr><td>'+esc(ctx.wan.find(w=>w.id===r.wanPortId)?.label??r.wanPortId)+'</td>'+
     '<td>'+esc(r.protocol.toUpperCase())+'</td><td>'+r.externalPort+'</td><td>'+esc(r.internalAddress)+'</td>'+
-    '<td>'+r.internalPort+'</td><td>'+(r.enabled?'Activée':'Désactivée')+'</td><td>'+
+    '<td>'+r.internalPort+'</td><td>'+(r.enabled?'Activée':'Désactivée')+'</td><td><div class="pat-row-actions">'+
     '<button type="button" data-pat-action="edit" data-pat-id="'+esc(r.id)+'">Modifier</button> '+
     '<button type="button" data-pat-action="toggle" data-pat-id="'+esc(r.id)+'">'+(r.enabled?'Désactiver':'Activer')+'</button> '+
-    '<button type="button" data-pat-action="remove" data-pat-id="'+esc(r.id)+'">Supprimer</button></td></tr>').join("")+
+    '<button type="button" data-pat-action="remove" data-pat-id="'+esc(r.id)+'">Supprimer</button></div></td></tr>').join("")+
    '</tbody></table></div>':'<p>Aucune règle PAT entrante.</p>')+
   '<h3>'+(selected?'Modifier une redirection':'Ajouter une redirection')+'</h3>'+
   '<form data-form="pat-rule" class="pat-form">'+
