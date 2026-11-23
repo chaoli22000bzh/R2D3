@@ -13,7 +13,7 @@ function fixture({mixed=false}={}){
  const pc=registry.createAsset(p.profile.id,{name:"PC-WIFI"});yes(pc);
  const s=[{id:"internet-http",address:"80.10.246.50",kind:"http",available:true}];
  const start=(extra={})=>createBoxInternetSession({registry,boxId:box.asset.id,
-  clients:[{assetId:pc.asset.id,medium:"wifi",ssidId:"ssid-1",...extra}],services:s});
+  clients:[{assetId:pc.asset.id,medium:"wifi",ssidId:"ssid-1",password:"12345678",...extra}],services:s});
  return {registry,box,pc:pc.asset,start};
 }
 test("Box Wi-Fi Internet 01 : PC Wi-Fi du parc obtient DHCP puis PAT sortant",()=>{
