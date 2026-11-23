@@ -85,3 +85,13 @@ test("Box PAT 09 : le serveur sans état de service Core ne répond pas",()=>{
  const f=setup();yes(addBoxPatRule(f.r,f.box.asset.id,f.rule));
  no(observeBoxInboundPat(f.r,f.box.asset.id,f.request,null),"service_engine_missing");
 });
+
+test("Box bridge : PAT entrant refusé, règle conservée après retour routeur",()=>{
+ const f=setup();yes(addBoxPatRule(f.r,f.box.asset.id,f.rule));
+ yes(f.probe());
+ yes(f.r.setBoxMode(f.box.asset.id,"bridge"));
+ no(f.probe(),"bridge_mode");
+ assert.equal(getBoxPatRules(f.r,f.box.asset.id).length,1);
+ yes(f.r.setBoxMode(f.box.asset.id,"router"));
+ yes(f.probe());
+});
