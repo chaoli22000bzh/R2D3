@@ -113,64 +113,73 @@ test("Internet bridge : routage et PAT sortant refusés sans effacer la configur
  yes(f.start().request(request));
 });
 
-test("Internet bridge 01 : le PC reprend les paramètres WAN sur LAN 1, sans NAT",()=>{
- const f=fixture(),id=f.box.asset.id;yes(f.registry.setBoxMode(id,"bridge"));
- const effective=f.registry.getBoxWanEffective(id);
- const runtime=f.registry.getBoxWanRuntime(id);
- assert.equal(runtime.owner,"lan1-client");
- assert.equal(runtime.boxOwnsAddress,false);
- assert.deepEqual(runtime.config,effective);
+test("Bridge DHCP : PC LAN 1 reçoit son bail Internet via le Core, aucun PAT",()=>{
+ const f=fixture(),id=f.box.asset.id,wan=f.registry.getBoxWanEffective(id);
+ yes(f.registry.setBoxMode(id,"bridge"));
  const session=createBoxBridgeInternetSession({registry:f.registry,boxId:id,
   clients:[{assetId:f.a.id}],services:f.services});yes(session);
- const result=session.request({clientId:f.a.id,targetAddress:"80.10.246.50",
-  clientIpv4:{address:effective.address,prefix:effective.prefix,
-   gateway:effective.gateway,dns:effective.dns}});yes(result);
- assert.equal(result.code,"bridge_internet_service_reached");
- assert.equal(result.client.address,effective.address);
- assert.deepEqual(result.client.dns,effective.dns);
+ assert.ok(session.dhcpEngine?.dispatch,"Core DHCP commun attendu");
+ const result=session.request({clientId:f.a.id,targetAddress:"80.10.246.50"});yes(result);
+ assert.equal(result.client.mode,"dhcp");
+ assert.equal(result.client.address,wan.address);
+ assert.equal(result.client.prefix,wan.prefix);
+ assert.equal(result.client.gateway,wan.gateway);
+ assert.deepEqual(result.client.dns,wan.dns);
+ assert.ok(result.client.lease);
  assert.equal(result.nat,null);
  assert.deepEqual(session.listNat(),[]);
- yes(f.registry.setBoxMode(id,"router"));
- assert.equal(f.registry.getBoxWanRuntime(id).owner,"box");
- assert.equal(f.registry.getBoxWanRuntime(id).boxOwnsAddress,true);
- assert.deepEqual(f.registry.getBoxWanEffective(id),effective);
+ const lease=session.dhcpEngine.query({type:"dhcp.leases",serverId:id+"/internet-dhcp"});
+ assert.equal(lease.status,"ok");
+ assert.equal(lease.leases.length,1);
+ assert.equal(lease.leases[0].address,wan.address);
+ yes(session.request({clientId:f.a.id,targetAddress:"80.10.246.2",service:"dns"}));
+ assert.equal(session.dhcpEngine.query({type:"dhcp.leases",serverId:id+"/internet-dhcp"}).leases.length,1);
 });
 
-test("Internet bridge 02 : LAN 2 inactif malgré câble raccordé",()=>{
- const f=fixture();yes(f.registry.setBoxMode(f.box.asset.id,"bridge"));
- const s=createBoxBridgeInternetSession({registry:f.registry,boxId:f.box.asset.id,
-  clients:[{assetId:f.b.id}],services:f.services});yes(s);
- const wan=f.registry.getBoxWanEffective(f.box.asset.id);
- no(s.request({clientId:f.b.id,targetAddress:"80.10.246.50",
-  clientIpv4:{address:wan.address,prefix:wan.prefix,gateway:wan.gateway,dns:wan.dns}}),"bridge_port_inactive");
+test("Bridge statique : PC reprend paramètres WAN saisis manuellement",()=>{
+ const f=fixture(),id=f.box.asset.id,wan={
+  mode:"static",address:"90.14.10.99",prefix:24,gateway:"90.14.10.1",
+  dns:["80.10.246.2","80.10.246.129"]};
+ yes(f.registry.setBoxWanConfig(id,wan));
+ yes(f.registry.setBoxMode(id,"bridge"));
+ const session=createBoxBridgeInternetSession({registry:f.registry,boxId:id,
+  clients:[{assetId:f.a.id}],services:f.services});yes(session);
+ assert.equal(session.dhcpEngine,null);
+ no(session.request({clientId:f.a.id,targetAddress:"80.10.246.50"}),"client_ipv4_invalid");
+ no(session.request({clientId:f.a.id,targetAddress:"80.10.246.50",
+  clientIpv4:{mode:"dhcp"}}),"client_mode");
+ const req={clientId:f.a.id,targetAddress:"80.10.246.50",clientIpv4:{
+  mode:"static",address:wan.address,prefix:wan.prefix,gateway:wan.gateway,dns:wan.dns}};
+ const reached=session.request(req);yes(reached);
+ assert.equal(reached.client.mode,"static");assert.equal(reached.client.address,wan.address);
+ assert.equal(reached.nat,null);
+ no(session.request({...req,clientIpv4:{...req.clientIpv4,dns:["8.8.8.8"]}}),"client_dns");
 });
 
-test("Internet bridge 03 : IPv4, passerelle, DNS incorrects ou câble absent refusés",()=>{
- const f=fixture();yes(f.registry.setBoxMode(f.box.asset.id,"bridge"));
- const s=createBoxBridgeInternetSession({registry:f.registry,boxId:f.box.asset.id,
+test("Bridge DHCP : refuse PC sur LAN 2, câble débranché et saisie statique",()=>{
+ const f=fixture(),id=f.box.asset.id;yes(f.registry.setBoxMode(id,"bridge"));
+ const other=createBoxBridgeInternetSession({registry:f.registry,boxId:id,
+  clients:[{assetId:f.b.id}],services:f.services});yes(other);
+ no(other.request({clientId:f.b.id,targetAddress:"80.10.246.50"}),"bridge_port_inactive");
+ const s=createBoxBridgeInternetSession({registry:f.registry,boxId:id,
   clients:[{assetId:f.a.id}],services:f.services});yes(s);
- const wan=f.registry.getBoxWanEffective(f.box.asset.id);
- const request=config=>s.request({clientId:f.a.id,targetAddress:"80.10.246.50",clientIpv4:config});
- no(request({address:"192.168.1.100",prefix:24,gateway:"192.168.1.1",dns:wan.dns}),"client_network");
- no(request({...wan,address:"90.14.10.21"}),"client_network");
- no(request({...wan,gateway:"90.14.10.2"}),"client_network");
- no(request({...wan,dns:["8.8.8.8",wan.dns[1]]}),"client_dns");
+ no(s.request({clientId:f.a.id,targetAddress:"80.10.246.50",
+  clientIpv4:{mode:"static",address:"90.14.10.20"}}),"client_mode");
  yes(f.registry.disconnectCableEnd(f.cables[0],1));
- no(request(wan),"link_down");
+ no(s.request({clientId:f.a.id,targetAddress:"80.10.246.50"}),"link_down");
 });
 
-test("Internet bridge 04 : service arrêté, changement de mode et aucune translation",()=>{
- const f=fixture();yes(f.registry.setBoxMode(f.box.asset.id,"bridge"));
- const s=createBoxBridgeInternetSession({registry:f.registry,boxId:f.box.asset.id,
+test("Bridge DHCP : services arrêtés, retour Routeur et sauvegarde WAN",()=>{
+ const f=fixture(),id=f.box.asset.id,wan=f.registry.getBoxWanEffective(id);
+ yes(f.registry.setBoxMode(id,"bridge"));
+ const s=createBoxBridgeInternetSession({registry:f.registry,boxId:id,
   clients:[{assetId:f.a.id}],services:f.services});yes(s);
- const request={clientId:f.a.id,targetAddress:"80.10.246.50",
-  clientIpv4:f.registry.getBoxWanEffective(f.box.asset.id)};
  f.services[0].available=false;
- no(s.request(request),"service_offline");
- f.services[0].available=true;
- yes(s.request(request));
- assert.equal(s.listNat().length,0);
- yes(f.registry.setBoxMode(f.box.asset.id,"router"));
- no(s.request(request),"bridge_mode_changed");
+ no(s.request({clientId:f.a.id,targetAddress:"80.10.246.50"}),"service_offline");
+ f.services[0].available=true;yes(s.request({clientId:f.a.id,targetAddress:"80.10.246.50"}));
+ yes(f.registry.setBoxMode(id,"router"));
+ no(s.request({clientId:f.a.id,targetAddress:"80.10.246.50"}),"bridge_mode_changed");
+ assert.deepEqual(f.registry.getBoxWanEffective(id),wan);
+ assert.equal(f.registry.getBoxWanRuntime(id).owner,"box");
  yes(f.start().request({clientId:f.a.id,targetAddress:"80.10.246.50"}));
 });
