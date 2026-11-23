@@ -71,3 +71,31 @@ test("Internet 07 : DHCP LAN inactif ne donne pas d'accès Internet",()=>{
  const s=f.start();yes(s);
  no(s.request({clientId:f.a.id,targetAddress:"80.10.246.50"}),"client_network");
 });
+
+test("Internet 08 : PC avec plusieurs ports Ethernet, seul le port réellement câblé est utilisé",()=>{
+ const f=fixture();
+ const p=f.registry.createProfile("PC multports");yes(p);
+ yes(f.registry.addPortGroup(p.profile.id,{type:"ethernet-rj45",prefix:"ETH",start:1,count:3}));
+ const pc=f.registry.createAsset(p.profile.id,{name:"PC-MULTI"});yes(pc);
+ const cable=f.registry.createCable();yes(cable);
+ yes(f.registry.connectCableEnd(cable.cable.id,0,pc.asset.ports[2].id));
+ yes(f.registry.connectCableEnd(cable.cable.id,1,f.box.config.ports.lanPortIds[2]));
+ const session=createBoxInternetSession({registry:f.registry,boxId:f.box.asset.id,
+  clients:[{assetId:pc.asset.id,medium:"ethernet"}],services:f.services});yes(session);
+ const result=session.request({clientId:pc.asset.id,targetAddress:"80.10.246.50"});yes(result);
+ assert.equal(result.nat.externalAddress,"90.14.10.20");
+ assert.equal(session.lanSession.clients[0].lanPortId,f.box.config.ports.lanPortIds[2]);
+});
+test("Internet 09 : plusieurs connexions LAN d'un même PC refusées sans ambiguïté",()=>{
+ const f=fixture(),p=f.registry.createProfile("PC multports");yes(p);
+ yes(f.registry.addPortGroup(p.profile.id,{type:"ethernet-rj45",prefix:"ETH",start:1,count:2}));
+ const pc=f.registry.createAsset(p.profile.id,{name:"PC-DOUBLE"});yes(pc);
+ for(let i=0;i<2;i++){
+  const cable=f.registry.createCable();yes(cable);
+  yes(f.registry.connectCableEnd(cable.cable.id,0,pc.asset.ports[i].id));
+  yes(f.registry.connectCableEnd(cable.cable.id,1,f.box.config.ports.lanPortIds[i+2]));
+ }
+ const session=createBoxInternetSession({registry:f.registry,boxId:f.box.asset.id,
+  clients:[{assetId:pc.asset.id,medium:"ethernet"}],services:f.services});
+ no(session,"ambiguous_lan");
+});
