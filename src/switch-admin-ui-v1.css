@@ -826,3 +826,28 @@
 .switch-admin.v4 .pat-admin .pat-actions{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
 .switch-admin.v4 .pat-admin .admin-table button{padding:5px 7px;font-size:12px;white-space:nowrap}
 @media(max-width:620px){.switch-admin.v4 .pat-admin .pat-form{grid-template-columns:repeat(2,minmax(0,1fr));max-width:100%}}
+
+/* PAT partagé : champs adaptés aux valeurs (ports 5 chiffres, protocole TCP/UDP).
+   Aucun chevron numérique ; les autres champs numériques restent inchangés. */
+.switch-admin.v4 .pat-admin .pat-form{
+ grid-template-columns:minmax(0,180px) minmax(0,110px) minmax(0,100px);
+ max-width:430px;
+}
+.switch-admin.v4 .pat-admin .pat-form select[name="protocol"]{width:100%;max-width:110px}
+.switch-admin.v4 .pat-admin .pat-form input[name="externalPort"],
+.switch-admin.v4 .pat-admin .pat-form input[name="internalPort"]{
+ width:100%;max-width:100px;
+ -moz-appearance:textfield;appearance:textfield;
+}
+.switch-admin.v4 .pat-admin .pat-form input[name="externalPort"]::-webkit-inner-spin-button,
+.switch-admin.v4 .pat-admin .pat-form input[name="externalPort"]::-webkit-outer-spin-button,
+.switch-admin.v4 .pat-admin .pat-form input[name="internalPort"]::-webkit-inner-spin-button,
+.switch-admin.v4 .pat-admin .pat-form input[name="internalPort"]::-webkit-outer-spin-button{
+ -webkit-appearance:none;margin:0;
+}
+@media(max-width:620px){
+ .switch-admin.v4 .pat-admin .pat-form{
+  grid-template-columns:minmax(0,180px) minmax(0,110px);
+  max-width:320px;
+ }
+}
