@@ -72,7 +72,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
  function lanPanel(){
   const pool=lan.pools[0],bridge=get().boxConfig.mode==="bridge";
   return '<section class="admin-panel"><h3>Adresse IPv4 du routeur LAN</h3>'+
-   (bridge?'<p class="box-note">Serveur DHCP désactivé par le mode Bridge. Les paramètres sont conservés pour le retour en mode Routeur.</p>':'')+
+   (bridge?'<p class="box-feedback" role="status">Serveur DHCP désactivé en mode Bridge. Les paramètres sont conservés pour le retour en mode Routeur.</p>':'')+
    '<form data-form="box-lan" class="box-form">'+
    '<fieldset class="box-span"'+(bridge?' disabled':'')+' style="display:contents">'+
    field("address","Adresse IPv4",lan.address,"text",'required inputmode="decimal"')+
