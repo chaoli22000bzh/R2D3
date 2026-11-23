@@ -54,6 +54,7 @@ export function observeBoxInboundPat(registry,boxId,request,serviceEngine){
  const box=registry?.getAsset?.(boxId),target=registry?.getAsset?.(request?.targetId);
  if(!box?.boxConfig)return fail("box_missing","Box introuvable.");
  if(box.status!=="En service")return fail("box_offline","Box hors service.");
+ if(box.boxConfig.mode==="bridge")return fail("bridge_mode","PAT entrant désactivé en mode bridge.");
  if(!target||target.status!=="En service"||target.id===box.id)
   return fail("target_missing","Serveur interne absent ou hors service.");
  if(!request||!ipv4(request.externalAddress)||!ipv4(request.wanAddress)||
