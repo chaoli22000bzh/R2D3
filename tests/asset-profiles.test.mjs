@@ -486,3 +486,26 @@ test("Profil Écran : six champs Affichage, quatre champs autonomes, réutilisat
  assert.equal(registry.getProfile(portable.id).fields.length,6);
  assert.equal(registry.getProfile(portable.id).fields.some(f=>f.key==="vesa"),false);
 });
+
+test("Création de champs : clé interne automatique, accents, doublons et compatibilité",()=>{
+ const e=createAssetRegistry(),p=e.createProfile("Profil pédagogique").profile;
+ for(const [label,key] of [
+  ["Consommation électrique","consommation_electrique"],
+  ["Consommation électrique","consommation_electrique_2"],
+  ["Nom","nom"],
+  ["name","name_2"],
+  ["name","name_3"],
+  ["123 ###","champ"],
+  ["123 ###","champ_2"]
+ ]){
+  const r=e.addField(p.id,{label,type:"text"});
+  assert.equal(r.success,true,label);
+  assert.equal(r.field.key,key);
+ }
+ const manual=e.addField(p.id,{key:"code_fabricant",label:"Code fabricant",type:"text"});
+ assert.equal(manual.field.key,"code_fabricant");
+ assert.equal(e.addField(p.id,{label:"",type:"text"}).success,false);
+ const a=e.createAsset(p.id,{name:"ACTIF-01"}).asset;
+ assert.equal(e.setAssetField(a.id,"consommation_electrique","42").success,true);
+ assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
+});
