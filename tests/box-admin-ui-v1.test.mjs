@@ -182,8 +182,8 @@ test("Box Wi-Fi V1 : Bridge grise et verrouille les réglages sans altérer la c
  assert.match(f.root.innerHTML,/data-ssid-select disabled/);
  assert.match(f.root.innerHTML,/data-action="ssid-add" disabled/);
  assert.match(f.root.innerHTML,/data-action="ssid-remove" disabled/);
- assert.match(f.root.innerHTML,/data-form="box-ssid"[\\s\\S]*?<fieldset class="box-span" disabled/);
- assert.match(f.root.innerHTML,/data-form="box-radios"[\\s\\S]*?<fieldset class="box-span" disabled/);
+ assert.match(f.root.innerHTML,/data-form="box-ssid"[\s\S]*?<fieldset class="box-span" disabled/);
+ assert.match(f.root.innerHTML,/data-form="box-radios"[\s\S]*?<fieldset class="box-span" disabled/);
  assert.match(f.root.innerHTML,/type="submit" class="primary" disabled>Enregistrer le SSID/);
  assert.match(f.root.innerHTML,/type="submit" disabled>Enregistrer les radios/);
  f.change("[data-global-wifi]",false);
@@ -200,7 +200,7 @@ test("Box Wi-Fi V1 : Bridge grise et verrouille les réglages sans altérer la c
  good(f.registry.setBoxMode(f.assetId,"router"));f.ui.render();
  assert.match(f.root.innerHTML,/<input data-global-wifi type="checkbox" checked/);
  assert.doesNotMatch(f.root.innerHTML,/data-ssid-select disabled/);
- assert.doesNotMatch(f.root.innerHTML,/data-form="box-ssid"[\\s\\S]*?<fieldset class="box-span" disabled/);
+ assert.doesNotMatch(f.root.innerHTML,/data-form="box-ssid"[\s\S]*?<fieldset class="box-span" disabled/);
  assert.deepEqual(f.registry.getAsset(f.assetId).boxConfig.wifi,before);
  f.ui.destroy();
 });
