@@ -1093,7 +1093,7 @@ export function screenFieldValueValid(key,value){
 export const displayFieldDefinitions=[
  {key:"diagonale",label:"Diagonale",type:"number",unit:"pouces"},
  {key:"resolution",label:"Résolution",type:"text"},
- {key:"format_image",label:"Format d'image",type:"select",options:["4:3","5:4","16:9","16:10","21:9","32:9","Autre"]},
+ {key:"format_image",label:"Ratio",type:"select",options:["4:3","5:4","16:9","16:10","21:9","32:9","Autre"]},
  {key:"type_dalle",label:"Type de dalle",type:"select",options:["IPS","TN","VA","OLED","Autre"]},
  {key:"forme",label:"Forme",type:"select",options:["Plat","Incurvé"]},
  {key:"tactile",label:"Tactile",type:"boolean"}
