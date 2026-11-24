@@ -19,14 +19,21 @@ function setup(getInternetStatus){
  const change=(selector,value)=>handlers.get("change")({target:{
   value,checked:!!value,matches:q=>q===selector
  }});
- const submit=(name,values)=>{
+ const makeForm=(name,values)=>{
   const inputs=Object.fromEntries(Object.entries(values).map(([key,value])=>[key,{
    value:String(value),checked:!!value
   }]));
-  const form={dataset:{form:name},elements:{namedItem:key=>inputs[key]}};
+  return {dataset:{form:name},elements:{namedItem:key=>inputs[key]},reportValidity:()=>true};
+ };
+ const submit=(name,values)=>{
+  const form=makeForm(name,values);
   handlers.get("submit")({target:{closest:q=>q==="form[data-form]"?form:null},preventDefault(){}});
  };
- return {registry,assetId:created.asset.id,root,ui,click,change,submit};
+ const clickSave=(name,values)=>{
+  const form=makeForm(name,values),saveButton={closest:q=>q==="form[data-form]"?form:null};
+  handlers.get("click")({target:{closest:q=>q==="[data-save-ssid], [data-save-radios]"?saveButton:null}});
+ };
+ return {registry,assetId:created.asset.id,root,ui,click,change,submit,clickSave};
 }
 test("Box UI 01 : une administration unifiée sans VLAN ni switch administrable",()=>{
  const f=setup();
@@ -211,7 +218,7 @@ test("Box Wi-Fi V1 : mot de passe SSID modifié dans le registre, message au bon
  assert.equal(before.password,"12345678");
  assert.match(f.root.innerHTML,/data-toggle-ssid-password/);
  assert.match(f.root.innerHTML,/type="button" data-save-ssid/);
- f.submit("box-ssid",{name:before.name,security:before.security,password:"87654321",
+ f.clickSave("box-ssid",{name:before.name,security:before.security,password:"87654321",
   enabled:true,clientIsolation:false,"band-2.4":true,"band-5":true,"band-6":false});
  const after=f.registry.getAsset(f.assetId).boxConfig.wifi.ssids[0];
  assert.equal(after.password,"87654321");
