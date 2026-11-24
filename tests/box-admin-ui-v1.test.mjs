@@ -167,7 +167,7 @@ test("Box PAT UI : onglet commun, règles visibles et serveur LAN",()=>{
 
 test("Box Wi-Fi V1 : mot de passe masqué comme sur borne autonome",()=>{
  const f=setup();f.click({page:"wifi"});
- assert.match(f.root.innerHTML,/<input name="password" type="password"[^>]*autocomplete="new-password"/);
+ assert.match(f.root.innerHTML,/<input name="password" type="password"[^>]*autocomplete="off"/);
  assert.doesNotMatch(f.root.innerHTML,/<input name="password" type="text"/);
  assert.match(f.root.innerHTML,/<input data-global-wifi type="checkbox" checked/);
  f.ui.destroy();
@@ -184,8 +184,8 @@ test("Box Wi-Fi V1 : Bridge grise et verrouille les réglages sans altérer la c
  assert.match(f.root.innerHTML,/data-action="ssid-remove" disabled/);
  assert.match(f.root.innerHTML,/data-form="box-ssid"[\s\S]*?<fieldset class="box-span" disabled/);
  assert.match(f.root.innerHTML,/data-form="box-radios"[\s\S]*?<fieldset class="box-span" disabled/);
- assert.match(f.root.innerHTML,/type="submit" class="primary" disabled>Enregistrer le SSID/);
- assert.match(f.root.innerHTML,/type="submit" disabled>Enregistrer les radios/);
+ assert.match(f.root.innerHTML,/type="button" data-save-ssid class="primary" disabled>Enregistrer le SSID/);
+ assert.match(f.root.innerHTML,/type="button" data-save-radios disabled>Enregistrer les radios/);
  f.change("[data-global-wifi]",false);
  f.click({action:"ssid-add"});
  f.click({action:"ssid-remove"});
@@ -202,5 +202,42 @@ test("Box Wi-Fi V1 : Bridge grise et verrouille les réglages sans altérer la c
  assert.doesNotMatch(f.root.innerHTML,/data-ssid-select disabled/);
  assert.doesNotMatch(f.root.innerHTML,/data-form="box-ssid"[\s\S]*?<fieldset class="box-span" disabled/);
  assert.deepEqual(f.registry.getAsset(f.assetId).boxConfig.wifi,before);
+ f.ui.destroy();
+});
+
+test("Box Wi-Fi V1 : mot de passe SSID modifié dans le registre, message au bon emplacement",()=>{
+ const f=setup();f.click({page:"wifi"});
+ const before=f.registry.getAsset(f.assetId).boxConfig.wifi.ssids[0];
+ assert.equal(before.password,"12345678");
+ assert.match(f.root.innerHTML,/data-toggle-ssid-password/);
+ assert.match(f.root.innerHTML,/type="button" data-save-ssid/);
+ f.submit("box-ssid",{name:before.name,security:before.security,password:"87654321",
+  enabled:true,clientIsolation:false,"band-2.4":true,"band-5":true,"band-6":false});
+ const after=f.registry.getAsset(f.assetId).boxConfig.wifi.ssids[0];
+ assert.equal(after.password,"87654321");
+ assert.match(f.root.innerHTML,/Configuration SSID enregistrée/);
+ assert.match(f.root.innerHTML,/data-save-ssid[\s\S]*Configuration SSID enregistrée/);
+ assert.doesNotMatch(f.root.innerHTML,/Configuration radio enregistrée/);
+ f.ui.destroy();
+});
+
+test("Box Wi-Fi V1 : message radio indépendant du message SSID",()=>{
+ const f=setup();f.click({page:"wifi"});
+ f.submit("box-radios",{
+  "enabled-2.4":true,"channel-2.4":"6",
+  "enabled-5":true,"channel-5":"36",
+  "enabled-6":false,"channel-6":"auto"
+ });
+ assert.match(f.root.innerHTML,/Configuration radio enregistrée/);
+ assert.doesNotMatch(f.root.innerHTML,/Configuration SSID enregistrée/);
+ f.ui.destroy();
+});
+
+test("Box Wi-Fi V1 : refus d'un mot de passe incorrect et conservation du précédent",()=>{
+ const f=setup();f.click({page:"wifi"});
+ f.submit("box-ssid",{name:"BOX-WIFI",security:"wpa2-personal",password:"abc",
+  enabled:true,clientIsolation:false,"band-2.4":true,"band-5":true,"band-6":false});
+ assert.equal(f.registry.getAsset(f.assetId).boxConfig.wifi.ssids[0].password,"12345678");
+ assert.match(f.root.innerHTML,/class="box-feedback box-span error"/);
  f.ui.destroy();
 });
