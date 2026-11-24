@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createAssetRegistry,restoreAssetRegistry} from "../src/asset-profiles.js";
+import {createAssetRegistry,restoreAssetRegistry,installScreenProfile,displayFieldDefinitions,screenSpecificFieldDefinitions} from "../src/asset-profiles.js";
 
 const panelAt=(e,name,location,count,start,prefix="")=>{
  const place=e.listPlaces().find(p=>p.name===location&&p.parentId===null)||
@@ -436,4 +436,37 @@ test("Connectique V1 : 11 types physiques, raccordements compatibles, débranche
  assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
  for(const ca of cables)assert.equal(e.disconnectCableEnd(ca.id,0).success,true);
  assert.equal(e.listCables().length,12,"Les câbles restent inventoriés après débranchement");
+});
+
+test("Profil Écran : six champs Affichage, quatre champs autonomes, réutilisation et ports indépendants",()=>{
+ const registry=createAssetRegistry();
+ assert.equal(registry.listProfiles().length,0,"Un registre vierge ne change pas sans installation explicite");
+ const installed=installScreenProfile(registry);
+ assert.equal(installed.success,true);
+ const p=registry.getProfile(installed.profile.id);
+ assert.equal(p.name,"Écran");
+ assert.deepEqual(p.fields.map(f=>f.key),
+  [...displayFieldDefinitions,...screenSpecificFieldDefinitions].map(f=>f.key));
+ assert.equal(p.fields.length,10);
+ assert.equal(p.portGroups.length,0,"Aucun port imposé à tous les écrans");
+ assert.equal(p.networkCapabilities.length,0);
+ assert.equal(installScreenProfile(registry).code,"already_present");
+ assert.equal(registry.listProfiles().length,1,"Installation idempotente");
+ const screen=registry.createAsset(p.id,{name:"ECRAN-01"}).asset;
+ assert.equal(screen.ports.length,0);
+ assert.equal(registry.setAssetField(screen.id,"diagonale",27).success,true);
+ assert.equal(registry.setAssetField(screen.id,"resolution","2560 × 1440").success,true);
+ assert.equal(registry.setAssetField(screen.id,"type_dalle","IPS").success,true);
+ assert.equal(registry.setAssetField(screen.id,"type_ecran","Moniteur").success,true);
+ assert.equal(registry.setAssetField(screen.id,"tactile",false).success,true);
+ assert.equal(registry.setAssetField(screen.id,"type_dalle","Inconnu").success,false);
+ assert.equal(registry.addExtension(screen.id,{type:"hdmi",prefix:"HDMI",start:1,count:2}).success,true);
+ assert.equal(registry.addExtension(screen.id,{type:"displayport",prefix:"DP",start:1,count:1}).success,true);
+ assert.equal(registry.getAsset(screen.id).ports.length,3);
+ const save=registry.exportState();
+ assert.deepEqual(restoreAssetRegistry(save).exportState(),save);
+ const portable=registry.createProfile("PC portable").profile;
+ for(const f of displayFieldDefinitions)assert.equal(registry.addField(portable.id,f).success,true);
+ assert.equal(registry.getProfile(portable.id).fields.length,6);
+ assert.equal(registry.getProfile(portable.id).fields.some(f=>f.key==="vesa"),false);
 });
