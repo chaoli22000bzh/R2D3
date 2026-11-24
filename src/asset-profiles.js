@@ -464,7 +464,17 @@ export function createAssetRegistry(saved){
  }
  function addField(id,raw){
   const p=getP(id);if(!p)return result(false,"not_found","Profil introuvable.");
-  const f={key:trim(raw?.key),label:trim(raw?.label),type:raw?.type,unit:trim(raw?.unit)};
+  const label=trim(raw?.label);
+  let key=trim(raw?.key);
+  if(!key){
+   const base=label.normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")
+    .replace(/^[^a-z]+/,"")||"champ";
+   key=base;
+   let suffix=2;
+   while(common.includes(key)||p.fields.some(f=>f.key===key))key=base+"_"+suffix++;
+  }
+  const f={key,label,type:raw?.type,unit:trim(raw?.unit)};
   if(raw?.type==="select")f.options=clone(raw.options||[]);
   if(!fieldValid(f)||common.includes(f.key)||p.fields.some(x=>x.key===f.key))return result(false,"invalid_field","Champ invalide ou déjà présent.");
   p.fields.push(f);for(const a of s.assets.filter(a=>a.profileId===id))a.values[f.key]=null;
