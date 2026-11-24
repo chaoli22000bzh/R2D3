@@ -118,7 +118,7 @@ test("Box ports : le raccordement physique LAN 1 suit les câbles en Routeur et 
   replaceChildren(){this.innerHTML="";}};
  const ui=mountBoxAdmin({root,registry:reg,assetId:box.asset.id});
  const lan1=box.config.ports.lanPortIds[0];
- const lanOne=()=>root.innerHTML.match(/<div class="box-port" title="LAN 1">[\\s\\S]*?<\\/div>/)?.[0];
+ const lanOne=()=>root.innerHTML.match(/<div class="box-port" title="LAN 1">[\s\S]*?<\/div>/)?.[0];
  assert.match(lanOne(),/Actif · libre/);
  const cable=reg.createCable();good(cable);
  good(reg.connectCableEnd(cable.cable.id,0,lan1));
