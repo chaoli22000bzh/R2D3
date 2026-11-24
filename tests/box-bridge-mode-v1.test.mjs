@@ -108,3 +108,33 @@ test("Box bridge WAN : l'adresse est présentée comme transmise à LAN 1",()=>{
  assert.doesNotMatch(root.innerHTML,/<fieldset[^>]* disabled/);
  ui.destroy();
 });
+
+test("Box ports : le raccordement physique LAN 1 suit les câbles en Routeur et Bridge",()=>{
+ const reg=createAssetRegistry(),box=reg.createBoxComposite("BOX-01");good(box);
+ const profile=reg.createProfile("PC filaire");good(profile);
+ good(reg.addPortGroup(profile.profile.id,{type:"ethernet-rj45",prefix:"ETH",start:1,count:1}));
+ const pc=reg.createAsset(profile.profile.id,{name:"PC01"});good(pc);
+ const root={innerHTML:"",addEventListener(){},removeEventListener(){},
+  replaceChildren(){this.innerHTML="";}};
+ const ui=mountBoxAdmin({root,registry:reg,assetId:box.asset.id});
+ const lan1=box.config.ports.lanPortIds[0];
+ const lanOne=()=>root.innerHTML.match(/<div class="box-port" title="LAN 1">[\\s\\S]*?<\\/div>/)?.[0];
+ assert.match(lanOne(),/Actif · libre/);
+ const cable=reg.createCable();good(cable);
+ good(reg.connectCableEnd(cable.cable.id,0,lan1));
+ good(reg.connectCableEnd(cable.cable.id,1,pc.asset.ports[0].id));
+ assert.equal(reg.getAsset(box.asset.id).ports.find(p=>p.id===lan1).connectedCableIds[0],cable.cable.id);
+ ui.render();
+ assert.match(lanOne(),/box-linked/);
+ assert.match(lanOne(),/Actif · raccordé/);
+ good(reg.setBoxMode(box.asset.id,"bridge"));ui.render();
+ assert.match(lanOne(),/Actif · raccordé/);
+ assert.match(root.innerHTML,/<div class="box-port" title="LAN 2">[\\s\\S]*?Inactif/);
+ good(reg.disconnectCableEnd(cable.cable.id,0));ui.render();
+ assert.match(lanOne(),/Actif · libre/);
+ good(reg.setBoxMode(box.asset.id,"router"));ui.render();
+ assert.match(lanOne(),/Actif · libre/);
+ good(reg.connectCableEnd(cable.cable.id,0,lan1));ui.render();
+ assert.match(lanOne(),/Actif · raccordé/);
+ ui.destroy();
+});
