@@ -124,6 +124,7 @@ test("Bridge DHCP : PC LAN 1 reçoit son bail Internet via le Core, aucun PAT",(
  assert.equal(result.client.address,wan.address);
  assert.equal(result.client.prefix,wan.prefix);
  assert.equal(result.client.gateway,wan.gateway);
+ assert.equal(result.route.gateway,wan.gateway);
  assert.deepEqual(result.client.dns,wan.dns);
  assert.ok(result.client.lease);
  assert.equal(result.nat,null);
