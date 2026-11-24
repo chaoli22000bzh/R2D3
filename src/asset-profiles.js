@@ -84,14 +84,20 @@ const isCompatible=(cableEnd,portEnd)=>{
  (a.gender==="socket"&&b.gender==="plug")
  );
 };
-const physicalPortConnector={"ethernet-rj45":"rj45-female","usb-a":"usb-a-socket","usb-c":"usb-c-socket","hdmi":"hdmi-socket"};
+const physicalPortConnector={"ethernet-rj45":"rj45-female","ethernet-fibre":"lc-socket","usb-a":"usb-a-socket","usb-b":"usb-b-socket","usb-c":"usb-c-socket","hdmi":"hdmi-socket","vga":"vga-female","dvi":"dvi-female","displayport":"displayport-socket","mini-displayport":"mini-displayport-socket","db9":"db9-male"};
 
 const portTypes={
  "ethernet-rj45":{medium:"ethernet",connector:"RJ45"},
  "ethernet-fibre":{medium:"ethernet",connector:"Fibre"},
  "usb-a":{medium:"usb",connector:"USB-A"},
+ "usb-b":{medium:"usb",connector:"USB-B"},
  "usb-c":{medium:"usb",connector:"USB-C"},
  "hdmi":{medium:"video",connector:"HDMI"},
+ "vga":{medium:"video",connector:"VGA"},
+ "dvi":{medium:"video",connector:"DVI"},
+ "displayport":{medium:"video",connector:"DisplayPort"},
+ "mini-displayport":{medium:"video",connector:"Mini DisplayPort"},
+ "db9":{medium:"serial",connector:"DB9"},
  "wifi":{medium:"wireless",connector:null},
  "bluetooth":{medium:"wireless",connector:null}
 };
