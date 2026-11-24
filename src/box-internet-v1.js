@@ -207,7 +207,7 @@ export function createBoxBridgeInternetSession({registry,boxId,clients=[],servic
   return {success:true,code:"bridge_internet_service_reached",clientId,service,
     target:{id:endpoint.id,address:targetAddress,port:ports[service]},
     client:{...assigned,sourcePort},
-    route:{gateway:clientIpv4.gateway,wanGateway:wan.gateway,lanPortId:firstLan1},
+    route:{gateway:assigned.gateway,wanGateway:wan.gateway,lanPortId:firstLan1},
     nat:null,reason:"Service Internet atteint par passage LAN 1 vers WAN sans routage ni NAT/PAT de la box."};
  }
  return {success:true,code:"bridge_internet_session",boxId,request,
