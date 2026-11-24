@@ -1074,4 +1074,36 @@ export function createAssetRegistry(saved){
  return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,createBoxComposite,setBoxMode,setBoxLanConfig,setBoxWanConfig,setBoxPatRules,getBoxWanEffective:id=>{const a=getA(id);return a?.boxConfig?effectiveBoxWan(a.boxConfig):null;},getBoxWanRuntime:id=>{const a=getA(id);if(!a?.boxConfig)return null;const config=effectiveBoxWan(a.boxConfig);return {mode:a.boxConfig.mode,owner:a.boxConfig.mode==="bridge"?"lan1-client":"box",boxOwnsAddress:a.boxConfig.mode!=="bridge",config};},setBoxWifiConfig,setAssetWifiConfig,setAssetRouterConfig,setAssetDhcpServerConfig,setAssetManagementConfig,setAssetVlanConfig,updateAssetVlanDefinition,removeAssetVlanDefinition,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,updateAsset,
  listWallOutlets:()=>clone(s.wallOutlets),listPanels:()=>clone(s.panels),getPanel:id=>clone(s.panels.find(p=>p.id===id)||null),listCables:()=>clone(s.cables.filter(c=>!c.internalBoxId)),getCable:id=>clone(s.cables.find(x=>x.id===id&&!x.internalBoxId)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
+
+/* Champs descriptifs partagés par l'affichage intégré ou autonome.
+   Les ports appartiennent toujours à l'actif et ne figurent pas dans ces champs. */
+export const displayFieldDefinitions=[
+ {key:"diagonale",label:"Diagonale",type:"number",unit:"pouces"},
+ {key:"resolution",label:"Résolution",type:"text"},
+ {key:"format_image",label:"Format d'image",type:"select",options:["4:3","5:4","16:9","16:10","21:9","32:9","Autre"]},
+ {key:"type_dalle",label:"Type de dalle",type:"select",options:["IPS","TN","VA","OLED","Autre"]},
+ {key:"forme",label:"Forme",type:"select",options:["Plat","Incurvé"]},
+ {key:"tactile",label:"Tactile",type:"boolean"}
+];
+export const screenSpecificFieldDefinitions=[
+ {key:"type_ecran",label:"Type d'écran",type:"select",options:["Moniteur","Téléviseur"]},
+ {key:"haut_parleurs",label:"Haut-parleurs intégrés",type:"text"},
+ {key:"vesa",label:"Fixation VESA",type:"boolean"},
+ {key:"pied_reglable",label:"Pied réglable en hauteur",type:"boolean"}
+];
+
+/* Profil prêt à l'emploi créé via les API existantes, sans changer la
+   structure du registre, les ports ni les inventaires déjà sauvegardés. */
+export function installScreenProfile(registry){
+ const existing=registry.listProfiles().find(p=>p.name==="Écran");
+ if(existing)return {success:true,code:"already_present",profile:existing};
+ const created=registry.createProfile("Écran");
+ if(!created.success)return created;
+ for(const field of [...displayFieldDefinitions,...screenSpecificFieldDefinitions]){
+  const added=registry.addField(created.profile.id,field);
+  if(!added.success)throw Error("Impossible de préparer le champ Écran : "+field.key);
+ }
+ return {success:true,code:"created",profile:registry.getProfile(created.profile.id)};
+}
+
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);
