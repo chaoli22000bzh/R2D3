@@ -122,39 +122,42 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
    '<div class="form-actions box-span"><button type="submit" class="primary"'+(bridge?' disabled':'')+'>Enregistrer le WAN IPv4</button></div></form></section>';
  }
  function wifiPanel(){
-  const ssids=wifi.ssids,sel=ssids[ssidIndex]??ssids[0];
+  const ssids=wifi.ssids,sel=ssids[ssidIndex]??ssids[0],bridge=get().boxConfig.mode==="bridge";
   if(!sel)ssidIndex=0;
   const optionsSsid=ssids.map((s,i)=>[i,s.name||"Sans nom"]);
   return '<section class="admin-panel"><h3>Point d’accès intégré</h3>'+ 
-    (get().boxConfig.mode==="bridge"?'<p class="box-feedback">Wi-Fi inactif en mode bridge. Les paramètres ci-dessous sont conservés.</p>':'')+
-   '<label class="box-check"><input data-global-wifi type="checkbox"'+checked(wifi.enabled)+'> Activer le Wi-Fi</label>'+
+    (bridge?'<p class="box-feedback" role="status">Wi-Fi désactivé en mode Bridge. Les paramètres sont conservés pour le retour en mode Routeur.</p>':'')+
+   '<label class="box-check"><input data-global-wifi type="checkbox"'+(bridge?' disabled':checked(wifi.enabled))+'> Activer le Wi-Fi</label>'+
    '<p class="box-note">La borne est reliée en interne au port LAN 5. Les clients Wi-Fi appartiennent au même LAN que les PC filaires. Aucun VLAN par SSID.</p></section>'+
    '<section class="admin-panel"><h3>SSID ('+ssids.length+'/16)</h3>'+
-   '<div class="box-actions"><label>Réseau à configurer<select data-ssid-select>'+options(optionsSsid,ssidIndex)+'</select></label>'+
-   '<button type="button" data-action="ssid-add"'+(ssids.length>=16?' disabled':'')+'>Ajouter un SSID</button>'+
-   '<button type="button" data-action="ssid-remove"'+(ssids.length<=1?' disabled':'')+'>Supprimer</button></div>'+
+   '<div class="box-actions"><label>Réseau à configurer<select data-ssid-select'+(bridge?' disabled':'')+'>'+options(optionsSsid,ssidIndex)+'</select></label>'+
+   '<button type="button" data-action="ssid-add"'+(bridge||ssids.length>=16?' disabled':'')+'>Ajouter un SSID</button>'+
+   '<button type="button" data-action="ssid-remove"'+(bridge||ssids.length<=1?' disabled':'')+'>Supprimer</button></div>'+
    (sel?'<form data-form="box-ssid" class="box-form">'+
+      '<fieldset class="box-span"'+(bridge?' disabled':'')+' style="display:contents">'+
      field("name","Nom du réseau (SSID)",sel.name,"text",'maxlength="32" required')+
      '<label>Sécurité<select name="security">'+options(security,sel.security)+'</select></label>'+
-     field("password","Mot de passe (8 à 63 caractères)",sel.password,"text",'autocomplete="off"')+
+     field("password","Mot de passe (8 à 63 caractères)",sel.password,"password",'autocomplete="new-password" minlength="8" maxlength="63"')+
      '<label class="box-check"><input type="checkbox" name="enabled"'+checked(sel.enabled)+'> SSID actif</label>'+
      '<label class="box-check"><input type="checkbox" name="clientIsolation"'+checked(sel.clientIsolation)+'> Isolation mode</label>'+
      '<fieldset class="box-span"><legend>Bandes utilisées</legend><div class="box-band-row">'+
       bands.map(([id,label])=>'<label class="box-check"><input type="checkbox" name="band-'+id+'"'+checked(sel.bands.includes(id))+'> '+label+'</label>').join("")+
       '</div></fieldset>'+
-     '<div class="box-span form-actions"><button type="submit" class="primary">Enregistrer le SSID</button></div></form>':'')+
+     '</fieldset><div class="box-span form-actions"><button type="submit" class="primary"'+(bridge?' disabled':'')+'>Enregistrer le SSID</button></div></form>':'')+
    '</section>'+radiosPanel();
  }
  function radiosPanel(){
+  const bridge=get().boxConfig.mode==="bridge";
   return '<section class="admin-panel"><h3>Interfaces radio</h3>'+
    '<form data-form="box-radios" class="box-form">'+
+    '<fieldset class="box-span"'+(bridge?' disabled':'')+' style="display:contents">'+
    WIFI_RADIO_BANDS.map(band=>{
     const cfg=wifi.radios[band],choice=WIFI_RADIO_OPTIONS[band];
     return '<div class="box-radio"><label class="box-check"><input type="checkbox" name="enabled-'+band+'"'+checked(cfg.enabled)+'> '+esc(choice.label)+'</label>'+
      '<label>Canal<select name="channel-'+band+'">'+options([["auto","Automatique"],...choice.channels.map(c=>[c,String(c)])],cfg.channel)+'</select></label></div>';
    }).join("")+
    '<p class="box-note box-span">La disponibilité d’un SSID dépend de ses bandes et des radios activées.</p>'+
-   '<div class="form-actions box-span"><button class="primary" type="submit">Enregistrer les radios</button></div></form></section>';
+   '</fieldset><div class="form-actions box-span"><button class="primary" type="submit"'+(bridge?' disabled':'')+'>Enregistrer les radios</button></div></form></section>';
  }
  function render(){
   const a=get();
@@ -198,6 +201,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
    if(result.success){lan=copy(result.lan);onChange?.();}
    status(result.message,!result.success);
   }else if(kind==="box-ssid"){
+   if(get().boxConfig.mode==="bridge"){status("Wi-Fi non modifiable en mode Bridge.",true);return;}
    const sel=wifi.ssids[ssidIndex];if(!sel)return;
    const securityValue=read(form,"security");
    const next=copy(wifi);
@@ -210,6 +214,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
    if(result.success){wifi=copy(result.wifi);onChange?.();}
    status(result.message,!result.success);
   }else if(kind==="box-radios"){
+   if(get().boxConfig.mode==="bridge"){status("Radios Wi-Fi non modifiables en mode Bridge.",true);return;}
    const next=copy(wifi);
    for(const band of WIFI_RADIO_BANDS){
     const raw=read(form,"channel-"+band);
@@ -230,6 +235,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
    status(result.message??(result.success?"Règle PAT mise à jour.":"Action PAT refusée."),!result.success);return;
   }
   const action=e.target.closest("[data-action]");if(!action)return;
+  if(get().boxConfig.mode==="bridge"){status("SSID non modifiables en mode Bridge.",true);return;}
   if(action.dataset.action==="ssid-add"){
    if(wifi.ssids.length>=16)return;
    const next=copy(wifi),n=next.ssids.length+1;
@@ -258,8 +264,12 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
      dns:wan.dns?.length?wan.dns:(registry.getBoxWanEffective?.(id)?.dns??[])};
    feedback="";render();return;
   }
-  if(e.target.matches("[data-ssid-select]")){ssidIndex=Number(e.target.value);feedback="";render();}
+  if(e.target.matches("[data-ssid-select]")){
+   if(get().boxConfig.mode==="bridge")return;
+   ssidIndex=Number(e.target.value);feedback="";render();
+  }
   if(e.target.matches("[data-global-wifi]")){
+   if(get().boxConfig.mode==="bridge"){status("Wi-Fi désactivé en mode Bridge.",true);return;}
    const next={...wifi,enabled:e.target.checked},r=registry.setBoxWifiConfig(id,next);
    if(r.success){wifi=copy(r.wifi);onChange?.();}
    status(r.message,!r.success);
