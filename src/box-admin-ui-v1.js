@@ -20,7 +20,10 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
  let id=assetId,page="overview",feedback="",feedbackError=false,ssidIndex=0,editingPatId=null;
  const get=()=>{const a=registry.getAsset(id);if(!a?.boxConfig)throw Error("Box Internet introuvable.");return a;};
  let lan=copy(get().boxConfig.lan),wifi=copy(get().boxConfig.wifi),wan=copy(get().boxConfig.wan??{mode:"dhcp",address:"",prefix:null,gateway:"",dns:[]});
- const physical=id=>registry.listCables().some(c=>c.ends.some(end=>end?.portId===id));
+ // L'état de la prise appartient au port de l'actif et non à une liste
+ // de câbles potentiellement filtrée (les liaisons internes restent cachées).
+ const physical=(asset,portId)=>asset.ports.some(p=>
+  p.id===portId&&Array.isArray(p.connectedCableIds)&&p.connectedCableIds.length>0);
  const connection=()=>{
   const box=get(),wan=registry.getBoxWanEffective?.(id);
   if(box.boxConfig.mode==="bridge")return "WAN transmis sur LAN 1 (bridge)";
@@ -32,12 +35,12 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
  };
  function status(message,error=false){feedback=message;feedbackError=error;render();}
  const info=(title,value)=>'<div><dt>'+esc(title)+'</dt><dd>'+esc(value)+'</dd></div>';
- const portButton=(id,label,internal=false,disabled=false)=>{
-  const active=internal||physical(id);
+ const portButton=(asset,portId,label,disabled=false)=>{
+  const connected=physical(asset,portId);
   return '<div class="box-port" title="'+esc(label)+'">'+
    '<span class="mini-label">'+esc(label)+'</span>'+
-   '<span class="mini-socket '+(!disabled&&active?'box-linked':'')+'"><span></span></span>'+
-   '<small>'+esc(disabled?"Inactif":internal?"Interne":active?"Actif · raccordé":"Actif · libre")+'</small></div>';
+   '<span class="mini-socket '+(!disabled&&connected?'box-linked':'')+'"><span></span></span>'+
+   '<small>'+esc(disabled?"Inactif":connected?"Actif · raccordé":"Actif · libre")+'</small></div>';
  };
  function overview(a){
   const c=a.boxConfig,effective=registry.getBoxWanEffective?.(id),bridge=c.mode==="bridge";
@@ -64,7 +67,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
     '<span class="mini-label">WAN</span>'+
     '<span class="mini-socket box-wan-virtual"><span></span></span>'+
     '<small>Internet</small></div>'+
-   c.ports.lanPortIds.map((p,i)=>portButton(p,"LAN "+(i+1),false,bridge&&i!==0)).join("")+
+   c.ports.lanPortIds.map((p,i)=>portButton(a,p,"LAN "+(i+1),bridge&&i!==0)).join("")+
    '</div><p class="box-note">'+(bridge?'Bridge : LAN 1 et WAN actifs, LAN 2 à 5 inactifs. LAN 6 conserve sa liaison interne ; passage WAN logique réservé au LAN 1. Les câbles restent branchés.':'Mode routeur : LAN 1 à 6 appartiennent au même réseau. LAN 5 relie le Wi-Fi ; LAN 6 relie le routeur. Les liaisons internes sont permanentes.')+'</p></section>'+ 
    '<section class="admin-panel"><h3>Connexion Internet</h3>'+
    '<p class="box-note">'+(bridge?'Mode bridge : aucune traduction NAT/PAT, aucun routage ni service DHCP/Wi-Fi de la box. Le WAN reste logiquement destiné au seul LAN 1 ; la communication directe avec un pare-feu externe fera l’objet d’une recette propre.':'Le WAN est relié directement à Internet simulé. Routage et PAT sortant disponibles pour les services déclarés ; une connexion doit être prouvée par un test.')+'</p></section>';
