@@ -164,3 +164,43 @@ test("Box PAT UI : onglet commun, règles visibles et serveur LAN",()=>{
  assert.match(f.root.innerHTML,/PAT entrant/);
  assert.match(f.root.innerHTML,/WAN \(Internet simulé\)/);
 });
+
+test("Box Wi-Fi V1 : mot de passe masqué comme sur borne autonome",()=>{
+ const f=setup();f.click({page:"wifi"});
+ assert.match(f.root.innerHTML,/<input name="password" type="password"[^>]*autocomplete="new-password"/);
+ assert.doesNotMatch(f.root.innerHTML,/<input name="password" type="text"/);
+ assert.match(f.root.innerHTML,/<input data-global-wifi type="checkbox" checked/);
+ f.ui.destroy();
+});
+
+test("Box Wi-Fi V1 : Bridge grise et verrouille les réglages sans altérer la configuration",()=>{
+ const f=setup(),before=f.registry.getAsset(f.assetId).boxConfig.wifi;
+ f.click({page:"wifi"});
+ good(f.registry.setBoxMode(f.assetId,"bridge"));f.ui.render();
+ assert.match(f.root.innerHTML,/Wi-Fi désactivé en mode Bridge/);
+ assert.match(f.root.innerHTML,/<input data-global-wifi type="checkbox" disabled>/);
+ assert.match(f.root.innerHTML,/data-ssid-select disabled/);
+ assert.match(f.root.innerHTML,/data-action="ssid-add" disabled/);
+ assert.match(f.root.innerHTML,/data-action="ssid-remove" disabled/);
+ assert.match(f.root.innerHTML,/data-form="box-ssid"[\\s\\S]*?<fieldset class="box-span" disabled/);
+ assert.match(f.root.innerHTML,/data-form="box-radios"[\\s\\S]*?<fieldset class="box-span" disabled/);
+ assert.match(f.root.innerHTML,/type="submit" class="primary" disabled>Enregistrer le SSID/);
+ assert.match(f.root.innerHTML,/type="submit" disabled>Enregistrer les radios/);
+ f.change("[data-global-wifi]",false);
+ f.click({action:"ssid-add"});
+ f.click({action:"ssid-remove"});
+ f.submit("box-ssid",{name:"MODIFIED",security:"open",password:"",enabled:false,
+  clientIsolation:false,"band-2.4":true,"band-5":true,"band-6":false});
+ f.submit("box-radios",{
+  "enabled-2.4":false,"channel-2.4":"1",
+  "enabled-5":false,"channel-5":"auto",
+  "enabled-6":false,"channel-6":"auto"
+ });
+ assert.deepEqual(f.registry.getAsset(f.assetId).boxConfig.wifi,before);
+ good(f.registry.setBoxMode(f.assetId,"router"));f.ui.render();
+ assert.match(f.root.innerHTML,/<input data-global-wifi type="checkbox" checked/);
+ assert.doesNotMatch(f.root.innerHTML,/data-ssid-select disabled/);
+ assert.doesNotMatch(f.root.innerHTML,/data-form="box-ssid"[\\s\\S]*?<fieldset class="box-span" disabled/);
+ assert.deepEqual(f.registry.getAsset(f.assetId).boxConfig.wifi,before);
+ f.ui.destroy();
+});
