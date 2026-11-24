@@ -129,7 +129,7 @@ test("Box ports : le raccordement physique LAN 1 suit les câbles en Routeur et 
  assert.match(lanOne(),/Actif · raccordé/);
  good(reg.setBoxMode(box.asset.id,"bridge"));ui.render();
  assert.match(lanOne(),/Actif · raccordé/);
- assert.match(root.innerHTML,/<div class="box-port" title="LAN 2">[\\s\\S]*?Inactif/);
+ assert.match(root.innerHTML,/<div class="box-port" title="LAN 2">[\s\S]*?Inactif/);
  good(reg.disconnectCableEnd(cable.cable.id,0));ui.render();
  assert.match(lanOne(),/Actif · libre/);
  good(reg.setBoxMode(box.asset.id,"router"));ui.render();
