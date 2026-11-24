@@ -391,3 +391,49 @@ test("Deux panneaux dans un lieu ordinaire, sans objet baie ni ports du lieu",()
  assert.equal(e.listCables().length,1);
  assert.equal(e.getCable(c.id).ends[0],null);
 });
+
+test("Connectique V1 : 11 types physiques, raccordements compatibles, débranchement et restauration",()=>{
+ const families=[
+  ["ethernet-rj45","rj45-male","rj45-female"],
+  ["ethernet-fibre","lc-plug","lc-socket"],
+  ["usb-a","usb-a-plug","usb-a-socket"],
+  ["usb-b","usb-b-plug","usb-b-socket"],
+  ["usb-c","usb-c-plug","usb-c-socket"],
+  ["hdmi","hdmi-plug","hdmi-socket"],
+  ["vga","vga-male","vga-female"],
+  ["dvi","dvi-male","dvi-female"],
+  ["displayport","displayport-plug","displayport-socket"],
+  ["mini-displayport","mini-displayport-plug","mini-displayport-socket"],
+  ["db9","db9-female","db9-male"]
+ ];
+ const e=createAssetRegistry(),p=e.createProfile("PC et périphériques").profile;
+ for(let i=0;i<families.length;i++){
+  const [type]=families[i];
+  assert.equal(e.addPortGroup(p.id,{type,prefix:"P"+i,start:1,count:1}).success,true,type);
+ }
+ const a=e.createAsset(p.id,{name:"PC01"}).asset;
+ const b=e.createAsset(p.id,{name:"PERIPH01"}).asset;
+ assert.equal(a.ports.length,11);
+ const cables=[];
+ for(let i=0;i<families.length;i++){
+  const [type,plug,socket]=families[i];
+  const ca=e.createCable({connectors:[plug,plug]}).cable;
+  cables.push(ca);
+  assert.equal(e.listCablePoints().find(x=>x.portId===a.ports[i].id).socket,socket,type);
+  assert.equal(e.connectCableEnd(ca.id,0,a.ports[i].id).success,true,type);
+  assert.equal(e.connectCableEnd(ca.id,1,b.ports[i].id).success,true,type);
+  assert.equal(e.updateCableConnectors(ca.id,["rj45-male",plug]).code,i===0?"cable_updated":"incompatible_connector",type);
+ }
+ assert.equal(e.connectCableEnd(cables[10].id,0,a.ports[6].id).code,"end_connected");
+ const wrong=e.createCable({connectors:["db9-female","vga-male"]}).cable;
+ assert.equal(e.connectCableEnd(wrong.id,0,a.ports[6].id).code,"port_occupied");
+ assert.equal(e.disconnectCableEnd(cables[6].id,0).success,true);
+ assert.equal(e.connectCableEnd(wrong.id,0,a.ports[6].id).code,"incompatible_connector",
+  "Un câble DB9 ne doit pas rentrer dans un port VGA");
+ assert.equal(e.connectCableEnd(wrong.id,1,a.ports[6].id).success,true);
+ assert.equal(e.disconnectCableEnd(wrong.id,1).success,true);
+ assert.equal(e.connectCableEnd(cables[6].id,0,a.ports[6].id).success,true);
+ assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
+ for(const ca of cables)assert.equal(e.disconnectCableEnd(ca.id,0).success,true);
+ assert.equal(e.listCables().length,12,"Les câbles restent inventoriés après débranchement");
+});
