@@ -1084,10 +1084,10 @@ export function screenFieldValueValid(key,value){
  if(value===null||value===undefined||value==="")return true;
  if(typeof value!=="string")return true;
  const raw=value.trim();
- if(key==="resolution")return /^[1-9]\\d*\\s*[xX×]\\s*[1-9]\\d*$/.test(raw);
- if(key==="haut_parleurs")return /^non$/i.test(raw)||/^\\d+\\s*[xX×]\\s*\\d+(?:[.,]\\d+)?\\s*W$/i.test(raw);
- if(key==="pied_reglable")return /^non$/i.test(raw)||/^[1-9]\\d*(?:[.,]\\d+)?\\s*mm$/i.test(raw);
- if(key==="vesa")return /^non$/i.test(raw)||/^[1-9]\\d*\\s*[xX×]\\s*[1-9]\\d*\\s*mm$/i.test(raw);
+ if(key==="resolution")return /^[1-9]\d*\s*[xX×]\s*[1-9]\d*$/.test(raw);
+ if(key==="haut_parleurs")return /^non$/i.test(raw)||/^\d+\s*[xX×]\s*\d+(?:[.,]\d+)?\s*W$/i.test(raw);
+ if(key==="pied_reglable")return /^non$/i.test(raw)||/^[1-9]\d*(?:[.,]\d+)?\s*mm$/i.test(raw);
+ if(key==="vesa")return /^non$/i.test(raw)||/^[1-9]\d*\s*[xX×]\s*[1-9]\d*\s*mm$/i.test(raw);
  return true;
 }
 export const displayFieldDefinitions=[
