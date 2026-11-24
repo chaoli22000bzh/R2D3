@@ -18,6 +18,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
  if(!root||!registry?.getAsset||!registry?.setBoxLanConfig||!registry?.setBoxWanConfig||!registry?.setBoxWifiConfig||!registry?.setBoxMode)
   throw Error("Registre R2D3 ou interface indisponible.");
  let id=assetId,page="overview",feedback="",feedbackError=false,ssidIndex=0,editingPatId=null;
+ let ssidFeedback="",ssidFeedbackError=false,radioFeedback="",radioFeedbackError=false;
  const get=()=>{const a=registry.getAsset(id);if(!a?.boxConfig)throw Error("Box Internet introuvable.");return a;};
  let lan=copy(get().boxConfig.lan),wifi=copy(get().boxConfig.wifi),wan=copy(get().boxConfig.wan??{mode:"dhcp",address:"",prefix:null,gateway:"",dns:[]});
  // L'état de la prise appartient au port de l'actif et non à une liste
@@ -34,6 +35,11 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
    "Connecté à Internet simulé":"Accès Internet non vérifié";
  };
  function status(message,error=false){feedback=message;feedbackError=error;render();}
+ function wifiStatus(section,message,error=false){
+  if(section==="ssid"){ssidFeedback=message;ssidFeedbackError=error;}
+  else{radioFeedback=message;radioFeedbackError=error;}
+  feedback="";render();
+ }
  const info=(title,value)=>'<div><dt>'+esc(title)+'</dt><dd>'+esc(value)+'</dd></div>';
  const portButton=(asset,portId,label,disabled=false)=>{
   const connected=physical(asset,portId);
@@ -137,13 +143,15 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
       '<fieldset class="box-span"'+(bridge?' disabled':'')+' style="display:contents">'+
      field("name","Nom du réseau (SSID)",sel.name,"text",'maxlength="32" required')+
      '<label>Sécurité<select name="security">'+options(security,sel.security)+'</select></label>'+
-     field("password","Mot de passe (8 à 63 caractères)",sel.password,"password",'autocomplete="new-password" minlength="8" maxlength="63"')+
+     field("password","Mot de passe (8 à 63 caractères)",sel.password,"password",'autocomplete="off" minlength="8" maxlength="63"')+
+     '<label class="box-check"><input type="checkbox" data-toggle-ssid-password'+(bridge?' disabled':'')+'> Afficher le mot de passe</label>'+
      '<label class="box-check"><input type="checkbox" name="enabled"'+checked(sel.enabled)+'> SSID actif</label>'+
      '<label class="box-check"><input type="checkbox" name="clientIsolation"'+checked(sel.clientIsolation)+'> Isolation mode</label>'+
      '<fieldset class="box-span"><legend>Bandes utilisées</legend><div class="box-band-row">'+
       bands.map(([id,label])=>'<label class="box-check"><input type="checkbox" name="band-'+id+'"'+checked(sel.bands.includes(id))+'> '+label+'</label>').join("")+
       '</div></fieldset>'+
-     '</fieldset><div class="box-span form-actions"><button type="submit" class="primary"'+(bridge?' disabled':'')+'>Enregistrer le SSID</button></div></form>':'')+
+     '</fieldset><div class="box-span form-actions"><button type="button" data-save-ssid class="primary"'+(bridge?' disabled':'')+'>Enregistrer le SSID</button></div>'+
+     (ssidFeedback?'<p class="box-feedback box-span'+(ssidFeedbackError?' error':'')+'" role="status">'+esc(ssidFeedback)+'</p>':'')+'</form>':'')+
    '</section>'+radiosPanel();
  }
  function radiosPanel(){
@@ -157,7 +165,8 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
      '<label>Canal<select name="channel-'+band+'">'+options([["auto","Automatique"],...choice.channels.map(c=>[c,String(c)])],cfg.channel)+'</select></label></div>';
    }).join("")+
    '<p class="box-note box-span">La disponibilité d’un SSID dépend de ses bandes et des radios activées.</p>'+
-   '</fieldset><div class="form-actions box-span"><button class="primary" type="submit"'+(bridge?' disabled':'')+'>Enregistrer les radios</button></div></form></section>';
+   '</fieldset><div class="form-actions box-span"><button class="primary" type="button" data-save-radios'+(bridge?' disabled':'')+'>Enregistrer les radios</button></div>'+
+    (radioFeedback?'<p class="box-feedback box-span'+(radioFeedbackError?' error':'')+'" role="status">'+esc(radioFeedback)+'</p>':'')+'</form></section>';
  }
  function render(){
   const a=get();
@@ -212,7 +221,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
     bands:bands.map(([band])=>band).filter(b=>form.elements.namedItem("band-"+b).checked)};
    const result=registry.setBoxWifiConfig(id,next);
    if(result.success){wifi=copy(result.wifi);onChange?.();}
-   status(result.message,!result.success);
+    wifiStatus("ssid",result.success?"Configuration SSID enregistrée":result.message||"Enregistrement SSID refusé.",!result.success);
   }else if(kind==="box-radios"){
    if(get().boxConfig.mode==="bridge"){status("Radios Wi-Fi non modifiables en mode Bridge.",true);return;}
    const next=copy(wifi);
@@ -223,10 +232,25 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
    }
    const result=registry.setBoxWifiConfig(id,next);
    if(result.success){wifi=copy(result.wifi);onChange?.();}
-   status(result.message,!result.success);
+    wifiStatus("radio",result.success?"Configuration radio enregistrée":result.message||"Enregistrement radio refusé.",!result.success);
   }
  }
  function click(e){
+  const passwordToggle=e.target.closest("[data-toggle-ssid-password]");
+  if(passwordToggle){
+   if(get().boxConfig.mode==="bridge")return;
+   const input=root.querySelector('form[data-form="box-ssid"] input[name="password"]');
+   if(input)input.type=passwordToggle.checked?"text":"password";
+   return;
+  }
+  const save=e.target.closest("[data-save-ssid], [data-save-radios]");
+  if(save){
+   const form=save.closest("form[data-form]");
+   if(!form)return;
+   if(typeof form.reportValidity==="function"&&!form.reportValidity())return;
+   submit({target:{closest:selector=>selector==="form[data-form]"?form:null},preventDefault(){}});
+   return;
+  }
   const tab=e.target.closest("[data-page]");if(tab){page=tab.dataset.page;feedback="";render();return;}
   const pat=e.target.closest("[data-pat-action]");
   if(pat){
@@ -266,7 +290,7 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
   }
   if(e.target.matches("[data-ssid-select]")){
    if(get().boxConfig.mode==="bridge")return;
-   ssidIndex=Number(e.target.value);feedback="";render();
+   ssidIndex=Number(e.target.value);feedback="";ssidFeedback="";render();
   }
   if(e.target.matches("[data-global-wifi]")){
    if(get().boxConfig.mode==="bridge"){status("Wi-Fi désactivé en mode Bridge.",true);return;}
@@ -277,6 +301,6 @@ export function mountBoxAdmin({root,registry,assetId,onChange,getInternetStatus}
  }
  root.addEventListener("click",click);root.addEventListener("change",change);root.addEventListener("submit",submit);
  render();
- return {render,setAssetId(next){id=next;page="overview";ssidIndex=0;editingPatId=null;feedback="";lan=copy(get().boxConfig.lan);wifi=copy(get().boxConfig.wifi);wan=copy(get().boxConfig.wan);render();},
+ return {render,setAssetId(next){id=next;page="overview";ssidIndex=0;editingPatId=null;feedback="";ssidFeedback="";radioFeedback="";lan=copy(get().boxConfig.lan);wifi=copy(get().boxConfig.wifi);wan=copy(get().boxConfig.wan);render();},
   destroy(){root.removeEventListener("click",click);root.removeEventListener("change",change);root.removeEventListener("submit",submit);root.replaceChildren();}};
 }
