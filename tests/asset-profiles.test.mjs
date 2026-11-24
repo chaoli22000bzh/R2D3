@@ -458,6 +458,22 @@ test("Profil Écran : six champs Affichage, quatre champs autonomes, réutilisat
  assert.equal(registry.setAssetField(screen.id,"resolution","2560 × 1440").success,true);
  assert.equal(registry.setAssetField(screen.id,"type_dalle","IPS").success,true);
  assert.equal(registry.setAssetField(screen.id,"type_ecran","Moniteur").success,true);
+ assert.equal(registry.getProfile(p.id).fields.find(f=>f.key==="format_image").label,"Ratio");
+ assert.equal(registry.getProfile(p.id).fields.find(f=>f.key==="diagonale").unit,"pouces");
+ assert.equal(registry.getProfile(p.id).fields.find(f=>f.key==="vesa").type,"text");
+ assert.equal(registry.getProfile(p.id).fields.find(f=>f.key==="pied_reglable").type,"text");
+ for(const [key,good,bad] of [
+  ["resolution","1920 × 1080","1920"],
+  ["haut_parleurs","2x3W","oui"],
+  ["vesa","150x150mm","true"],
+  ["pied_reglable","150mm","oui"]
+ ]){
+  assert.equal(registry.setAssetField(screen.id,key,good).success,true,key+" accepte la mesure");
+  assert.equal(registry.setAssetField(screen.id,key,bad).success,false,key+" rejette le format");
+  assert.equal(registry.setAssetField(screen.id,key,"Non").success,key!=="resolution",key+" accepte Non hors résolution");
+ }
+ assert.equal(registry.setAssetField(screen.id,"resolution","2560 x 1440").success,true);
+
  assert.equal(registry.setAssetField(screen.id,"tactile",false).success,true);
  assert.equal(registry.setAssetField(screen.id,"type_dalle","Inconnu").success,false);
  assert.equal(registry.addExtension(screen.id,{type:"hdmi",prefix:"HDMI",start:1,count:2}).success,true);
