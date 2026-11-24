@@ -1061,6 +1061,8 @@ export function createAssetRegistry(saved){
   const a=getA(id),f=a&&getP(a.profileId)?.fields.find(f=>f.key===key);
   if(!f)return result(false,"not_found","Matériel ou champ introuvable.");
   if(!valueValid(f,value))return result(false,"invalid_value","Type de valeur incorrect.");
+  if(getP(a.profileId)?.name==="Écran"&&!screenFieldValueValid(key,value))
+   return result(false,"invalid_value","Format incorrect pour ce champ.");
   a.values[key]=empty(value)?null:value;s.revision++;return result(true,"value_updated","Valeur enregistrée.");
  }
  function updateAsset(id,info){
@@ -1077,6 +1079,17 @@ export function createAssetRegistry(saved){
 
 /* Champs descriptifs partagés par l'affichage intégré ou autonome.
    Les ports appartiennent toujours à l'actif et ne figurent pas dans ces champs. */
+/* Les formats d'inventaire ne changent pas les types de champs du registre. */
+export function screenFieldValueValid(key,value){
+ if(value===null||value===undefined||value==="")return true;
+ if(typeof value!=="string")return true;
+ const raw=value.trim();
+ if(key==="resolution")return /^[1-9]\\d*\\s*[xX×]\\s*[1-9]\\d*$/.test(raw);
+ if(key==="haut_parleurs")return /^non$/i.test(raw)||/^\\d+\\s*[xX×]\\s*\\d+(?:[.,]\\d+)?\\s*W$/i.test(raw);
+ if(key==="pied_reglable")return /^non$/i.test(raw)||/^[1-9]\\d*(?:[.,]\\d+)?\\s*mm$/i.test(raw);
+ if(key==="vesa")return /^non$/i.test(raw)||/^[1-9]\\d*\\s*[xX×]\\s*[1-9]\\d*\\s*mm$/i.test(raw);
+ return true;
+}
 export const displayFieldDefinitions=[
  {key:"diagonale",label:"Diagonale",type:"number",unit:"pouces"},
  {key:"resolution",label:"Résolution",type:"text"},
@@ -1088,8 +1101,8 @@ export const displayFieldDefinitions=[
 export const screenSpecificFieldDefinitions=[
  {key:"type_ecran",label:"Type d'écran",type:"select",options:["Moniteur","Téléviseur"]},
  {key:"haut_parleurs",label:"Haut-parleurs intégrés",type:"text"},
- {key:"vesa",label:"Fixation VESA",type:"boolean"},
- {key:"pied_reglable",label:"Pied réglable en hauteur",type:"boolean"}
+ {key:"vesa",label:"Fixation VESA",type:"text"},
+ {key:"pied_reglable",label:"Pied réglable en hauteur",type:"text"}
 ];
 
 /* Profil prêt à l'emploi créé via les API existantes, sans changer la
