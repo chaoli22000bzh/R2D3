@@ -1129,4 +1129,30 @@ export function installScreenProfile(registry){
  return {success:true,code:"created",profile:registry.getProfile(created.profile.id)};
 }
 
+
+/* Socle informatique simple partagé par PC, serveurs et terminaux mobiles.
+   Il reste distinct du noyau universel des actifs R2D3. */
+export const computingFieldDefinitions=[
+ {key:"processeur",label:"Processeur",type:"text"},
+ {key:"ram_go",label:"Mémoire RAM",type:"number",unit:"Go"},
+ {key:"stockage_go",label:"Capacité de stockage",type:"number",unit:"Go"}
+];
+export const desktopFieldDefinitions=[
+ {key:"systeme_exploitation",label:"Système d'exploitation",type:"text"},
+ {key:"version_os",label:"Version",type:"text"},
+ {key:"architecture_os",label:"Architecture",type:"select",options:["32 bits","64 bits","Autre"]}
+];
+/* Profil PC fixe standard : pas de composants détaillés, de châssis ni de RAID. */
+export function installDesktopProfile(registry){
+ const existing=registry.listProfiles().find(p=>p.name==="PC fixe");
+ if(existing)return {success:true,code:"already_present",profile:existing};
+ const created=registry.createProfile("PC fixe");
+ if(!created.success)return created;
+ for(const field of [...computingFieldDefinitions,...desktopFieldDefinitions]){
+  const added=registry.addField(created.profile.id,field);
+  if(!added.success)throw Error("Impossible de préparer le champ PC fixe : "+field.key);
+ }
+ return {success:true,code:"created",profile:registry.getProfile(created.profile.id)};
+}
+
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);
