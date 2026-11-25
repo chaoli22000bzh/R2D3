@@ -533,7 +533,7 @@ test("PC fixe standard : socle Informatique commun, profil léger et registre in
  assert.deepEqual(restoreAssetRegistry(saved).exportState(),saved);
  const mobile=e.createProfile("Smartphone").profile;
  for(const f of computingFieldDefinitions)assert.equal(e.addField(mobile.id,f).success,true);
- assert.equal(e.getProfile(mobile.id).fields.length,3);
+ assert.equal(e.getProfile(mobile.id).fields.length,4);
  assert.equal(e.getProfile(mobile.id).fields.some(f=>f.key==="systeme_exploitation"),false);
  assert.equal(e.getProfile(p.id).fields.length,6);
 });
