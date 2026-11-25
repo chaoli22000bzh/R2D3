@@ -542,7 +542,7 @@ test("Inventaire processeurs détaillés : répétition, validation, copie et co
  const e=createAssetRegistry();
  const base=installDesktopProfile(e).profile;
  const detailed=e.duplicateProfile(base.id,"PC fixe - Inventaire détaillé").profile;
- assert.equal(e.getProfile(base.id).processorInventory,false);
+ assert.equal(e.getProfile(base.id).processorInventory,true);
  assert.equal(e.setProfileProcessorInventory(detailed.id,true).success,true);
  const a=e.createAsset(detailed.id,{name:"REN-PC-01"}).asset;
  assert.equal(e.addAssetProcessor(a.id,{marque:"Intel",modele:"Core i7-1260P",frequenceMHz:2079,coeurs:12,threads:16}).success,true);
@@ -558,11 +558,33 @@ test("Inventaire processeurs détaillés : répétition, validation, copie et co
  assert.equal(e.removeAssetProcessor(a.id,"cpu-2").success,true);
  assert.equal(e.setProfileProcessorInventory(detailed.id,false).success,true);
  const standard=e.createAsset(base.id,{name:"PC-STD"}).asset;
- assert.equal(e.addAssetProcessor(standard.id,{marque:"Intel",modele:"i5"}).success,false);
+ assert.equal(e.addAssetProcessor(standard.id,{marque:"Intel",modele:"i5"}).success,true);
  const previous=e.exportState();
  for(const a of previous.assets)delete a.processors;
  for(const p of previous.profiles)delete p.processorInventory;
  const restored=restoreAssetRegistry(previous);
  assert.equal(restored.getAsset(standard.id).processors.length,0);
  assert.equal(restored.getProfile(base.id).processorInventory,false);
+});
+
+test("RAM et disques : ajout, modification, suppression, quantités et restauration",()=>{
+ const e=createAssetRegistry();
+ const p=installDesktopProfile(e).profile;
+ const a=e.createAsset(p.id,{name:"PC-01"}).asset;
+ const ram={marque:"Crucial",modele:"SODIMM 3200",type:"DDR4",frequenceMHz:3200,capaciteGo:32,quantite:2};
+ const disk={marque:"Crucial",modele:"CT2000T500SSD8",type:"SSD",interface:"NVMe",capaciteGo:2000,quantite:1,numeroSerie:"233643B25DED"};
+ assert.equal(e.addAssetComponent(a.id,"ram",ram).success,true);
+ assert.equal(e.addAssetComponent(a.id,"disk",disk).success,true);
+ assert.equal(e.getAsset(a.id).ramModules[0].quantite,2);
+ assert.equal(e.getAsset(a.id).disks[0].capaciteGo,2000);
+ assert.equal(e.updateAssetComponent(a.id,"ram","ram-1",{...ram,quantite:3}).success,true);
+ assert.equal(e.getAsset(a.id).ramModules[0].quantite,3);
+ assert.equal(e.addAssetComponent(a.id,"ram",{...ram,quantite:0}).success,false);
+ assert.equal(e.addAssetComponent(a.id,"disk",{...disk,capaciteGo:-1}).success,false);
+ const save=e.exportState();
+ assert.deepEqual(restoreAssetRegistry(save).exportState(),save);
+ assert.equal(e.removeAssetComponent(a.id,"ram","ram-1").success,true);
+ assert.equal(e.removeAssetComponent(a.id,"disk","disk-1").success,true);
+ assert.equal(e.getAsset(a.id).ramModules.length,0);
+ assert.equal(e.getAsset(a.id).disks.length,0);
 });
