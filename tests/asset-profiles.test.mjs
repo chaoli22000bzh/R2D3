@@ -573,6 +573,13 @@ test("RAM et disques : ajout, modification, suppression, quantités et restaurat
  const a=e.createAsset(p.id,{name:"PC-01"}).asset;
  const ram={marque:"Crucial",modele:"SODIMM 3200",type:"DDR4",frequenceMHz:3200,capaciteGo:32,quantite:2};
  const disk={marque:"Crucial",modele:"CT2000T500SSD8",type:"SSD",interface:"NVMe",capaciteGo:2000,quantite:1,numeroSerie:"233643B25DED"};
+ assert.equal(e.addAssetComponent(a.id,"ram",{capaciteGo:16,quantite:1}).success,true);
+ assert.equal(e.getAsset(a.id).ramModules[0].marque,"");
+ assert.equal(e.getAsset(a.id).ramModules[0].modele,"");
+ assert.equal(e.removeAssetComponent(a.id,"ram","ram-1").success,true);
+ assert.equal(e.addAssetComponent(a.id,"ram",{quantite:1}).success,false);
+ assert.equal(e.addAssetComponent(a.id,"ram",{capaciteGo:16,quantite:""}).success,false);
+ assert.equal(e.removeAssetComponent(a.id,"ram","ram-1").success,true);
  assert.equal(e.addAssetComponent(a.id,"ram",ram).success,true);
  assert.equal(e.addAssetComponent(a.id,"disk",disk).success,true);
  assert.equal(e.getAsset(a.id).ramModules[0].quantite,2);
