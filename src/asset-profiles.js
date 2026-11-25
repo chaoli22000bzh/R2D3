@@ -280,7 +280,7 @@ const computerComponentSchema={
  disk:{prefix:"disk",fields:["marque","modele","type","interface","capaciteGo","quantite","numeroSerie"]}
 };
 function componentData(kind,raw,id){
- const v={id,marque:trim(raw.marque),modele:trim(raw.modele),quantite:Number(raw.quantite)};
+ const v={id,marque:trim(raw.marque),modele:trim(raw.modele),quantite:Number(kind==="ram"?raw.quantite:raw.quantite??1)};
  if(kind==="ram"){v.type=trim(raw.type);v.frequenceMHz=raw.frequenceMHz===""||raw.frequenceMHz==null?null:Number(raw.frequenceMHz);v.capaciteGo=Number(raw.capaciteGo);}
  else {v.type=trim(raw.type);v.interface=trim(raw.interface);v.capaciteGo=Number(raw.capaciteGo);v.numeroSerie=trim(raw.numeroSerie);}
  return v;
