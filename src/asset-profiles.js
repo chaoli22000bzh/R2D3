@@ -460,6 +460,7 @@ export function createAssetRegistry(saved){
   const id="cpu-"+(a.processors.reduce((n,c)=>Math.max(n,Number(c.id.slice(4))||0),0)+1);
   const cpu=processorData(raw,id);
   if(!validProcessor(cpu)||!cpu.marque||!cpu.modele)return result(false,"invalid_processor","Marque et modèle obligatoires, valeurs numériques positives.");
+  if(!a.processors.length){if(a.values){a.values.processeur_marque=null;a.values.processeur_modele=null;}}
   a.processors.push(cpu);s.revision++;
   return result(true,"processor_added","Processeur ajouté.",{processor:clone(cpu)});
  }
@@ -488,6 +489,7 @@ export function createAssetRegistry(saved){
   const id=computerComponentSchema[kind].prefix+"-"+(a[key].reduce((n,c)=>Math.max(n,Number(c.id.split("-").at(-1))||0),0)+1);
   const v=componentData(kind,raw,id);
   if(!componentValid(kind,v))return result(false,"invalid_component","Composant invalide : vérifier la marque, le modèle, la capacité et la quantité.");
+  if(!a[key].length&&a.values)a.values[kind==="ram"?"ram_go":"stockage_go"]=null;
   a[key].push(v);s.revision++;return result(true,"component_added","Composant ajouté.",{component:clone(v)});
  }
  function updateAssetComponent(assetId,kind,componentId,raw={}){
