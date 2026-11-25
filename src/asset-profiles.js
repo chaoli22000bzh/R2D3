@@ -1139,8 +1139,7 @@ export const computingFieldDefinitions=[
 ];
 export const desktopFieldDefinitions=[
  {key:"systeme_exploitation",label:"Système d'exploitation",type:"text"},
- {key:"version_os",label:"Version",type:"text"},
- {key:"architecture_os",label:"Architecture",type:"select",options:["32 bits","64 bits","Autre"]}
+ {key:"version_os",label:"Version",type:"text"}
 ];
 /* Profil PC fixe standard : pas de composants détaillés, de châssis ni de RAID. */
 export function installDesktopProfile(registry){
