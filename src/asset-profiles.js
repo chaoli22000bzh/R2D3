@@ -255,6 +255,25 @@ function valueValid(f,v){
  if(f.type==="date")return typeof v==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&!Number.isNaN(Date.parse(v+"T00:00:00Z"));
  return false;
 }
+
+/* Inventaire optionnel des processeurs : composants du PC, jamais actifs autonomes. */
+function validProcessor(cpu){
+ return cpu&&typeof cpu.id==="string"&&cpu.id.length>0&&
+  ["marque","modele"].every(k=>typeof cpu[k]==="string")&&
+  (cpu.frequenceMHz===null||Number.isFinite(cpu.frequenceMHz)&&cpu.frequenceMHz>0)&&
+  (cpu.coeurs===null||Number.isInteger(cpu.coeurs)&&cpu.coeurs>0)&&
+  (cpu.threads===null||Number.isInteger(cpu.threads)&&cpu.threads>0);
+}
+function processorData(raw={},id){
+ const number=(v,integer=false)=>{
+  if(v===null||v===undefined||v==="")return null;
+  const n=Number(v);
+  return Number.isFinite(n)&&n>0&&(!integer||Number.isInteger(n))?n:NaN;
+ };
+ return {id,marque:trim(raw.marque),modele:trim(raw.modele),
+  frequenceMHz:number(raw.frequenceMHz),coeurs:number(raw.coeurs,true),threads:number(raw.threads,true)};
+}
+
 export function createAssetRegistry(saved){
  const s=saved?clone(saved):{revision:0,nextProfile:1,nextAsset:1,nextPortGroup:1,nextPort:1,nextCable:1,cables:[],nextInfrastructure:1,nextInfrastructurePort:1,wallOutlets:[],panels:[],places:[],nextPlace:1,profiles:[],assets:[]};
  if(!Array.isArray(s.profiles)||!Array.isArray(s.assets)||!Number.isInteger(s.revision)||!Number.isInteger(s.nextProfile)||!Number.isInteger(s.nextAsset))throw Error("État R2 invalide");
@@ -286,6 +305,8 @@ export function createAssetRegistry(saved){
   asset.boxConfig.wanDhcpLease=boxWanLease(address);occupiedWan.add(address);
  }
  for(const p of s.profiles){
+   p.processorInventory??=false;
+   if(typeof p.processorInventory!=="boolean")throw Error("Option d'inventaire processeurs invalide");
    p.poe??=false;
    if(typeof p.poe!=="boolean")throw Error("Propriété PoE du profil invalide");
    p.portGroups??=[];
@@ -302,6 +323,9 @@ export function createAssetRegistry(saved){
      throw Error("Profil composite de box invalide");
  }
  for(const a of s.assets){
+   a.processors??=[];
+   if(!Array.isArray(a.processors)||a.processors.some(cpu=>!validProcessor(cpu))||new Set(a.processors.map(cpu=>cpu.id)).size!==a.processors.length||
+      (a.processors.length>0&&!s.profiles.find(p=>p.id===a.profileId)?.processorInventory))throw Error("Inventaire processeurs invalide");
    if(a.networkCapabilities?.includes("dhcp-server")&&a.dhcpServerConfig===undefined)
     a.dhcpServerConfig={assetId:a.id,enabled:false,pools:[]};
    if(a.networkCapabilities?.includes("dhcp-server")&&!validAssetDhcpServer(a,a.dhcpServerConfig))
@@ -386,15 +410,51 @@ export function createAssetRegistry(saved){
  const occupied=(id,key)=>s.assets.some(a=>a.profileId===id&&!empty(a.values[key]));
  function createProfile(name){
   name=trim(name);if(!name)return result(false,"invalid_name","Nom de profil obligatoire.");
-  const p={id:"profile-"+s.nextProfile++,name,fields:[],portGroups:[],networkCapabilities:[],poe:false};s.profiles.push(p);s.revision++;
+  const p={id:"profile-"+s.nextProfile++,name,fields:[],portGroups:[],networkCapabilities:[],poe:false,processorInventory:false};s.profiles.push(p);s.revision++;
   return result(true,"created","Profil créé.",{profile:clone(p)});
  }
  function duplicateProfile(id,name){
   const p=getP(id);if(!p)return result(false,"not_found","Profil introuvable.");
   if(p.networkCapabilities.includes("box-internet"))return result(false,"composite_fixed","La box utilise un profil matériel fixe.");
   const r=createProfile(name||p.name+" (copie)");if(!r.success)return r;
-  const target=getP(r.profile.id);target.fields=clone(p.fields);target.portGroups=clone(p.portGroups).map(g=>({...g,id:"portgroup-"+s.nextPortGroup++}));target.networkCapabilities=clone(p.networkCapabilities);target.poe=p.poe;s.revision++;
+  const target=getP(r.profile.id);target.fields=clone(p.fields);target.portGroups=clone(p.portGroups).map(g=>({...g,id:"portgroup-"+s.nextPortGroup++}));target.networkCapabilities=clone(p.networkCapabilities);target.poe=p.poe;target.processorInventory=p.processorInventory;s.revision++;
   return result(true,"duplicated","Profil dupliqué.",{profile:clone(target)});
+ }
+
+ function setProfileProcessorInventory(id,enabled){
+  const p=getP(id);
+  if(!p)return result(false,"not_found","Profil introuvable.");
+  if(typeof enabled!=="boolean")return result(false,"invalid_option","Valeur invalide.");
+  if(!enabled&&s.assets.some(a=>a.profileId===id&&a.processors?.length))
+   return result(false,"processors_in_use","Retirer les processeurs des équipements avant de désactiver l'inventaire.");
+  p.processorInventory=enabled;s.revision++;
+  return result(true,"processor_inventory_updated","Inventaire détaillé des processeurs mis à jour.");
+ }
+ function addAssetProcessor(assetId,raw={}){
+  const a=getA(assetId);
+  if(!a||!getP(a.profileId)?.processorInventory)return result(false,"not_supported","Inventaire de processeurs non activé pour ce profil.");
+  a.processors??=[];
+  const id="cpu-"+(a.processors.reduce((n,c)=>Math.max(n,Number(c.id.slice(4))||0),0)+1);
+  const cpu=processorData(raw,id);
+  if(!validProcessor(cpu)||!cpu.marque||!cpu.modele)return result(false,"invalid_processor","Marque et modèle obligatoires, valeurs numériques positives.");
+  a.processors.push(cpu);s.revision++;
+  return result(true,"processor_added","Processeur ajouté.",{processor:clone(cpu)});
+ }
+ function updateAssetProcessor(assetId,processorId,raw={}){
+  const a=getA(assetId);
+  const cpu=a?.processors?.find(x=>x.id===processorId);
+  if(!cpu||!getP(a.profileId)?.processorInventory)return result(false,"not_found","Processeur introuvable.");
+  const revised=processorData(raw,processorId);
+  if(!validProcessor(revised)||!revised.marque||!revised.modele)return result(false,"invalid_processor","Marque et modèle obligatoires, valeurs numériques positives.");
+  Object.assign(cpu,revised);s.revision++;
+  return result(true,"processor_updated","Processeur modifié.",{processor:clone(cpu)});
+ }
+ function removeAssetProcessor(assetId,processorId){
+  const a=getA(assetId);
+  const i=a?.processors?.findIndex(x=>x.id===processorId)??-1;
+  if(i<0||!getP(a.profileId)?.processorInventory)return result(false,"not_found","Processeur introuvable.");
+  a.processors.splice(i,1);s.revision++;
+  return result(true,"processor_removed","Processeur retiré.");
  }
  function renameProfile(id,name){
   const p=getP(id);if(!p)return result(false,"not_found","Profil introuvable.");
@@ -779,7 +839,7 @@ export function createAssetRegistry(saved){
   const name=trim(info?.name);if(!name)return result(false,"invalid_name","Nom de matériel obligatoire.");
   const status=info.status||"En service";
   if(!["En service","Hors service","En stock"].includes(status))return result(false,"invalid_status","Statut incorrect.");
-  const a={id:"asset-"+s.nextAsset++,profileId,name,manufacturer:trim(info.manufacturer),model:trim(info.model),serialNumber:trim(info.serialNumber),status,location:trim(info.location),placeId:null,reservable:!!info.reservable,values:Object.fromEntries(p.fields.map(f=>[f.key,null])),ports:buildPorts(p.portGroups,"integrated"),networkCapabilities:clone(p.networkCapabilities),poe:p.poe};
+  const a={id:"asset-"+s.nextAsset++,profileId,name,manufacturer:trim(info.manufacturer),model:trim(info.model),serialNumber:trim(info.serialNumber),status,location:trim(info.location),placeId:null,reservable:!!info.reservable,processors:[],values:Object.fromEntries(p.fields.map(f=>[f.key,null])),ports:buildPorts(p.portGroups,"integrated"),networkCapabilities:clone(p.networkCapabilities),poe:p.poe};
   if(a.networkCapabilities.includes("vlan")){
    a.vlanConfig=vlanDefault(a);
    a.managementConfig=managementDefault(a);
@@ -1083,7 +1143,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,createBoxComposite,setBoxMode,setBoxLanConfig,setBoxWanConfig,setBoxPatRules,getBoxWanEffective:id=>{const a=getA(id);return a?.boxConfig?effectiveBoxWan(a.boxConfig):null;},getBoxWanRuntime:id=>{const a=getA(id);if(!a?.boxConfig)return null;const config=effectiveBoxWan(a.boxConfig);return {mode:a.boxConfig.mode,owner:a.boxConfig.mode==="bridge"?"lan1-client":"box",boxOwnsAddress:a.boxConfig.mode!=="bridge",config};},setBoxWifiConfig,setAssetWifiConfig,setAssetRouterConfig,setAssetDhcpServerConfig,setAssetManagementConfig,setAssetVlanConfig,updateAssetVlanDefinition,removeAssetVlanDefinition,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,updateAsset,
+ return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileProcessorInventory,addAssetProcessor,updateAssetProcessor,removeAssetProcessor,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,createBoxComposite,setBoxMode,setBoxLanConfig,setBoxWanConfig,setBoxPatRules,getBoxWanEffective:id=>{const a=getA(id);return a?.boxConfig?effectiveBoxWan(a.boxConfig):null;},getBoxWanRuntime:id=>{const a=getA(id);if(!a?.boxConfig)return null;const config=effectiveBoxWan(a.boxConfig);return {mode:a.boxConfig.mode,owner:a.boxConfig.mode==="bridge"?"lan1-client":"box",boxOwnsAddress:a.boxConfig.mode!=="bridge",config};},setBoxWifiConfig,setAssetWifiConfig,setAssetRouterConfig,setAssetDhcpServerConfig,setAssetManagementConfig,setAssetVlanConfig,updateAssetVlanDefinition,removeAssetVlanDefinition,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,updateAsset,
  listWallOutlets:()=>clone(s.wallOutlets),listPanels:()=>clone(s.panels),getPanel:id=>clone(s.panels.find(p=>p.id===id)||null),listCables:()=>clone(s.cables.filter(c=>!c.internalBoxId)),getCable:id=>clone(s.cables.find(x=>x.id===id&&!x.internalBoxId)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 
