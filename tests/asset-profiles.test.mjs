@@ -545,11 +545,11 @@ test("Inventaire processeurs détaillés : répétition, validation, copie et co
  assert.equal(e.getProfile(base.id).processorInventory,true);
  assert.equal(e.setProfileProcessorInventory(detailed.id,true).success,true);
  const a=e.createAsset(detailed.id,{name:"REN-PC-01"}).asset;
- assert.equal(e.addAssetProcessor(a.id,{marque:"Intel",modele:"Core i7-1260P",frequenceMHz:2079,coeurs:12,threads:16}).success,true);
- assert.equal(e.addAssetProcessor(a.id,{marque:"AMD",modele:"EPYC",frequenceMHz:2400,coeurs:16,threads:32}).success,true);
+ assert.equal(e.addAssetProcessor(a.id,{quantite:1,marque:"Intel",modele:"Core i7-1260P",frequenceMHz:2079,coeurs:12,threads:16}).success,true);
+ assert.equal(e.addAssetProcessor(a.id,{quantite:1,marque:"AMD",modele:"EPYC",frequenceMHz:2400,coeurs:16,threads:32}).success,true);
  assert.equal(e.getAsset(a.id).processors.length,2);
- assert.equal(e.addAssetProcessor(a.id,{marque:"Intel",modele:"X",coeurs:2.5}).success,false);
- assert.equal(e.updateAssetProcessor(a.id,"cpu-1",{marque:"Intel",modele:"Core i7-1260P",frequenceMHz:2200,coeurs:12,threads:16}).success,true);
+ assert.equal(e.addAssetProcessor(a.id,{quantite:1,marque:"Intel",modele:"X",coeurs:2.5}).success,false);
+ assert.equal(e.updateAssetProcessor(a.id,"cpu-1",{quantite:1,marque:"Intel",modele:"Core i7-1260P",frequenceMHz:2200,coeurs:12,threads:16}).success,true);
  assert.equal(e.getAsset(a.id).processors[0].frequenceMHz,2200);
  assert.equal(e.setProfileProcessorInventory(detailed.id,false).success,false);
  const save=e.exportState();
@@ -558,7 +558,7 @@ test("Inventaire processeurs détaillés : répétition, validation, copie et co
  assert.equal(e.removeAssetProcessor(a.id,"cpu-2").success,true);
  assert.equal(e.setProfileProcessorInventory(detailed.id,false).success,true);
  const standard=e.createAsset(base.id,{name:"PC-STD"}).asset;
- assert.equal(e.addAssetProcessor(standard.id,{marque:"Intel",modele:"i5"}).success,true);
+ assert.equal(e.addAssetProcessor(standard.id,{quantite:1,marque:"Intel",modele:"i5"}).success,true);
  const previous=e.exportState();
  for(const a of previous.assets)delete a.processors;
  for(const p of previous.profiles)delete p.processorInventory;
@@ -567,6 +567,23 @@ test("Inventaire processeurs détaillés : répétition, validation, copie et co
  assert.equal(restored.getProfile(base.id).processorInventory,false);
 });
 
+test("CPU : seule la quantité est requise, valeurs préservées",()=>{
+ const e=createAssetRegistry();
+ const p=installDesktopProfile(e).profile;
+ const asset=e.createAsset(p.id,{name:"PC-CPU-01"}).asset;
+ const id=asset.id;
+ assert.equal(e.addAssetProcessor(id,{quantite:2}).success,true);
+ assert.equal(e.getAsset(id).processors[0].quantite,2);
+ assert.equal(e.addAssetProcessor(id,{modele:"Core i5"}).success,false);
+ assert.equal(e.addAssetProcessor(id,{quantite:0}).success,false);
+ assert.equal(e.addAssetProcessor(id,{quantite:1.5}).success,false);
+ assert.equal(e.updateAssetProcessor(id,"cpu-1",{quantite:3}).success,true);
+ assert.equal(e.getAsset(id).processors[0].quantite,3);
+ assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
+ const legacy=e.exportState();
+ delete legacy.assets.find(a=>a.id===id).processors[0].quantite;
+ assert.equal(restoreAssetRegistry(legacy).getAsset(id).processors[0].quantite,1);
+});
 test("RAM et disques : ajout, modification, suppression, quantités et restauration",()=>{
  const e=createAssetRegistry();
  const p=installDesktopProfile(e).profile;
