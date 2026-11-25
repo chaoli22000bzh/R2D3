@@ -517,8 +517,8 @@ test("PC fixe standard : socle Informatique commun, profil léger et registre in
  assert.equal(created.success,true);
  const p=e.getProfile(created.profile.id);
  assert.deepEqual(p.fields.map(f=>f.key),[...computingFieldDefinitions,...desktopFieldDefinitions].map(f=>f.key));
- assert.equal(p.fields.length,6);
- assert.equal(p.fields.some(f=>["chassis","raid","volumes","frequence_cpu"].includes(f.key)),false);
+ assert.equal(p.fields.length,5);
+ assert.equal(p.fields.some(f=>["chassis","raid","volumes","frequence_cpu","architecture_os"].includes(f.key)),false);
  assert.equal(p.portGroups.length,0);
  assert.equal(installDesktopProfile(e).code,"already_present");
  assert.equal(e.listProfiles().length,1);
@@ -528,13 +528,11 @@ test("PC fixe standard : socle Informatique commun, profil léger et registre in
  assert.equal(e.setAssetField(a.id,"stockage_go",2000).success,true);
  assert.equal(e.setAssetField(a.id,"systeme_exploitation","Windows 11 Professionnel").success,true);
  assert.equal(e.setAssetField(a.id,"version_os","25H2").success,true);
- assert.equal(e.setAssetField(a.id,"architecture_os","64 bits").success,true);
- assert.equal(e.setAssetField(a.id,"architecture_os","128 bits").success,false);
  const saved=e.exportState();
  assert.deepEqual(restoreAssetRegistry(saved).exportState(),saved);
  const mobile=e.createProfile("Smartphone").profile;
  for(const f of computingFieldDefinitions)assert.equal(e.addField(mobile.id,f).success,true);
  assert.equal(e.getProfile(mobile.id).fields.length,3);
  assert.equal(e.getProfile(mobile.id).fields.some(f=>f.key==="systeme_exploitation"),false);
- assert.equal(e.getProfile(p.id).fields.length,6);
+ assert.equal(e.getProfile(p.id).fields.length,5);
 });
