@@ -260,6 +260,7 @@ function valueValid(f,v){
 function validProcessor(cpu){
  return cpu&&typeof cpu.id==="string"&&cpu.id.length>0&&
   ["marque","modele"].every(k=>typeof cpu[k]==="string")&&
+  Number.isInteger(cpu.quantite)&&cpu.quantite>0&&
   (cpu.frequenceMHz===null||Number.isFinite(cpu.frequenceMHz)&&cpu.frequenceMHz>0)&&
   (cpu.coeurs===null||Number.isInteger(cpu.coeurs)&&cpu.coeurs>0)&&
   (cpu.threads===null||Number.isInteger(cpu.threads)&&cpu.threads>0);
@@ -270,7 +271,7 @@ function processorData(raw={},id){
   const n=Number(v);
   return Number.isFinite(n)&&n>0&&(!integer||Number.isInteger(n))?n:NaN;
  };
- return {id,marque:trim(raw.marque),modele:trim(raw.modele),
+ return {id,marque:trim(raw.marque),modele:trim(raw.modele),quantite:number(raw.quantite,true),
   frequenceMHz:number(raw.frequenceMHz),coeurs:number(raw.coeurs,true),threads:number(raw.threads,true)};
 }
 
@@ -343,6 +344,7 @@ export function createAssetRegistry(saved){
  }
  for(const a of s.assets){
    a.processors??=[];a.ramModules??=[];a.disks??=[];
+    for(const cpu of a.processors){if(cpu.quantite===undefined)cpu.quantite=1;}
    for(const [kind,key] of [["ram","ramModules"],["disk","disks"]]){
     if(!Array.isArray(a[key])||a[key].some(c=>!componentValid(kind,c))||new Set(a[key].map(c=>c.id)).size!==a[key].length||
       (a[key].length>0&&!s.profiles.find(p=>p.id===a.profileId)?.processorInventory))throw Error("Inventaire de composants invalide");
@@ -459,7 +461,7 @@ export function createAssetRegistry(saved){
   a.processors??=[];
   const id="cpu-"+(a.processors.reduce((n,c)=>Math.max(n,Number(c.id.slice(4))||0),0)+1);
   const cpu=processorData(raw,id);
-  if(!validProcessor(cpu)||!cpu.marque||!cpu.modele)return result(false,"invalid_processor","Marque et modèle obligatoires, valeurs numériques positives.");
+  if(!validProcessor(cpu))return result(false,"invalid_processor","Quantité obligatoire (entier positif), autres valeurs numériques positives.");
   if(!a.processors.length){if(a.values){a.values.processeur_marque=null;a.values.processeur_modele=null;}}
   a.processors.push(cpu);s.revision++;
   return result(true,"processor_added","Processeur ajouté.",{processor:clone(cpu)});
@@ -469,7 +471,7 @@ export function createAssetRegistry(saved){
   const cpu=a?.processors?.find(x=>x.id===processorId);
   if(!cpu||!getP(a.profileId)?.processorInventory)return result(false,"not_found","Processeur introuvable.");
   const revised=processorData(raw,processorId);
-  if(!validProcessor(revised)||!revised.marque||!revised.modele)return result(false,"invalid_processor","Marque et modèle obligatoires, valeurs numériques positives.");
+  if(!validProcessor(revised))return result(false,"invalid_processor","Quantité obligatoire (entier positif), autres valeurs numériques positives.");
   Object.assign(cpu,revised);s.revision++;
   return result(true,"processor_updated","Processeur modifié.",{processor:clone(cpu)});
  }
