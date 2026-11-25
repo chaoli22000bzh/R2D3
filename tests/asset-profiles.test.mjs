@@ -537,3 +537,32 @@ test("PC fixe standard : socle Informatique commun, profil léger et registre in
  assert.equal(e.getProfile(mobile.id).fields.some(f=>f.key==="systeme_exploitation"),false);
  assert.equal(e.getProfile(p.id).fields.length,6);
 });
+
+test("Inventaire processeurs détaillés : répétition, validation, copie et compatibilité",()=>{
+ const e=createAssetRegistry();
+ const base=installDesktopProfile(e).profile;
+ const detailed=e.duplicateProfile(base.id,"PC fixe - Inventaire détaillé").profile;
+ assert.equal(e.getProfile(base.id).processorInventory,false);
+ assert.equal(e.setProfileProcessorInventory(detailed.id,true).success,true);
+ const a=e.createAsset(detailed.id,{name:"REN-PC-01"}).asset;
+ assert.equal(e.addAssetProcessor(a.id,{marque:"Intel",modele:"Core i7-1260P",frequenceMHz:2079,coeurs:12,threads:16}).success,true);
+ assert.equal(e.addAssetProcessor(a.id,{marque:"AMD",modele:"EPYC",frequenceMHz:2400,coeurs:16,threads:32}).success,true);
+ assert.equal(e.getAsset(a.id).processors.length,2);
+ assert.equal(e.addAssetProcessor(a.id,{marque:"Intel",modele:"X",coeurs:2.5}).success,false);
+ assert.equal(e.updateAssetProcessor(a.id,"cpu-1",{marque:"Intel",modele:"Core i7-1260P",frequenceMHz:2200,coeurs:12,threads:16}).success,true);
+ assert.equal(e.getAsset(a.id).processors[0].frequenceMHz,2200);
+ assert.equal(e.setProfileProcessorInventory(detailed.id,false).success,false);
+ const save=e.exportState();
+ assert.deepEqual(restoreAssetRegistry(save).exportState(),save);
+ assert.equal(e.removeAssetProcessor(a.id,"cpu-1").success,true);
+ assert.equal(e.removeAssetProcessor(a.id,"cpu-2").success,true);
+ assert.equal(e.setProfileProcessorInventory(detailed.id,false).success,true);
+ const standard=e.createAsset(base.id,{name:"PC-STD"}).asset;
+ assert.equal(e.addAssetProcessor(standard.id,{marque:"Intel",modele:"i5"}).success,false);
+ const previous=e.exportState();
+ for(const a of previous.assets)delete a.processors;
+ for(const p of previous.profiles)delete p.processorInventory;
+ const restored=restoreAssetRegistry(previous);
+ assert.equal(restored.getAsset(standard.id).processors.length,0);
+ assert.equal(restored.getProfile(base.id).processorInventory,false);
+});
