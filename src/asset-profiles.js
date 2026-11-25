@@ -287,7 +287,7 @@ function componentData(kind,raw,id){
 }
 function componentValid(kind,v){
  return !!computerComponentSchema[kind]&&v&&typeof v.id==="string"&&v.id.length>0&&
-  !!v.marque&&!!v.modele&&Number.isInteger(v.quantite)&&v.quantite>0&&
+  !!v.marque&&(kind==="ram"||!!v.modele)&&Number.isInteger(v.quantite)&&v.quantite>0&&
   Number.isFinite(v.capaciteGo)&&v.capaciteGo>0&&
   (kind==="disk"?(typeof v.type==="string"&&typeof v.interface==="string"&&typeof v.numeroSerie==="string"):
    (typeof v.type==="string"&&(v.frequenceMHz===null||Number.isFinite(v.frequenceMHz)&&v.frequenceMHz>0)));
