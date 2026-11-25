@@ -448,7 +448,7 @@ export function createAssetRegistry(saved){
   const p=getP(id);
   if(!p)return result(false,"not_found","Profil introuvable.");
   if(typeof enabled!=="boolean")return result(false,"invalid_option","Valeur invalide.");
-  if(!enabled&&s.assets.some(a=>a.profileId===id&&a.processors?.length))
+  if(!enabled&&s.assets.some(a=>a.profileId===id&&(a.processors?.length||a.ramModules?.length||a.disks?.length)))
    return result(false,"processors_in_use","Retirer les processeurs des équipements avant de désactiver l'inventaire.");
   p.processorInventory=enabled;s.revision++;
   return result(true,"processor_inventory_updated","Inventaire détaillé des processeurs mis à jour.");
