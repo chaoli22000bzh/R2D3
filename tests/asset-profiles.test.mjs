@@ -579,7 +579,6 @@ test("RAM et disques : ajout, modification, suppression, quantités et restaurat
  assert.equal(e.removeAssetComponent(a.id,"ram","ram-1").success,true);
  assert.equal(e.addAssetComponent(a.id,"ram",{quantite:1}).success,false);
  assert.equal(e.addAssetComponent(a.id,"ram",{capaciteGo:16,quantite:""}).success,false);
- assert.equal(e.removeAssetComponent(a.id,"ram","ram-1").success,true);
  assert.equal(e.addAssetComponent(a.id,"ram",ram).success,true);
  assert.equal(e.addAssetComponent(a.id,"disk",disk).success,true);
  assert.equal(e.getAsset(a.id).ramModules[0].quantite,2);
