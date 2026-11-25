@@ -488,7 +488,7 @@ export function createAssetRegistry(saved){
   a[key]??=[];
   const id=computerComponentSchema[kind].prefix+"-"+(a[key].reduce((n,c)=>Math.max(n,Number(c.id.split("-").at(-1))||0),0)+1);
   const v=componentData(kind,raw,id);
-  if(!componentValid(kind,v))return result(false,"invalid_component","Composant invalide : vérifier la marque, le modèle, la capacité et la quantité.");
+  if(!componentValid(kind,v))return result(false,"invalid_component",kind==="ram"?"Mémoire RAM invalide : capacité et quantité obligatoires, valeurs positives.":"Composant invalide : vérifier la marque, le modèle, la capacité et la quantité.");
   if(!a[key].length&&a.values)a.values[kind==="ram"?"ram_go":"stockage_go"]=null;
   a[key].push(v);s.revision++;return result(true,"component_added","Composant ajouté.",{component:clone(v)});
  }
