@@ -1133,7 +1133,8 @@ export function installScreenProfile(registry){
 /* Socle informatique simple partagé par PC, serveurs et terminaux mobiles.
    Il reste distinct du noyau universel des actifs R2D3. */
 export const computingFieldDefinitions=[
- {key:"processeur",label:"Processeur",type:"text"},
+ {key:"processeur_marque",label:"Marque du processeur",type:"text"},
+ {key:"processeur_modele",label:"Modèle du processeur",type:"text"},
  {key:"ram_go",label:"Mémoire RAM",type:"number",unit:"Go"},
  {key:"stockage_go",label:"Capacité de stockage",type:"number",unit:"Go"}
 ];
