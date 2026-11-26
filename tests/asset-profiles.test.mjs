@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createAssetRegistry,restoreAssetRegistry,installScreenProfile,displayFieldDefinitions,screenSpecificFieldDefinitions,installDesktopProfile,computingFieldDefinitions,desktopFieldDefinitions,computerTypeFieldDefinition,integratedScreenFieldDefinitions} from "../src/asset-profiles.js";
+import {createAssetRegistry,restoreAssetRegistry,installScreenProfile,displayFieldDefinitions,screenSpecificFieldDefinitions,installDesktopProfile,computingFieldDefinitions,desktopFieldDefinitions,computerTypeFieldDefinition} from "../src/asset-profiles.js";
 
 const panelAt=(e,name,location,count,start,prefix="")=>{
  const place=e.listPlaces().find(p=>p.name===location&&p.parentId===null)||
@@ -516,8 +516,8 @@ test("Ordinateur standard : socle Informatique commun, profil léger et registre
  const created=installDesktopProfile(e);
  assert.equal(created.success,true);
  const p=e.getProfile(created.profile.id);
- assert.deepEqual(p.fields.map(f=>f.key),[computerTypeFieldDefinition,...computingFieldDefinitions,...desktopFieldDefinitions,...integratedScreenFieldDefinitions].map(f=>f.key));
- assert.equal(p.fields.length,7+integratedScreenFieldDefinitions.length);
+ assert.deepEqual(p.fields.map(f=>f.key),[computerTypeFieldDefinition,...computingFieldDefinitions,...desktopFieldDefinitions].map(f=>f.key));
+ assert.equal(p.fields.length,7);
  assert.equal(p.fields.some(f=>["chassis","raid","volumes","frequence_cpu","architecture_os"].includes(f.key)),false);
  assert.equal(p.portGroups.length,0);
  assert.equal(p.name,"Ordinateur");
@@ -536,7 +536,7 @@ test("Ordinateur standard : socle Informatique commun, profil léger et registre
  for(const f of computingFieldDefinitions)assert.equal(e.addField(mobile.id,f).success,true);
  assert.equal(e.getProfile(mobile.id).fields.length,4);
  assert.equal(e.getProfile(mobile.id).fields.some(f=>f.key==="systeme_exploitation"),false);
- assert.equal(e.getProfile(p.id).fields.length,7+integratedScreenFieldDefinitions.length);
+ assert.equal(e.getProfile(p.id).fields.length,7);
 });
 
 test("Inventaire processeurs détaillés : répétition, validation, copie et compatibilité",()=>{
@@ -801,43 +801,65 @@ test("IPv4 multi-interface Ordinateur : deux adresses persistées et aucune coll
  assert.equal(e.getAsset(box.id).interfaceIpv4,undefined);
 });
 
-test("Écran intégré : socle Affichage sans second actif, saisie et restauration",()=>{
- const registry=createAssetRegistry(),profile=installDesktopProfile(registry).profile;
- const fields=registry.getProfile(profile.id).fields;
- assert.deepEqual(fields.filter(f=>f.key==="ecran_integre"||f.key.startsWith("ecran_integre_")).map(f=>f.key),
-   integratedScreenFieldDefinitions.map(f=>f.key));
- const asset=registry.createAsset(profile.id,{name:"PORTABLE-01"}).asset;
- assert.equal(registry.getAsset(asset.id).values.ecran_integre,null);
- assert.equal(registry.setAssetField(asset.id,"ecran_integre",true).success,true);
- assert.equal(registry.setAssetField(asset.id,"ecran_integre_diagonale",15.6).success,true);
- assert.equal(registry.setAssetField(asset.id,"ecran_integre_resolution","1920 × 1080").success,true);
- assert.equal(registry.setAssetField(asset.id,"ecran_integre_format_image","16:9").success,true);
- assert.equal(registry.setAssetField(asset.id,"ecran_integre_type_dalle","IPS").success,true);
- assert.equal(registry.setAssetField(asset.id,"ecran_integre_forme","Plat").success,true);
- assert.equal(registry.setAssetField(asset.id,"ecran_integre_tactile",false).success,true);
- assert.equal(registry.setAssetField(asset.id,"ecran_integre_resolution","invalide").success,false);
- assert.equal(registry.getAsset(asset.id).values.ecran_integre_resolution,"1920 × 1080");
- assert.equal(registry.setAssetField(asset.id,"ecran_integre",false).success,true);
- assert.equal(registry.getAsset(asset.id).values.ecran_integre_diagonale,15.6);
- assert.equal(registry.listAssets().length,1);
- const saved=registry.exportState();
- assert.deepEqual(restoreAssetRegistry(saved).exportState(),saved);
+test("Écran intégré : composant unique, quatre caractéristiques et contrôles",()=>{
+ const e=createAssetRegistry(),p=installDesktopProfile(e).profile;
+ const a=e.createAsset(p.id,{name:"PORTABLE-01"}).asset;
+ assert.equal(e.getAsset(a.id).integratedScreen,undefined);
+ assert.equal(e.getProfile(p.id).fields.some(f=>f.key==="ecran_integre"),false);
+ const created=e.addAssetComponent(a.id,"screen",{diagonale:15.6,resolution:"1920 × 1080",tactile:false,typeDalle:"IPS"});
+ assert.equal(created.success,true);
+ assert.deepEqual(e.getAsset(a.id).integratedScreen,{id:"screen-1",diagonale:15.6,resolution:"1920 × 1080",tactile:false,typeDalle:"IPS"});
+ assert.equal(e.addAssetComponent(a.id,"screen",{}).code,"screen_exists");
+ assert.equal(e.updateAssetComponent(a.id,"screen","screen-1",{resolution:"non valide"}).code,"invalid_screen");
+ assert.equal(e.updateAssetComponent(a.id,"screen","screen-1",{diagonale:14,resolution:"2560x1440",tactile:true,typeDalle:"OLED"}).success,true);
+ assert.equal(e.getAsset(a.id).integratedScreen.diagonale,14);
+ assert.equal(e.listAssets().length,1);
+ assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
+ assert.equal(e.removeAssetComponent(a.id,"screen","screen-1").success,true);
+ assert.equal(e.getAsset(a.id).integratedScreen,undefined);
+ assert.equal(e.addAssetComponent(a.id,"screen",{}).success,true);
+ assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
 });
 
-test("Écran intégré : enrichissement non destructif d'un ancien profil Ordinateur",()=>{
- const registry=createAssetRegistry(),p=installDesktopProfile(registry).profile;
- const asset=registry.createAsset(p.id,{name:"EXISTANT"}).asset;
- assert.equal(registry.addAssetComponent(asset.id,"ram",{quantite:2,capaciteGo:8}).success,true);
- const old=registry.exportState();
- old.profiles[0].fields=old.profiles[0].fields.filter(f=>f.key!=="ecran_integre"&&!f.key.startsWith("ecran_integre_"));
- for(const key of integratedScreenFieldDefinitions.map(f=>f.key))delete old.assets[0].values[key];
- const restored=restoreAssetRegistry(old),result=installDesktopProfile(restored);
- assert.equal(result.success,true);
- assert.equal(restored.getAsset(asset.id).id,asset.id);
- assert.equal(restored.getAsset(asset.id).ramModules[0].capaciteGo,8);
- assert.equal(restored.getAsset(asset.id).values.ecran_integre,null);
+test("Écran intégré : anciens champs migrés sans perte et sans second équipement",()=>{
+ const e=createAssetRegistry(),p=installDesktopProfile(e).profile;
+ const a=e.createAsset(p.id,{name:"PC-EXISTANT"}).asset;
+ assert.equal(e.addAssetComponent(a.id,"ram",{quantite:2,capaciteGo:8}).success,true);
+ const legacy=[
+  {key:"ecran_integre",label:"Écran intégré",type:"boolean"},
+  {key:"ecran_integre_diagonale",label:"Diagonale",type:"number",unit:"pouces"},
+  {key:"ecran_integre_resolution",label:"Résolution",type:"text"},
+  {key:"ecran_integre_type_dalle",label:"Type de dalle",type:"select",options:["IPS","TN","VA","OLED","Autre"]},
+  {key:"ecran_integre_tactile",label:"Tactile",type:"boolean"},
+  {key:"ecran_integre_format_image",label:"Ratio",type:"select",options:["16:9","16:10"]},
+  {key:"ecran_integre_forme",label:"Forme",type:"select",options:["Plat","Incurvé"]}
+ ];
+ for(const f of legacy)assert.equal(e.addField(p.id,f).success,true);
+ for(const [key,value] of [["ecran_integre",true],["ecran_integre_diagonale",15.6],
+  ["ecran_integre_resolution","1920 × 1080"],["ecran_integre_tactile",false],
+  ["ecran_integre_type_dalle","IPS"],["ecran_integre_format_image","16:9"],
+  ["ecran_integre_forme","Plat"]])assert.equal(e.setAssetField(a.id,key,value).success,true);
+ const old=e.exportState(),restored=restoreAssetRegistry(old);
+ assert.equal(installDesktopProfile(restored).success,true);
+ const screen=restored.getAsset(a.id).integratedScreen;
+ assert.deepEqual(screen,{id:"screen-1",diagonale:15.6,resolution:"1920 × 1080",tactile:false,typeDalle:"IPS"});
+ assert.equal(restored.getAsset(a.id).ramModules[0].capaciteGo,8);
+ assert.equal(restored.getProfile(p.id).fields.some(f=>f.key.startsWith("ecran_integre")),false);
  assert.equal(restored.listAssets().length,1);
  assert.equal(installDesktopProfile(restored).success,true);
- assert.equal(restored.getProfile(p.id).fields.filter(f=>f.key==="ecran_integre").length,1);
  assert.deepEqual(restoreAssetRegistry(restored.exportState()).exportState(),restored.exportState());
+});
+
+test("Écran intégré : validation à la restauration et isolation des équipements",()=>{
+ const e=createAssetRegistry(),pc=installDesktopProfile(e).profile,sw=e.createProfile("Switch").profile;
+ const a=e.createAsset(pc.id,{name:"PORTABLE"}).asset,b=e.createAsset(sw.id,{name:"SW"}).asset;
+ assert.equal(e.addAssetComponent(b.id,"screen",{}).code,"not_supported");
+ assert.equal(e.addAssetComponent(a.id,"screen",{typeDalle:"Inconnue"}).code,"invalid_screen");
+ assert.equal(e.addAssetComponent(a.id,"screen",{diagonale:-1}).code,"invalid_screen");
+ assert.equal(e.addAssetComponent(a.id,"screen",{tactile:"false"}).code,"invalid_screen");
+ assert.equal(e.addAssetComponent(a.id,"screen",{}).success,true);
+ assert.equal(e.setProfileProcessorInventory(pc.id,false).success,false);
+ const saved=e.exportState();saved.assets.find(x=>x.id===a.id).integratedScreen.resolution="abc";
+ assert.throws(()=>restoreAssetRegistry(saved),/Écran intégré invalide/);
+ assert.equal(e.getAsset(b.id).integratedScreen,undefined);
 });
