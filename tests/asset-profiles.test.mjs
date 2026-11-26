@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createAssetRegistry,restoreAssetRegistry,installScreenProfile,displayFieldDefinitions,screenSpecificFieldDefinitions,installDesktopProfile,computingFieldDefinitions,desktopFieldDefinitions,computerTypeFieldDefinition} from "../src/asset-profiles.js";
+import {createAssetRegistry,restoreAssetRegistry,installScreenProfile,displayFieldDefinitions,screenSpecificFieldDefinitions,installDesktopProfile,computingFieldDefinitions,desktopFieldDefinitions,computerTypeFieldDefinition,integratedScreenFieldDefinitions} from "../src/asset-profiles.js";
 
 const panelAt=(e,name,location,count,start,prefix="")=>{
  const place=e.listPlaces().find(p=>p.name===location&&p.parentId===null)||
@@ -799,4 +799,45 @@ test("IPv4 multi-interface Ordinateur : deux adresses persistées et aucune coll
  assert.equal(box.interfaceIpv4,undefined);
  assert.equal(e.setAssetInterfaceIpv4(box.id,box.ports[0].id,config("192.168.1.105")).success,false);
  assert.equal(e.getAsset(box.id).interfaceIpv4,undefined);
+});
+
+test("Écran intégré : socle Affichage sans second actif, saisie et restauration",()=>{
+ const registry=createAssetRegistry(),profile=installDesktopProfile(registry).profile;
+ const fields=registry.getProfile(profile.id).fields;
+ assert.deepEqual(fields.filter(f=>f.key==="ecran_integre"||f.key.startsWith("ecran_integre_")).map(f=>f.key),
+   integratedScreenFieldDefinitions.map(f=>f.key));
+ const asset=registry.createAsset(profile.id,{name:"PORTABLE-01"}).asset;
+ assert.equal(registry.getAsset(asset.id).values.ecran_integre,null);
+ assert.equal(registry.setAssetField(asset.id,"ecran_integre",true).success,true);
+ assert.equal(registry.setAssetField(asset.id,"ecran_integre_diagonale",15.6).success,true);
+ assert.equal(registry.setAssetField(asset.id,"ecran_integre_resolution","1920 × 1080").success,true);
+ assert.equal(registry.setAssetField(asset.id,"ecran_integre_format_image","16:9").success,true);
+ assert.equal(registry.setAssetField(asset.id,"ecran_integre_type_dalle","IPS").success,true);
+ assert.equal(registry.setAssetField(asset.id,"ecran_integre_forme","Plat").success,true);
+ assert.equal(registry.setAssetField(asset.id,"ecran_integre_tactile",false).success,true);
+ assert.equal(registry.setAssetField(asset.id,"ecran_integre_resolution","invalide").success,false);
+ assert.equal(registry.getAsset(asset.id).values.ecran_integre_resolution,"1920 × 1080");
+ assert.equal(registry.setAssetField(asset.id,"ecran_integre",false).success,true);
+ assert.equal(registry.getAsset(asset.id).values.ecran_integre_diagonale,15.6);
+ assert.equal(registry.listAssets().length,1);
+ const saved=registry.exportState();
+ assert.deepEqual(restoreAssetRegistry(saved).exportState(),saved);
+});
+
+test("Écran intégré : enrichissement non destructif d'un ancien profil Ordinateur",()=>{
+ const registry=createAssetRegistry(),p=installDesktopProfile(registry).profile;
+ const asset=registry.createAsset(p.id,{name:"EXISTANT"}).asset;
+ assert.equal(registry.addAssetComponent(asset.id,"ram",{quantite:2,capaciteGo:8}).success,true);
+ const old=registry.exportState();
+ old.profiles[0].fields=old.profiles[0].fields.filter(f=>f.key!=="ecran_integre"&&!f.key.startsWith("ecran_integre_"));
+ for(const key of integratedScreenFieldDefinitions.map(f=>f.key))delete old.assets[0].values[key];
+ const restored=restoreAssetRegistry(old),result=installDesktopProfile(restored);
+ assert.equal(result.success,true);
+ assert.equal(restored.getAsset(asset.id).id,asset.id);
+ assert.equal(restored.getAsset(asset.id).ramModules[0].capaciteGo,8);
+ assert.equal(restored.getAsset(asset.id).values.ecran_integre,null);
+ assert.equal(restored.listAssets().length,1);
+ assert.equal(installDesktopProfile(restored).success,true);
+ assert.equal(restored.getProfile(p.id).fields.filter(f=>f.key==="ecran_integre").length,1);
+ assert.deepEqual(restoreAssetRegistry(restored.exportState()).exportState(),restored.exportState());
 });
