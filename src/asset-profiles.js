@@ -321,6 +321,22 @@ function componentValid(kind,v){
    (typeof v.type==="string"&&(v.frequenceMHz===null||Number.isFinite(v.frequenceMHz)&&v.frequenceMHz>0)));
 }
 
+/* L'écran intégré reste un composant unique de l'ordinateur, sans actif, port ou câble. */
+const integratedScreenTypes=["IPS","TN","VA","OLED","Autre"];
+function integratedScreenData(raw={}){
+ return {id:"screen-1",
+  diagonale:raw.diagonale===""||raw.diagonale==null?null:Number(raw.diagonale),
+  resolution:trim(raw.resolution),
+  tactile:raw.tactile===""||raw.tactile==null?null:raw.tactile,
+  typeDalle:trim(raw.typeDalle)};
+}
+function validIntegratedScreen(v){
+ return !!v&&v.id==="screen-1"&&
+  (v.diagonale===null||(typeof v.diagonale==="number"&&Number.isFinite(v.diagonale)&&v.diagonale>0))&&
+  screenFieldValueValid("resolution",v.resolution)&&
+  (v.tactile===null||typeof v.tactile==="boolean")&&
+  (v.typeDalle===""||integratedScreenTypes.includes(v.typeDalle));
+}
 export function createAssetRegistry(saved){
  const s=saved?clone(saved):{revision:0,nextProfile:1,nextAsset:1,nextPortGroup:1,nextPort:1,nextCable:1,cables:[],nextInfrastructure:1,nextInfrastructurePort:1,wallOutlets:[],panels:[],places:[],nextPlace:1,profiles:[],assets:[]};
  if(!Array.isArray(s.profiles)||!Array.isArray(s.assets)||!Number.isInteger(s.revision)||!Number.isInteger(s.nextProfile)||!Number.isInteger(s.nextAsset))throw Error("État R2 invalide");
@@ -397,6 +413,8 @@ export function createAssetRegistry(saved){
      delete a[key];
     }
    }
+   if(a.integratedScreen!==undefined&&(!inventoryEnabled||!validIntegratedScreen(a.integratedScreen)))
+    throw Error("Écran intégré invalide ou interdit sur ce profil");
    if(a.interfaceIpv4!==undefined&&
       (!inventoryEnabled||!ipv4InterfaceValid(a.interfaceIpv4,a.ports||[])))
     throw Error("Adressage IPv4 par interface invalide ou interdit pour ce profil");
@@ -501,7 +519,7 @@ export function createAssetRegistry(saved){
   const p=getP(id);
   if(!p)return result(false,"not_found","Profil introuvable.");
   if(typeof enabled!=="boolean")return result(false,"invalid_option","Valeur invalide.");
-  if(!enabled&&s.assets.some(a=>a.profileId===id&&(a.processors?.length||a.ramModules?.length||a.disks?.length)))
+  if(!enabled&&s.assets.some(a=>a.profileId===id&&(a.processors?.length||a.ramModules?.length||a.disks?.length||a.integratedScreen)))
    return result(false,"processors_in_use","Retirer les processeurs des équipements avant de désactiver l'inventaire.");
   if(enabled){
    p.processorInventory=true;
@@ -511,7 +529,7 @@ export function createAssetRegistry(saved){
   }else{
    delete p.processorInventory;
    for(const a of s.assets.filter(a=>a.profileId===id)){
-    delete a.processors;delete a.ramModules;delete a.disks;
+    delete a.processors;delete a.ramModules;delete a.disks;delete a.integratedScreen;
    }
   }
   s.revision++;
@@ -545,8 +563,34 @@ export function createAssetRegistry(saved){
   return result(true,"processor_removed","Processeur retiré.");
  }
 
+ function addAssetIntegratedScreen(assetId,raw={}){
+  const a=getA(assetId);
+  if(!a||!getP(a.profileId)?.processorInventory)return result(false,"not_supported","Écran intégré indisponible pour ce profil.");
+  if(a.integratedScreen)return result(false,"screen_exists","Un écran intégré existe déjà.");
+  const v=integratedScreenData(raw);
+  if(!validIntegratedScreen(v))return result(false,"invalid_screen","Caractéristiques de l'écran intégré invalides.");
+  a.integratedScreen=v;s.revision++;
+  return result(true,"screen_added","Écran intégré ajouté.",{component:clone(v)});
+ }
+ function updateAssetIntegratedScreen(assetId,componentId,raw={}){
+  const a=getA(assetId);
+  if(!a?.integratedScreen||a.integratedScreen.id!==componentId||!getP(a.profileId)?.processorInventory)
+   return result(false,"not_found","Écran intégré introuvable.");
+  const v=integratedScreenData(raw);
+  if(!validIntegratedScreen(v))return result(false,"invalid_screen","Caractéristiques de l'écran intégré invalides.");
+  a.integratedScreen=v;s.revision++;
+  return result(true,"screen_updated","Écran intégré modifié.",{component:clone(v)});
+ }
+ function removeAssetIntegratedScreen(assetId,componentId){
+  const a=getA(assetId);
+  if(!a?.integratedScreen||a.integratedScreen.id!==componentId||!getP(a.profileId)?.processorInventory)
+   return result(false,"not_found","Écran intégré introuvable.");
+  delete a.integratedScreen;s.revision++;
+  return result(true,"screen_removed","Écran intégré supprimé.");
+ }
  function componentCollection(kind){return kind==="ram"?"ramModules":kind==="disk"?"disks":null;}
  function addAssetComponent(assetId,kind,raw={}){
+  if(kind==="screen")return addAssetIntegratedScreen(assetId,raw);
   const a=getA(assetId),key=componentCollection(kind);
   if(!a||!key||!getP(a.profileId)?.processorInventory)return result(false,"not_supported","Inventaire non disponible pour ce profil.");
   a[key]??=[];
@@ -557,6 +601,7 @@ export function createAssetRegistry(saved){
   a[key].push(v);s.revision++;return result(true,"component_added","Composant ajouté.",{component:clone(v)});
  }
  function updateAssetComponent(assetId,kind,componentId,raw={}){
+  if(kind==="screen")return updateAssetIntegratedScreen(assetId,componentId,raw);
   const a=getA(assetId),key=componentCollection(kind),v=a?.[key]?.find(c=>c.id===componentId);
   if(!v||!getP(a.profileId)?.processorInventory)return result(false,"not_found","Composant introuvable.");
   const revised=componentData(kind,raw,componentId);
@@ -564,6 +609,7 @@ export function createAssetRegistry(saved){
   Object.assign(v,revised);s.revision++;return result(true,"component_updated","Composant modifié.",{component:clone(v)});
  }
  function removeAssetComponent(assetId,kind,componentId){
+  if(kind==="screen")return removeAssetIntegratedScreen(assetId,componentId);
   const a=getA(assetId),key=componentCollection(kind),i=a?.[key]?.findIndex(c=>c.id===componentId)??-1;
   if(i<0||!getP(a.profileId)?.processorInventory)return result(false,"not_found","Composant introuvable.");
   a[key].splice(i,1);s.revision++;return result(true,"component_removed","Composant supprimé.");
@@ -1273,8 +1319,7 @@ export function createAssetRegistry(saved){
   const a=getA(id),f=a&&getP(a.profileId)?.fields.find(f=>f.key===key);
   if(!f)return result(false,"not_found","Matériel ou champ introuvable.");
   if(!valueValid(f,value))return result(false,"invalid_value","Type de valeur incorrect.");
-  if((getP(a.profileId)?.name==="Écran"||key.startsWith("ecran_integre_"))&&
-     !screenFieldValueValid(key.startsWith("ecran_integre_")?key.slice("ecran_integre_".length):key,value))
+  if(getP(a.profileId)?.name==="Écran"&&!screenFieldValueValid(key,value))
    return result(false,"invalid_value","Format incorrect pour ce champ.");
   a.values[key]=empty(value)?null:value;s.revision++;return result(true,"value_updated","Valeur enregistrée.");
  }
@@ -1310,11 +1355,6 @@ export const displayFieldDefinitions=[
  {key:"type_dalle",label:"Type de dalle",type:"select",options:["IPS","TN","VA","OLED","Autre"]},
  {key:"forme",label:"Forme",type:"select",options:["Plat","Incurvé"]},
  {key:"tactile",label:"Tactile",type:"boolean"}
-];
-/* Même socle d'affichage, conservé comme champs internes de l'ordinateur. */
-export const integratedScreenFieldDefinitions=[
- {key:"ecran_integre",label:"Écran intégré",type:"boolean"},
- ...displayFieldDefinitions.map(field=>({...field,key:"ecran_integre_"+field.key}))
 ];
 export const screenSpecificFieldDefinitions=[
  {key:"type_ecran",label:"Type d'écran",type:"select",options:["Moniteur","Téléviseur"]},
@@ -1381,19 +1421,35 @@ export function installDesktopProfile(registry){
     if(!updated.success)return updated;
    }
   }
-  // Ajout non destructif à l'ancien profil : chaque champ manquant est initialisé
-  // à null sur les actifs existants ; aucune valeur déjà renseignée n'est réécrite.
-  for(const field of integratedScreenFieldDefinitions){
-   if(!registry.getProfile(profile.id).fields.some(f=>f.key===field.key)){
-    const added=registry.addField(profile.id,field);
-    if(!added.success)return added;
+  // Convertir les valeurs saisies dans l'ancienne V1 en composant unique.
+  const oldFields=registry.getProfile(profile.id).fields.filter(f=>f.key==="ecran_integre"||f.key.startsWith("ecran_integre_"));
+  if(oldFields.length){
+   for(const asset of registry.listAssets().filter(a=>a.profileId===profile.id)){
+    const v=asset.values||{};
+    const details=["diagonale","resolution","tactile","type_dalle"];
+    const hasDetails=details.some(key=>v["ecran_integre_"+key]!==null&&v["ecran_integre_"+key]!==undefined&&v["ecran_integre_"+key]!=="");
+    if(!asset.integratedScreen&&(v.ecran_integre===true||hasDetails)){
+     const migrated=registry.addAssetComponent(asset.id,"screen",{
+      diagonale:v.ecran_integre_diagonale,resolution:v.ecran_integre_resolution,
+      tactile:v.ecran_integre_tactile,typeDalle:v.ecran_integre_type_dalle
+     });
+     if(!migrated.success)return migrated;
+    }
+    for(const field of oldFields){
+     const cleared=registry.setAssetField(asset.id,field.key,null);
+     if(!cleared.success)return cleared;
+    }
+   }
+   for(const field of oldFields){
+    const removed=registry.removeField(profile.id,field.key);
+    if(!removed.success)return removed;
    }
   }
   return {success:true,code:legacy?"renamed":"already_present",profile:registry.getProfile(profile.id)};
  }
  const created=registry.createProfile("Ordinateur");
  if(!created.success)return created;
- for(const field of [computerTypeFieldDefinition,...computingFieldDefinitions,...desktopFieldDefinitions,...integratedScreenFieldDefinitions]){
+ for(const field of [computerTypeFieldDefinition,...computingFieldDefinitions,...desktopFieldDefinitions]){
   const added=registry.addField(created.profile.id,field);
   if(!added.success)throw Error("Impossible de préparer le champ Ordinateur : "+field.key);
  }
