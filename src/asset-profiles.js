@@ -1280,7 +1280,7 @@ export const computingFieldDefinitions=[
 ];
 export const computerTypeFieldDefinition={
  key:"type_ordinateur",label:"Type d'ordinateur",type:"select",
- options:["PC fixe","PC portable","Smartphone","Tablette","Serveur","PC tout-en-un","Station de travail","NAS","Autre"]
+ options:["PC fixe","Serveur","Smartphone","PC portable","Tout-en-un","Tablette"]
 };
 export const desktopFieldDefinitions=[
  {key:"systeme_exploitation",label:"Système d'exploitation",type:"text"},
@@ -1305,6 +1305,13 @@ export function installDesktopProfile(registry){
    if(!added.success)throw Error("Impossible d'ajouter le type d'ordinateur");
    const moved=registry.moveField(profile.id,computerTypeFieldDefinition.key,0);
    if(!moved.success)throw Error("Impossible de placer le type d'ordinateur");
+  }else{
+   const field=current.fields.find(f=>f.key===computerTypeFieldDefinition.key);
+   if(JSON.stringify(field.options)!==JSON.stringify(computerTypeFieldDefinition.options)){
+    // Ne jamais écraser silencieusement un ancien choix déjà renseigné.
+    const updated=registry.editField(profile.id,field.key,{options:computerTypeFieldDefinition.options});
+    if(!updated.success)return updated;
+   }
   }
   return {success:true,code:legacy?"renamed":"already_present",profile:registry.getProfile(profile.id)};
  }
