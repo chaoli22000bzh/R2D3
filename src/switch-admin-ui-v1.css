@@ -763,6 +763,25 @@
  .switch-admin.v4 .secondary-danger{background:#25394a;color:#ffaaa3;border-color:#d9867f}
  .switch-admin.v4 .secondary-danger:hover{background:#4e3036}
  .switch-admin.v4 form[data-form="router-dhcp-pool"].router-dhcp-grid label{color:#e6eff6}
+ /* Routage inter-VLAN : titres, champs, consignes et ligne sélectionnée lisibles. */
+ .switch-admin.v4 .grouped-routing-form label,
+ .switch-admin.v4 .grouped-routing-form .routing-field-group h4,
+ .switch-admin.v4 .grouped-routing-form .routing-fields .check-label,
+ .switch-admin.v4 .dhcp-fields label,
+ .switch-admin.v4 .dhcp-advanced summary,
+ .switch-admin.v4 .dhcp-advanced details label{color:#e6eff6}
+ .switch-admin.v4 .routing-table-hint,
+ .switch-admin.v4 .routing-select-label,
+ .switch-admin.v4 .dhcp-note,
+ .switch-admin.v4 .dhcp-advanced .dhcp-input-help{color:#b8cbd7}
+ .switch-admin.v4 .grouped-routing-form .routing-field-group,
+ .switch-admin.v4 .dhcp-advanced details{border-color:#536775}
+ .switch-admin.v4 .routing-data-row.row-selected,
+ .switch-admin.v4 .routing-data-row.row-selected:hover{background:#315448;box-shadow:inset 3px 0 #4bbf94}
+ .switch-admin.v4 .routing-data-row.row-selected .routing-select-label{color:#a2efd0}
+ .switch-admin.v4 .dhcp-add{background:#25394a;border-color:#637c8a;color:#a2efd0}
+ .switch-admin.v4 .dhcp-add:hover{background:#294657}
+ .switch-admin.v4 .dhcp-advanced textarea{background:#25394a;color:#e6eff6;border-color:#637c8a}
 }
 
 /* VLAN administrables dans un éditeur hôte : les règles globales du
@@ -863,3 +882,9 @@
 .switch-admin.v4 .pat-admin .pat-row-actions button{
  flex:0 0 auto;margin:0;padding:5px 6px;
 }
+
+/* Port RJ45 : garder des libellés lisibles et séparés, y compris sur écran étroit.
+   Le bandeau reste défilable horizontalement sans empiler les ports. */
+.switch-admin.v4 .port-bank{grid-auto-columns:58px;column-gap:7px}
+.switch-admin.v4 .mini-port{width:56px}
+.switch-admin.v4 .mini-port .mini-label{font-size:12px;white-space:nowrap}
