@@ -84,6 +84,16 @@ const isCompatible=(cableEnd,portEnd)=>{
  (a.gender==="socket"&&b.gender==="plug")
  );
 };
+/* Adresse IPv4 portée par une interface d'ordinateur, jamais par l'actif entier.
+   Les valeurs DHCP sont issues du Core via les adaptateurs réseau partagés. */
+const ipv4Address=v=>typeof v==="string"&&/^\\d{1,3}(\\.\\d{1,3}){3}$/.test(v)&&v.split(".").every(o=>Number(o)<=255);
+const ipv4InterfaceValid=(v,ports)=>v&&typeof v==="object"&&!Array.isArray(v)&&Object.entries(v).every(([portId,c])=>
+ ports.some(p=>p.id===portId&&["ethernet-rj45","wifi"].includes(p.type))&&c&&
+ ["dhcp","static"].includes(c.mode)&&["connected","disconnected"].includes(c.status)&&
+ ipv4Address(c.address)&&Number.isInteger(c.prefix)&&c.prefix>=1&&c.prefix<=32&&
+ (c.gateway===null||ipv4Address(c.gateway))&&Array.isArray(c.dns)&&c.dns.length<=2&&
+ c.dns.every(ipv4Address));
+
 const physicalPortConnector={"ethernet-rj45":"rj45-female","ethernet-fibre":"lc-socket","usb-a":"usb-a-socket","usb-b":"usb-b-socket","usb-c":"usb-c-socket","hdmi":"hdmi-socket","vga":"vga-female","dvi":"dvi-female","displayport":"displayport-socket","mini-displayport":"mini-displayport-socket","db9":"db9-male"};
 
 const portTypes={
@@ -372,6 +382,9 @@ export function createAssetRegistry(saved){
      delete a[key];
     }
    }
+   if(a.interfaceIpv4!==undefined&&
+      (!inventoryEnabled||!ipv4InterfaceValid(a.interfaceIpv4,a.ports||[])))
+    throw Error("Adressage IPv4 par interface invalide ou interdit pour ce profil");
    if(a.networkCapabilities?.includes("dhcp-server")&&a.dhcpServerConfig===undefined)
     a.dhcpServerConfig={assetId:a.id,enabled:false,pools:[]};
    if(a.networkCapabilities?.includes("dhcp-server")&&!validAssetDhcpServer(a,a.dhcpServerConfig))
@@ -701,6 +714,7 @@ export function createAssetRegistry(saved){
   if(!ports.length)return result(false,"not_found","Extension introuvable.");
   if(ports.some(p=>p.connectedCableIds?.length))return result(false,"extension_connected","Débrancher les câbles avant de retirer l’extension.");
   a.ports=a.ports.filter(p=>p.groupId!==extensionId);
+  if(a.interfaceIpv4){for(const p of ports)delete a.interfaceIpv4[p.id];if(!Object.keys(a.interfaceIpv4).length)delete a.interfaceIpv4;}
   if(a.vlanConfig)for(const p of ports.filter(isRj45))delete a.vlanConfig.ports[p.id];
   s.revision++;
   return result(true,"extension_removed","Extension retirée.");
@@ -1210,6 +1224,28 @@ export function createAssetRegistry(saved){
    asset:clone(asset),config:clone(config)});
  }
 
+ function setAssetInterfaceIpv4(assetId,portId,configuration){
+  const a=getA(assetId);
+  if(!a)return result(false,"not_found","Équipement introuvable.");
+  if(getP(a.profileId)?.processorInventory!==true)return result(false,"unsupported_profile","Adressage IPv4 réservé aux ordinateurs.");
+  if(!a.ports.some(p=>p.id===portId&&["ethernet-rj45","wifi"].includes(p.type)))
+   return result(false,"unsupported_interface","Interface IPv4 Ethernet ou Wi-Fi introuvable.");
+  if(configuration===null){
+   if(a.interfaceIpv4&&Object.hasOwn(a.interfaceIpv4,portId)){
+    delete a.interfaceIpv4[portId];if(!Object.keys(a.interfaceIpv4).length)delete a.interfaceIpv4;
+    s.revision++;
+   }
+   return result(true,"interface_ipv4_cleared","Adressage de l'interface retiré.");
+  }
+  if(!ipv4InterfaceValid({[portId]:configuration},a.ports))
+   return result(false,"invalid_ipv4","Configuration IPv4 de l'interface invalide.");
+  // Conserver deux interfaces distinctes, empêcher le doublon IPv4 sur un même ordinateur.
+  if(Object.entries(a.interfaceIpv4||{}).some(([id,c])=>id!==portId&&c.address===configuration.address))
+   return result(false,"duplicate_ipv4","Cette adresse IPv4 est déjà attribuée à une autre interface de l'ordinateur.");
+  a.interfaceIpv4??={};
+  a.interfaceIpv4[portId]=clone(configuration);s.revision++;
+  return result(true,"interface_ipv4_updated","Configuration IPv4 de l'interface enregistrée.");
+ }
  function setAssetField(id,key,value){
   const a=getA(id),f=a&&getP(a.profileId)?.fields.find(f=>f.key===key);
   if(!f)return result(false,"not_found","Matériel ou champ introuvable.");
@@ -1226,7 +1262,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileProcessorInventory,addAssetComponent,updateAssetComponent,removeAssetComponent,addAssetProcessor,updateAssetProcessor,removeAssetProcessor,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,createBoxComposite,setBoxMode,setBoxLanConfig,setBoxWanConfig,setBoxPatRules,getBoxWanEffective:id=>{const a=getA(id);return a?.boxConfig?effectiveBoxWan(a.boxConfig):null;},getBoxWanRuntime:id=>{const a=getA(id);if(!a?.boxConfig)return null;const config=effectiveBoxWan(a.boxConfig);return {mode:a.boxConfig.mode,owner:a.boxConfig.mode==="bridge"?"lan1-client":"box",boxOwnsAddress:a.boxConfig.mode!=="bridge",config};},setBoxWifiConfig,setAssetWifiConfig,setAssetRouterConfig,setAssetDhcpServerConfig,setAssetManagementConfig,setAssetVlanConfig,updateAssetVlanDefinition,removeAssetVlanDefinition,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,updateAsset,
+ return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileProcessorInventory,addAssetComponent,updateAssetComponent,removeAssetComponent,addAssetProcessor,updateAssetProcessor,removeAssetProcessor,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,createBoxComposite,setBoxMode,setBoxLanConfig,setBoxWanConfig,setBoxPatRules,getBoxWanEffective:id=>{const a=getA(id);return a?.boxConfig?effectiveBoxWan(a.boxConfig):null;},getBoxWanRuntime:id=>{const a=getA(id);if(!a?.boxConfig)return null;const config=effectiveBoxWan(a.boxConfig);return {mode:a.boxConfig.mode,owner:a.boxConfig.mode==="bridge"?"lan1-client":"box",boxOwnsAddress:a.boxConfig.mode!=="bridge",config};},setBoxWifiConfig,setAssetWifiConfig,setAssetRouterConfig,setAssetDhcpServerConfig,setAssetManagementConfig,setAssetVlanConfig,updateAssetVlanDefinition,removeAssetVlanDefinition,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,setAssetInterfaceIpv4,updateAsset,
  listWallOutlets:()=>clone(s.wallOutlets),listPanels:()=>clone(s.panels),getPanel:id=>clone(s.panels.find(p=>p.id===id)||null),listCables:()=>clone(s.cables.filter(c=>!c.internalBoxId)),getCable:id=>clone(s.cables.find(x=>x.id===id&&!x.internalBoxId)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 
