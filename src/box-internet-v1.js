@@ -34,7 +34,7 @@ export function createBoxInternetSession({registry,boxId,clients=[],services=[]}
  if(new Set(keys).size!==keys.length)return fail("service_duplicate","Services Internet ambigus.");
  const nat=new Map();
  let nextPort=40000;
- function request({clientId,targetAddress,service="http",sourcePort=50000}={}){
+ function request({clientId,interfaceId,targetAddress,service="http",sourcePort=50000}={}){
   const current=registry.getAsset(boxId);
   if(!current||current.status!=="En service")return fail("box_offline","Box hors service.");
   if(current.boxConfig.mode==="bridge")return fail("bridge_mode","Routage et PAT sortant désactivés en mode bridge.");
@@ -48,7 +48,7 @@ export function createBoxInternetSession({registry,boxId,clients=[],services=[]}
   if(!["http","https","dns"].includes(service)||ipNumber(targetAddress)===null||
      !Number.isInteger(sourcePort)||sourcePort<1024||sourcePort>65535)
     return fail("request_invalid","Destination, service ou port source invalide.");
-  const obtained=lan.request(clientId);
+  const obtained=lan.request(clientId,interfaceId);
   if(!obtained.success)return obtained;
   if(!sameSubnet(obtained.address,current.boxConfig.lan.address,current.boxConfig.lan.prefix)||
      obtained.gateway!==current.boxConfig.lan.address||
@@ -57,8 +57,9 @@ export function createBoxInternetSession({registry,boxId,clients=[],services=[]}
   const client=registry.getAsset(clientId);
   if(!client||client.status!=="En service")return fail("client_offline","PC hors service.");
   // Le Core peut conserver un bail après déconnexion : il ne donne pas un accès Internet.
-  const admission=lan.clients.find(x=>x.assetId===clientId);
-  if(!admission)return fail("client_missing","PC absent de la session LAN.");
+  const matchingAdmissions=lan.clients.filter(x=>x.assetId===clientId&&(!interfaceId||x.portId===interfaceId));
+  if(matchingAdmissions.length!==1)return fail(matchingAdmissions.length?"ambiguous_interface":"client_missing","Interface du PC absente ou ambiguë.");
+  const admission=matchingAdmissions[0];
   // Un PC peut disposer simultanément de RJ45 et de Wi-Fi : seul le
   // support choisi pour cette session doit servir à valider son accès.
   if(admission.medium==="ethernet"){
@@ -72,10 +73,10 @@ export function createBoxInternetSession({registry,boxId,clients=[],services=[]}
   const endpoint=services.find(s=>s.address===targetAddress&&s.kind===service);
   if(!endpoint)return fail("service_unknown","Aucun service Internet simulé à cette destination.");
   if(!endpoint.available)return fail("service_offline","Service Internet simulé arrêté.");
-  const key=[clientId,obtained.address,sourcePort,targetAddress,service].join("|");
+  const key=[clientId,admission.portId,obtained.address,sourcePort,targetAddress,service].join("|");
   if(!nat.has(key))nat.set(key,nextPort++);
   const externalPort=nat.get(key);
-  return {success:true,code:"internet_service_reached",clientId,service,
+  return {success:true,code:"internet_service_reached",clientId,interfaceId:admission.portId,service,
     target:{id:endpoint.id,address:targetAddress,port:ports[service]},
     route:{gateway:obtained.gateway,wanGateway:wan.gateway},
     nat:{protocol:service==="dns"?"udp":"tcp",internalAddress:obtained.address,
