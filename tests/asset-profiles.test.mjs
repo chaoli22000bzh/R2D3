@@ -584,6 +584,18 @@ test("CPU : seule la quantité est requise, valeurs préservées",()=>{
  delete legacy.assets.find(a=>a.id===id).processors[0].quantite;
  assert.equal(restoreAssetRegistry(legacy).getAsset(id).processors[0].quantite,1);
 });
+test("Disques : quantité et capacité seules obligatoires",()=>{
+ const e=createAssetRegistry(),p=installDesktopProfile(e).profile,a=e.createAsset(p.id,{name:"PC-DISK"}).asset;
+ assert.equal(e.addAssetComponent(a.id,"disk",{capaciteGo:500,quantite:2}).success,true);
+ assert.equal(e.getAsset(a.id).disks[0].quantite,2);
+ assert.equal(e.addAssetComponent(a.id,"disk",{capaciteGo:500}).success,false);
+ assert.equal(e.addAssetComponent(a.id,"disk",{quantite:1}).success,false);
+ assert.equal(e.addAssetComponent(a.id,"disk",{capaciteGo:500,quantite:0}).success,false);
+ assert.equal(e.updateAssetComponent(a.id,"disk","disk-1",{capaciteGo:1000,quantite:1}).success,true);
+ assert.equal(e.getAsset(a.id).disks[0].capaciteGo,1000);
+ assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
+ assert.equal(e.removeAssetComponent(a.id,"disk","disk-1").success,true);
+});
 test("RAM et disques : ajout, modification, suppression, quantités et restauration",()=>{
  const e=createAssetRegistry();
  const p=installDesktopProfile(e).profile;
