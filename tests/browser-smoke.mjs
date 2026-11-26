@@ -1037,12 +1037,23 @@ try {
     assert.equal(await page.locator("#ip-2").innerText(),"192.168.10.101");
     await page.locator("#peer-ping").click();
     assert.match(await page.locator("#ping-status").innerText(),/Réponse ping reçue/);
-    await page.locator("#isolation").check();
+    // Le réglage appartient désormais au composant d'administration Wi-Fi
+    // partagé, dans l'onglet Réseaux Wi-Fi du SSID concerné.
+    await page.locator('#wifi-admin [data-tab="networks"]').click();
+    const wifiNetwork=page.locator('#wifi-admin [data-ssid="lycee"]');
+    const isolation=wifiNetwork.locator('[data-field="clientIsolation"]');
+    await isolation.check();
+    await page.locator('#wifi-admin [data-save]').click();
+    assert.match(await page.locator("#ap-status").innerText(),/Configuration enregistrée/);
+    assert.equal(await wifiNetwork.locator('[data-field="clientIsolation"]').isChecked(),true);
     await page.locator("#peer-ping").click();
     assert.match(await page.locator("#ping-status").innerText(),/bloque la communication directe/);
     await page.locator("#gateway-ping").click();
     assert.match(await page.locator("#ping-status").innerText(),/Passerelle joignable/);
-    await page.locator("#isolation").uncheck();
+    await wifiNetwork.locator('[data-field="clientIsolation"]').uncheck();
+    await page.locator('#wifi-admin [data-save]').click();
+    assert.match(await page.locator("#ap-status").innerText(),/Configuration enregistrée/);
+    assert.equal(await wifiNetwork.locator('[data-field="clientIsolation"]').isChecked(),false);
     await page.locator("#peer-ping").click();
     assert.match(await page.locator("#ping-status").innerText(),/Réponse ping reçue/);
     assert.deepEqual(errors,[]);
