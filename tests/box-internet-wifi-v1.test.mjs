@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createAssetRegistry} from "../src/asset-profiles.js";
+import {createAssetRegistry,installDesktopProfile} from "../src/asset-profiles.js";
 import {createBoxInternetSession} from "../src/box-internet-v1.js";
 
 const yes=r=>assert.equal(r.success,true,JSON.stringify(r));
@@ -56,4 +56,26 @@ test("Box Wi-Fi Internet 06 : SSID inactif refuse l'association",()=>{
  const f=fixture(),wifi=structuredClone(f.registry.getAsset(f.box.asset.id).boxConfig.wifi);
  wifi.ssids[0].enabled=false;yes(f.registry.setBoxWifiConfig(f.box.asset.id,wifi));
  no(f.start(),"ssid_unavailable");
+});
+
+test("Box Wi-Fi + Ethernet : Internet simultané sur deux IPv4 du même ordinateur",()=>{
+ const registry=createAssetRegistry(),box=registry.createBoxComposite("BOX-01");yes(box);
+ const p=installDesktopProfile(registry).profile,pc=registry.createAsset(p.id,{name:"PORTABLE"});yes(pc);
+ const lan=registry.addExtension(pc.asset.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1});
+ const wifi=registry.addExtension(pc.asset.id,{type:"wifi",prefix:"WIFI",start:1,count:1});
+ yes(lan);yes(wifi);
+ const c=registry.createCable();yes(c);
+ yes(registry.connectCableEnd(c.cable.id,0,lan.ports[0].id));
+ yes(registry.connectCableEnd(c.cable.id,1,box.config.ports.lanPortIds[0]));
+ const session=createBoxInternetSession({registry,boxId:box.asset.id,clients:[
+  {assetId:pc.asset.id,medium:"ethernet",portId:lan.ports[0].id},
+  {assetId:pc.asset.id,medium:"wifi",portId:wifi.ports[0].id,ssidId:"ssid-1",password:"12345678"}
+ ],services:[{id:"internet-http",address:"80.10.246.50",kind:"http",available:true}]});yes(session);
+ const a=session.request({clientId:pc.asset.id,interfaceId:lan.ports[0].id,targetAddress:"80.10.246.50"});
+ const b=session.request({clientId:pc.asset.id,interfaceId:wifi.ports[0].id,targetAddress:"80.10.246.50"});
+ yes(a);yes(b);
+ assert.deepEqual([a.nat.internalAddress,b.nat.internalAddress],["192.168.1.100","192.168.1.101"]);
+ assert.notEqual(a.nat.externalPort,b.nat.externalPort);
+ assert.equal(session.listNat().length,2);
+ no(session.request({clientId:pc.asset.id,targetAddress:"80.10.246.50"}),"ambiguous_interface");
 });
