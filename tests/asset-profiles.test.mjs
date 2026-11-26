@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createAssetRegistry,restoreAssetRegistry,installScreenProfile,displayFieldDefinitions,screenSpecificFieldDefinitions,installDesktopProfile,computingFieldDefinitions,desktopFieldDefinitions} from "../src/asset-profiles.js";
+import {createAssetRegistry,restoreAssetRegistry,installScreenProfile,displayFieldDefinitions,screenSpecificFieldDefinitions,installDesktopProfile,computingFieldDefinitions,desktopFieldDefinitions,computerTypeFieldDefinition} from "../src/asset-profiles.js";
 
 const panelAt=(e,name,location,count,start,prefix="")=>{
  const place=e.listPlaces().find(p=>p.name===location&&p.parentId===null)||
@@ -516,8 +516,8 @@ test("Ordinateur standard : socle Informatique commun, profil léger et registre
  const created=installDesktopProfile(e);
  assert.equal(created.success,true);
  const p=e.getProfile(created.profile.id);
- assert.deepEqual(p.fields.map(f=>f.key),[...computingFieldDefinitions,...desktopFieldDefinitions].map(f=>f.key));
- assert.equal(p.fields.length,6);
+ assert.deepEqual(p.fields.map(f=>f.key),[computerTypeFieldDefinition,...computingFieldDefinitions,...desktopFieldDefinitions].map(f=>f.key));
+ assert.equal(p.fields.length,7);
  assert.equal(p.fields.some(f=>["chassis","raid","volumes","frequence_cpu","architecture_os"].includes(f.key)),false);
  assert.equal(p.portGroups.length,0);
  assert.equal(p.name,"Ordinateur");
@@ -536,7 +536,7 @@ test("Ordinateur standard : socle Informatique commun, profil léger et registre
  for(const f of computingFieldDefinitions)assert.equal(e.addField(mobile.id,f).success,true);
  assert.equal(e.getProfile(mobile.id).fields.length,4);
  assert.equal(e.getProfile(mobile.id).fields.some(f=>f.key==="systeme_exploitation"),false);
- assert.equal(e.getProfile(p.id).fields.length,6);
+ assert.equal(e.getProfile(p.id).fields.length,7);
 });
 
 test("Inventaire processeurs détaillés : répétition, validation, copie et compatibilité",()=>{
@@ -703,4 +703,28 @@ test("Renommage PC fixe vers Ordinateur : identité, composants et liens conserv
  assert.deepEqual(registry.exportState().cables,before.cables);
  assert.deepEqual(restoreAssetRegistry(registry.exportState()).exportState(),registry.exportState());
  assert.equal(installDesktopProfile(registry).code,"already_present");
+});
+
+test("Type d'ordinateur : ordre de la liste, sélection facultative et compatibilité",()=>{
+ const e=createAssetRegistry(),profile=installDesktopProfile(e).profile;
+ const f=e.getProfile(profile.id).fields.find(x=>x.key==="type_ordinateur");
+ assert.deepEqual(f.options,["PC fixe","PC portable","Smartphone","Tablette","Serveur","PC tout-en-un","Station de travail","NAS","Autre"]);
+ assert.equal(f.type,"select");
+ const asset=e.createAsset(profile.id,{name:"PC-01"}).asset;
+ assert.equal(e.getAsset(asset.id).values.type_ordinateur,null);
+ assert.equal(e.setAssetField(asset.id,"type_ordinateur","Smartphone").success,true);
+ assert.equal(e.setAssetField(asset.id,"type_ordinateur","inconnu").success,false);
+ assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
+ const saved=e.exportState();
+ saved.profiles[0].fields=saved.profiles[0].fields.filter(x=>x.key!=="type_ordinateur");
+ delete saved.assets[0].values.type_ordinateur;
+ const old=restoreAssetRegistry(saved);
+ const again=installDesktopProfile(old);
+ assert.equal(again.code,"already_present");
+ assert.equal(old.getAsset(asset.id).id,asset.id);
+ assert.equal(old.getAsset(asset.id).values.type_ordinateur,null);
+ assert.equal(old.getProfile(profile.id).fields[0].key,"type_ordinateur");
+ assert.equal(installDesktopProfile(old).code,"already_present");
+ assert.equal(old.getProfile(profile.id).fields.filter(f=>f.key==="type_ordinateur").length,1);
+ assert.deepEqual(restoreAssetRegistry(old.exportState()).exportState(),old.exportState());
 });
