@@ -65,15 +65,11 @@ test("Box composition 05 : sauvegarde/restauration conserve identité et liens",
  const {reg,config}=fixture();
  const saved=reg.exportState();
  const restored=restoreAssetRegistry(saved);
- const normalized=restored.exportState();
- // La restauration complète les champs facultatifs apparus depuis la création
- // du scénario (inventaire matériel, options de profil). Ce n'est pas une perte.
- assert.deepEqual(restoreAssetRegistry(normalized).exportState(),normalized);
- assert.equal(normalized.assets[0].id,saved.assets[0].id);
- assert.equal(normalized.assets[0].profileId,saved.assets[0].profileId);
- assert.deepEqual(normalized.assets[0].ports,saved.assets[0].ports);
- assert.deepEqual(normalized.cables,saved.cables);
- assert.deepEqual(normalized.assets[0].boxConfig,saved.assets[0].boxConfig);
+ assert.deepEqual(restored.exportState(),saved);
+ assert.equal(Object.hasOwn(saved.assets[0],"processors"),false);
+ assert.equal(Object.hasOwn(saved.assets[0],"ramModules"),false);
+ assert.equal(Object.hasOwn(saved.assets[0],"disks"),false);
+ assert.equal(Object.hasOwn(saved.profiles[0],"processorInventory"),false);
  assert.equal(restored.listCables().length,0);
  assert.equal(restored.explorePhysicalPath(config.components.switch.lanPortIds[4],config.components.wifi.ethernetPortId).connected,true);
 });
