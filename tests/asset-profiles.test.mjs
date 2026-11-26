@@ -516,8 +516,8 @@ test("Ordinateur standard : socle Informatique commun, profil léger et registre
  const created=installDesktopProfile(e);
  assert.equal(created.success,true);
  const p=e.getProfile(created.profile.id);
- assert.deepEqual(p.fields.map(f=>f.key),[computerTypeFieldDefinition,...computingFieldDefinitions,...desktopFieldDefinitions].map(f=>f.key));
- assert.equal(p.fields.length,7);
+ assert.deepEqual(p.fields.map(f=>f.key),[computerTypeFieldDefinition,...computingFieldDefinitions,...desktopFieldDefinitions,...integratedScreenFieldDefinitions].map(f=>f.key));
+ assert.equal(p.fields.length,7+integratedScreenFieldDefinitions.length);
  assert.equal(p.fields.some(f=>["chassis","raid","volumes","frequence_cpu","architecture_os"].includes(f.key)),false);
  assert.equal(p.portGroups.length,0);
  assert.equal(p.name,"Ordinateur");
