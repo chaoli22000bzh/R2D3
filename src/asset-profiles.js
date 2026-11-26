@@ -99,7 +99,10 @@ const portTypes={
  "mini-displayport":{medium:"video",connector:"Mini DisplayPort"},
  "db9":{medium:"serial",connector:"DB9"},
  "wifi":{medium:"wireless",connector:null},
- "bluetooth":{medium:"wireless",connector:null}
+ "bluetooth":{medium:"wireless",connector:null},
+ "4g":{medium:"wireless",connector:null},
+ "5g":{medium:"wireless",connector:null},
+ "6g":{medium:"wireless",connector:null}
 };
 const portGroupValid=g=>g&&Object.hasOwn(portTypes,g.type)&&/^[A-Za-z][A-Za-z0-9_-]{0,19}$/.test(g.prefix||"")&&Number.isInteger(g.count)&&g.count>=1&&g.count<=128&&Number.isInteger(g.start)&&g.start>=0&&g.start<=9999;
 const portNames=g=>Array.from({length:g.count},(_,i)=>g.prefix+String(g.start+i).padStart(g.digits,"0"));
