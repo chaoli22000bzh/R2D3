@@ -329,8 +329,10 @@ export function createAssetRegistry(saved){
   asset.boxConfig.wanDhcpLease=boxWanLease(address);occupiedWan.add(address);
  }
  for(const p of s.profiles){
-   p.processorInventory??=false;
-   if(typeof p.processorInventory!=="boolean")throw Error("Option d'inventaire processeurs invalide");
+   // L'inventaire détaillé est une option de profil, non une propriété universelle.
+   // Les anciennes sauvegardes contiennent parfois un « false » ajouté partout.
+   if(p.processorInventory===false)delete p.processorInventory;
+   if(p.processorInventory!==undefined&&p.processorInventory!==true)throw Error("Option d'inventaire processeurs invalide");
    p.poe??=false;
    if(typeof p.poe!=="boolean")throw Error("Propriété PoE du profil invalide");
    p.portGroups??=[];
@@ -347,14 +349,26 @@ export function createAssetRegistry(saved){
      throw Error("Profil composite de box invalide");
  }
  for(const a of s.assets){
-   a.processors??=[];a.ramModules??=[];a.disks??=[];
+   const inventoryEnabled=s.profiles.find(p=>p.id===a.profileId)?.processorInventory===true;
+   if(inventoryEnabled){
+    a.processors??=[];a.ramModules??=[];a.disks??=[];
+    if(!Array.isArray(a.processors)||!Array.isArray(a.ramModules)||!Array.isArray(a.disks))
+     throw Error("Inventaire informatique invalide");
     for(const cpu of a.processors){if(cpu.quantite===undefined)cpu.quantite=1;}
-   for(const [kind,key] of [["ram","ramModules"],["disk","disks"]]){
-    if(!Array.isArray(a[key])||a[key].some(c=>!componentValid(kind,c))||new Set(a[key].map(c=>c.id)).size!==a[key].length||
-      (a[key].length>0&&!s.profiles.find(p=>p.id===a.profileId)?.processorInventory))throw Error("Inventaire de composants invalide");
+    for(const [kind,key] of [["ram","ramModules"],["disk","disks"]]){
+     if(a[key].some(c=>!componentValid(kind,c))||new Set(a[key].map(c=>c.id)).size!==a[key].length)
+      throw Error("Inventaire de composants invalide");
+    }
+    if(a.processors.some(cpu=>!validProcessor(cpu))||new Set(a.processors.map(cpu=>cpu.id)).size!==a.processors.length)
+     throw Error("Inventaire processeurs invalide");
+   }else{
+    // Nettoyer les listes vides issues de l'ancienne erreur, jamais les données remplies.
+    for(const key of ["processors","ramModules","disks"]){
+     if(a[key]===undefined)continue;
+     if(!Array.isArray(a[key])||a[key].length)throw Error("Inventaire informatique sur un profil non habilité");
+     delete a[key];
+    }
    }
-   if(!Array.isArray(a.processors)||a.processors.some(cpu=>!validProcessor(cpu))||new Set(a.processors.map(cpu=>cpu.id)).size!==a.processors.length||
-      (a.processors.length>0&&!s.profiles.find(p=>p.id===a.profileId)?.processorInventory))throw Error("Inventaire processeurs invalide");
    if(a.networkCapabilities?.includes("dhcp-server")&&a.dhcpServerConfig===undefined)
     a.dhcpServerConfig={assetId:a.id,enabled:false,pools:[]};
    if(a.networkCapabilities?.includes("dhcp-server")&&!validAssetDhcpServer(a,a.dhcpServerConfig))
@@ -439,14 +453,14 @@ export function createAssetRegistry(saved){
  const occupied=(id,key)=>s.assets.some(a=>a.profileId===id&&!empty(a.values[key]));
  function createProfile(name){
   name=trim(name);if(!name)return result(false,"invalid_name","Nom de profil obligatoire.");
-  const p={id:"profile-"+s.nextProfile++,name,fields:[],portGroups:[],networkCapabilities:[],poe:false,processorInventory:false};s.profiles.push(p);s.revision++;
+  const p={id:"profile-"+s.nextProfile++,name,fields:[],portGroups:[],networkCapabilities:[],poe:false};s.profiles.push(p);s.revision++;
   return result(true,"created","Profil créé.",{profile:clone(p)});
  }
  function duplicateProfile(id,name){
   const p=getP(id);if(!p)return result(false,"not_found","Profil introuvable.");
   if(p.networkCapabilities.includes("box-internet"))return result(false,"composite_fixed","La box utilise un profil matériel fixe.");
   const r=createProfile(name||p.name+" (copie)");if(!r.success)return r;
-  const target=getP(r.profile.id);target.fields=clone(p.fields);target.portGroups=clone(p.portGroups).map(g=>({...g,id:"portgroup-"+s.nextPortGroup++}));target.networkCapabilities=clone(p.networkCapabilities);target.poe=p.poe;target.processorInventory=p.processorInventory;s.revision++;
+  const target=getP(r.profile.id);target.fields=clone(p.fields);target.portGroups=clone(p.portGroups).map(g=>({...g,id:"portgroup-"+s.nextPortGroup++}));target.networkCapabilities=clone(p.networkCapabilities);target.poe=p.poe;if(p.processorInventory===true)target.processorInventory=true;s.revision++;
   return result(true,"duplicated","Profil dupliqué.",{profile:clone(target)});
  }
 
@@ -456,7 +470,7 @@ export function createAssetRegistry(saved){
   if(typeof enabled!=="boolean")return result(false,"invalid_option","Valeur invalide.");
   if(!enabled&&s.assets.some(a=>a.profileId===id&&(a.processors?.length||a.ramModules?.length||a.disks?.length)))
    return result(false,"processors_in_use","Retirer les processeurs des équipements avant de désactiver l'inventaire.");
-  p.processorInventory=enabled;s.revision++;
+  if(enabled)p.processorInventory=true;else delete p.processorInventory;s.revision++;
   return result(true,"processor_inventory_updated","Inventaire détaillé des processeurs mis à jour.");
  }
  function addAssetProcessor(assetId,raw={}){
@@ -893,7 +907,8 @@ export function createAssetRegistry(saved){
   const name=trim(info?.name);if(!name)return result(false,"invalid_name","Nom de matériel obligatoire.");
   const status=info.status||"En service";
   if(!["En service","Hors service","En stock"].includes(status))return result(false,"invalid_status","Statut incorrect.");
-  const a={id:"asset-"+s.nextAsset++,profileId,name,manufacturer:trim(info.manufacturer),model:trim(info.model),serialNumber:trim(info.serialNumber),status,location:trim(info.location),placeId:null,reservable:!!info.reservable,processors:[],ramModules:[],disks:[],values:Object.fromEntries(p.fields.map(f=>[f.key,null])),ports:buildPorts(p.portGroups,"integrated"),networkCapabilities:clone(p.networkCapabilities),poe:p.poe};
+  const a={id:"asset-"+s.nextAsset++,profileId,name,manufacturer:trim(info.manufacturer),model:trim(info.model),serialNumber:trim(info.serialNumber),status,location:trim(info.location),placeId:null,reservable:!!info.reservable,values:Object.fromEntries(p.fields.map(f=>[f.key,null])),ports:buildPorts(p.portGroups,"integrated"),networkCapabilities:clone(p.networkCapabilities),poe:p.poe};
+  if(p.processorInventory===true){a.processors=[];a.ramModules=[];a.disks=[];}
   if(a.networkCapabilities.includes("vlan")){
    a.vlanConfig=vlanDefault(a);
    a.managementConfig=managementDefault(a);
