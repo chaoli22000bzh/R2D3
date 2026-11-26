@@ -166,3 +166,63 @@ test("Box DHCP multi-interface : Ethernet et Wi-Fi du même ordinateur reçoiven
   clients:[clients[0],clients[0]]});
  err(duplicates,"duplicate_client");
 });
+
+test("Box DHCP persistant 01 : deux sessions distinctes ne réutilisent jamais le même bail",()=>{
+ const f=fixture();
+ const one=createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,
+  clients:[f.clients[0]]});good(one);
+ const first=one.request(f.wire1.id);good(first);
+ assert.equal(first.address,"192.168.1.100");
+ const two=createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,
+  clients:[f.clients[1]]});good(two);
+ const second=two.request(f.wire2.id);good(second);
+ assert.equal(second.address,"192.168.1.101");
+ const leases=f.registry.getAsset(f.box.asset.id).boxConfig.dhcpState.clients;
+ assert.equal(leases.length,2);
+ assert.deepEqual(leases.map(x=>x.address),["192.168.1.100","192.168.1.101"]);
+ const again=createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,
+  clients:[f.clients[0]]});good(again);
+ const renewed=again.request(f.wire1.id);good(renewed);
+ assert.equal(renewed.address,first.address);
+ assert.equal(f.registry.getAsset(f.box.asset.id).boxConfig.dhcpState.clients.length,2);
+});
+test("Box DHCP persistant 02 : sauvegarde R2D3 et restauration sans perte de baux",()=>{
+ const f=fixture();
+ for(const c of [f.clients[0],f.clients[1]]){
+  const session=createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,clients:[c]});
+  good(session);good(session.request(c.assetId));
+ }
+ const stored=f.registry.exportState();
+ const restored=restoreAssetRegistry(stored);
+ assert.deepEqual(restored.exportState(),stored);
+ const next=createBoxLanDhcpSession({registry:restored,boxId:f.box.asset.id,clients:[f.clients[2]]});
+ good(next);
+ const third=next.request(f.wifi.id);good(third);
+ assert.equal(third.address,"192.168.1.102");
+ assert.equal(restored.getAsset(f.box.asset.id).boxConfig.dhcpState.clients.length,3);
+ const all=next.engine.query({type:"dhcp.leases",serverId:next.routerId});
+ assert.equal(all.status,"ok");
+ assert.equal(all.leases.length,3);
+});
+test("Box DHCP persistant 03 : les deux interfaces d'un même PC conservent leurs IPv4 après nouvelle session",()=>{
+ const f=fixture();
+ const p=f.registry.createProfile("Ordinateur double interface");good(p);
+ good(f.registry.addPortGroup(p.profile.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1}));
+ good(f.registry.addPortGroup(p.profile.id,{type:"wifi",prefix:"WIFI",start:1,count:1}));
+ const pc=f.registry.createAsset(p.profile.id,{name:"PORTABLE"});good(pc);
+ const cable=f.registry.createCable();good(cable);
+ good(f.registry.connectCableEnd(cable.cable.id,0,pc.asset.ports[0].id));
+ good(f.registry.connectCableEnd(cable.cable.id,1,f.box.config.ports.lanPortIds[2]));
+ const eth={assetId:pc.asset.id,medium:"ethernet",portId:pc.asset.ports[0].id};
+ const wireless={assetId:pc.asset.id,medium:"wifi",portId:pc.asset.ports[1].id,ssidId:"ssid-1",password:"12345678"};
+ const first=createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,clients:[eth]});
+ good(first);assert.equal(first.request(pc.asset.id).address,"192.168.1.100");
+ const second=createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,clients:[wireless]});
+ good(second);assert.equal(second.request(pc.asset.id).address,"192.168.1.101");
+ const third=createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,clients:[eth,wireless]});
+ good(third);
+ const e=third.request(pc.asset.id,pc.asset.ports[0].id),w=third.request(pc.asset.id,pc.asset.ports[1].id);
+ good(e);good(w);
+ assert.deepEqual([e.address,w.address],["192.168.1.100","192.168.1.101"]);
+ assert.equal(f.registry.getAsset(f.box.asset.id).boxConfig.dhcpState.clients.length,2);
+});
