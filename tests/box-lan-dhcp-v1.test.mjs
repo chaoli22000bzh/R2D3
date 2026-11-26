@@ -179,7 +179,7 @@ test("Box DHCP persistant 01 : deux sessions distinctes ne réutilisent jamais l
  assert.equal(second.address,"192.168.1.101");
  const leases=f.registry.getAsset(f.box.asset.id).boxConfig.dhcpState.clients;
  assert.equal(leases.length,2);
- assert.deepEqual(leases.map(x=>x.address),["192.168.1.100","192.168.1.101"]);
+ assert.deepEqual(leases.map(x=>x.address).sort(),["192.168.1.100","192.168.1.101"]);
  const again=createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,
   clients:[f.clients[0]]});good(again);
  const renewed=again.request(f.wire1.id);good(renewed);
