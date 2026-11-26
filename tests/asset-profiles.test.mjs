@@ -708,7 +708,7 @@ test("Renommage PC fixe vers Ordinateur : identité, composants et liens conserv
 test("Type d'ordinateur : ordre de la liste, sélection facultative et compatibilité",()=>{
  const e=createAssetRegistry(),profile=installDesktopProfile(e).profile;
  const f=e.getProfile(profile.id).fields.find(x=>x.key==="type_ordinateur");
- assert.deepEqual(f.options,["PC fixe","PC portable","Smartphone","Tablette","Serveur","PC tout-en-un","Station de travail","NAS","Autre"]);
+ assert.deepEqual(f.options,["PC fixe","Serveur","Smartphone","PC portable","Tout-en-un","Tablette"]);
  assert.equal(f.type,"select");
  const asset=e.createAsset(profile.id,{name:"PC-01"}).asset;
  assert.equal(e.getAsset(asset.id).values.type_ordinateur,null);
@@ -727,4 +727,19 @@ test("Type d'ordinateur : ordre de la liste, sélection facultative et compatibi
  assert.equal(installDesktopProfile(old).code,"already_present");
  assert.equal(old.getProfile(profile.id).fields.filter(f=>f.key==="type_ordinateur").length,1);
  assert.deepEqual(restoreAssetRegistry(old.exportState()).exportState(),old.exportState());
+});
+
+test("Type Ordinateur : ancienne liste remplacée sans perdre de valeur existante",()=>{
+ const e=createAssetRegistry(),p=installDesktopProfile(e).profile;
+ const a=e.createAsset(p.id,{name:"PC-01"}).asset;
+ const prior=e.exportState();
+ const field=prior.profiles[0].fields.find(f=>f.key==="type_ordinateur");
+ field.options=["PC fixe","PC portable","Smartphone","Tablette","Serveur","PC tout-en-un","Station de travail","NAS","Autre"];
+ const restored=restoreAssetRegistry(prior);
+ assert.equal(installDesktopProfile(restored).success,true);
+ assert.deepEqual(restored.getProfile(p.id).fields.find(f=>f.key==="type_ordinateur").options,computerTypeFieldDefinition.options);
+ const incompatible=restoreAssetRegistry(prior);
+ assert.equal(incompatible.setAssetField(a.id,"type_ordinateur","Station de travail").success,true);
+ assert.equal(installDesktopProfile(incompatible).success,false);
+ assert.equal(incompatible.getAsset(a.id).values.type_ordinateur,"Station de travail");
 });
