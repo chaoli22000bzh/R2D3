@@ -744,25 +744,25 @@ test("Type Ordinateur : ancienne liste remplacée sans perdre de valeur existant
  assert.equal(incompatible.getAsset(a.id).values.type_ordinateur,"Station de travail");
 });
 
-test("Interfaces cellulaires 4G 5G 6G : descriptives, ajout et restauration",()=>{
+test("Interface cellulaire unique 4G/5G/6G : descriptive et compatible",()=>{
  const e=createAssetRegistry(),p=installDesktopProfile(e).profile;
  const pc=e.createAsset(p.id,{name:"PC-CELLULAIRE"}).asset;
- for(const type of ["4g","5g","6g"]){
-  const r=e.addExtension(pc.id,{type,prefix:type==="4g"?"CELL4":type==="5g"?"CELL5":"CELL6",start:1,count:1});
-  assert.equal(r.success,true,type);
-  assert.equal(r.ports[0].type,type);
-  assert.equal(r.ports[0].medium,"wireless");
-  assert.equal(r.ports[0].connector,null);
-  assert.deepEqual(r.ports[0].connectedCableIds,[]);
- }
+ const cell=e.addExtension(pc.id,{type:"cellular",prefix:"CELL",start:1,count:1});
+ assert.equal(cell.success,true);
+ assert.equal(cell.ports[0].type,"cellular");
+ assert.equal(cell.ports[0].medium,"wireless");
+ assert.equal(cell.ports[0].connector,null);
+ assert.equal(e.addExtension(pc.id,{type:"4g",prefix:"OLD",start:1,count:1}).success,false);
+ assert.equal(e.addExtension(pc.id,{type:"5g",prefix:"OLD",start:1,count:1}).success,false);
+ assert.equal(e.addExtension(pc.id,{type:"6g",prefix:"OLD",start:1,count:1}).success,false);
  const wifi=e.addExtension(pc.id,{type:"wifi",prefix:"WIFI",start:1,count:1});
  const ethernet=e.addExtension(pc.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1});
- assert.equal(wifi.success,true);
- assert.equal(ethernet.success,true);
- assert.equal(e.getAsset(pc.id).ports.length,5);
- const restored=restoreAssetRegistry(e.exportState());
- assert.deepEqual(restored.exportState(),e.exportState());
- const first=e.getAsset(pc.id).ports.find(x=>x.type==="4g");
- assert.equal(e.removeExtension(pc.id,first.groupId).success,true);
- assert.equal(e.getAsset(pc.id).ports.some(x=>x.type==="4g"),false);
+ assert.equal(wifi.success,true);assert.equal(ethernet.success,true);
+ assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
+ const archived=e.exportState();archived.assets[0].ports.find(x=>x.type==="cellular").type="5g";
+ const migrated=restoreAssetRegistry(archived);
+ assert.equal(migrated.getAsset(pc.id).ports.find(x=>x.name==="CELL01").type,"cellular");
+ assert.equal(migrated.getAsset(pc.id).ports.find(x=>x.name==="LAN01").type,"ethernet-rj45");
+ assert.equal(e.removeExtension(pc.id,cell.extensionId).success,true);
+ assert.equal(e.getAsset(pc.id).ports.some(x=>x.type==="cellular"),false);
 });
