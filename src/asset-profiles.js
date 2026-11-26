@@ -1282,18 +1282,26 @@ export const desktopFieldDefinitions=[
  {key:"systeme_exploitation",label:"Système d'exploitation",type:"text"},
  {key:"version_os",label:"Version",type:"text"}
 ];
-/* Profil PC fixe standard : pas de composants détaillés, de châssis ni de RAID. */
+/* Profil Ordinateur : conserver les identifiants des anciens PC fixes.
+   Le renommage ne recrée ni équipement ni composants, ports ou câbles. */
 export function installDesktopProfile(registry){
- const existing=registry.listProfiles().find(p=>p.name==="PC fixe");
+ const profiles=registry.listProfiles();
+ const existing=profiles.find(p=>p.name==="Ordinateur");
  if(existing)return {success:true,code:"already_present",profile:existing};
- const created=registry.createProfile("PC fixe");
+ const legacy=profiles.find(p=>p.name==="PC fixe");
+ if(legacy){
+  const renamed=registry.renameProfile(legacy.id,"Ordinateur");
+  if(!renamed.success)return renamed;
+  return {success:true,code:"renamed",profile:registry.getProfile(legacy.id)};
+ }
+ const created=registry.createProfile("Ordinateur");
  if(!created.success)return created;
  for(const field of [...computingFieldDefinitions,...desktopFieldDefinitions]){
   const added=registry.addField(created.profile.id,field);
-  if(!added.success)throw Error("Impossible de préparer le champ PC fixe : "+field.key);
+  if(!added.success)throw Error("Impossible de préparer le champ Ordinateur : "+field.key);
  }
  const enabled=registry.setProfileProcessorInventory(created.profile.id,true);
- if(!enabled.success)throw Error("Impossible d’activer les composants du PC fixe");
+ if(!enabled.success)throw Error("Impossible d’activer les composants de l'ordinateur");
  return {success:true,code:"created",profile:registry.getProfile(created.profile.id)};
 }
 
