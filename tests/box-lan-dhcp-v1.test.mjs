@@ -226,3 +226,16 @@ test("Box DHCP persistant 03 : les deux interfaces d'un même PC conservent leur
  assert.deepEqual([e.address,w.address],["192.168.1.100","192.168.1.101"]);
  assert.equal(f.registry.getAsset(f.box.asset.id).boxConfig.dhcpState.clients.length,2);
 });
+
+test("Box DHCP persistant 04 : session ancienne refusée après une attribution concurrente",()=>{
+ const f=fixture();
+ const old=createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,
+  clients:[f.clients[1]]});good(old);
+ const current=createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,
+  clients:[f.clients[0]]});good(current);
+ assert.equal(current.request(f.wire1.id).address,"192.168.1.100");
+ err(old.request(f.wire2.id),"dhcp_state_changed");
+ const fresh=createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,
+  clients:[f.clients[1]]});good(fresh);
+ assert.equal(fresh.request(f.wire2.id).address,"192.168.1.101");
+});
