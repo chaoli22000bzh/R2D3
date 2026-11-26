@@ -766,3 +766,30 @@ test("Interface cellulaire unique 4G/5G/6G : descriptive et compatible",()=>{
  assert.equal(e.removeExtension(pc.id,cell.extensionId).success,true);
  assert.equal(e.getAsset(pc.id).ports.some(x=>x.type==="cellular"),false);
 });
+
+test("IPv4 multi-interface Ordinateur : deux adresses persistées et aucune collision locale",()=>{
+ const e=createAssetRegistry(),profile=installDesktopProfile(e).profile;
+ const pc=e.createAsset(profile.id,{name:"PORTABLE"}).asset;
+ const lan=e.addExtension(pc.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1});
+ const wifi=e.addExtension(pc.id,{type:"wifi",prefix:"WIFI",start:1,count:1});
+ assert.equal(lan.success,true);assert.equal(wifi.success,true);
+ const config=(address,status="connected")=>({mode:"dhcp",status,address,prefix:24,gateway:"192.168.1.1",dns:["192.168.1.1"]});
+ assert.equal(e.setAssetInterfaceIpv4(pc.id,lan.ports[0].id,config("192.168.1.100")).success,true);
+ assert.equal(e.setAssetInterfaceIpv4(pc.id,wifi.ports[0].id,config("192.168.1.101")).success,true);
+ const v=e.getAsset(pc.id).interfaceIpv4;
+ assert.deepEqual(Object.keys(v),[lan.ports[0].id,wifi.ports[0].id]);
+ assert.equal(v[lan.ports[0].id].address,"192.168.1.100");
+ assert.equal(v[wifi.ports[0].id].address,"192.168.1.101");
+ const duplicate=e.setAssetInterfaceIpv4(pc.id,wifi.ports[0].id,config("192.168.1.100"));
+ assert.equal(duplicate.code,"duplicate_ipv4");
+ assert.equal(e.getAsset(pc.id).interfaceIpv4[wifi.ports[0].id].address,"192.168.1.101");
+ const previous=e.exportState();
+ assert.deepEqual(restoreAssetRegistry(previous).exportState(),previous);
+ assert.equal(e.removeExtension(pc.id,wifi.extensionId).success,true);
+ assert.equal(e.getAsset(pc.id).interfaceIpv4[wifi.ports[0].id],undefined);
+ assert.equal(e.getAsset(pc.id).interfaceIpv4[lan.ports[0].id].address,"192.168.1.100");
+ const box=e.createBoxComposite("BOX-01").asset;
+ assert.equal(box.interfaceIpv4,undefined);
+ assert.equal(e.setAssetInterfaceIpv4(box.id,box.ports[0].id,config("192.168.1.105")).success,false);
+ assert.equal(e.getAsset(box.id).interfaceIpv4,undefined);
+});
