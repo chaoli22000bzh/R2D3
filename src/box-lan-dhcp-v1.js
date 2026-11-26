@@ -3,7 +3,7 @@
  * Les liens Core sont dérivés seulement après vérification du brassage ou de
  * l'association Wi-Fi. Le Core DHCP conserve tous les baux d'une session.
  */
-import {createEngine} from "./r2d3-core.js";
+import {createEngine,restoreEngine} from "./r2d3-core.js";
 import {createRouterDhcpCoreObject} from "./router-dhcp-service-v1.js";
 import {associateWifiClient} from "./wifi-ap-v1.js";
 
@@ -105,12 +105,62 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
    endpoints:[{objectId:item.clientId,portId:item.port.id},
     {objectId:router.id,portId:id}]};
  });
+ // Baux antérieurs conservés dans l'actif box, y compris lorsqu'un
+ // client n'est pas présent dans cette nouvelle session. Le Core reste
+ // l'unique autorité pour leur validité et les nouvelles allocations.
+ const persisted=box.boxConfig.dhcpState??{clock:0,clients:[]};
+ const known=new Map(persisted.clients.map(c=>[c.assetId+"|"+c.portId,c]));
+ const activeKeys=new Set(accepted.map(a=>a.client.id+"|"+a.port.id));
+ const holders=persisted.clients.filter(c=>!activeKeys.has(c.assetId+"|"+c.portId)&&
+  c.lease.expires>persisted.clock);
+ const holderId=c=>"dhcp-holder/"+c.assetId+"/"+c.portId;
+ const priorObjects=holders.map(c=>({
+  id:holderId(c),kind:"pc-windows",name:"Bail DHCP réservé",
+  ports:[{id:c.portId,type:"rj45"}],
+  config:{macAddress:c.mac,
+   ipv4:{interfaceId:c.portId,mode:"dhcp",address:null,prefix:null,lease:null},
+   networkOptions:{gateway:null,dns:[]}}
+ }));
+ const objects=[server,...accepted.map(coreClient),...priorObjects];
+ const scenario={format:"r2d3-scenario",schemaVersion:1,
+  scenarioId:"box-lan-"+box.id,scenarioVersion:"1.0.0",
+  capabilities:{network:true},objects,links};
  let engine;
  try{
-  engine=createEngine({format:"r2d3-scenario",schemaVersion:1,
-   scenarioId:"box-lan-"+box.id,scenarioVersion:"1.0.0",
-   capabilities:{network:true},objects:[server,...accepted.map(coreClient)],links});
+  const base=createEngine(scenario);
+  const snapshot=base.exportState();
+  snapshot.simulationClock=persisted.clock;
+  const saved=[...accepted.map(a=>({
+   id:a.clientId,key:a.client.id+"|"+a.port.id
+  })),...holders.map(c=>({id:holderId(c),key:c.assetId+"|"+c.portId}))];
+  for(const {id,key} of saved){
+   const previous=known.get(key);
+   if(!previous||previous.lease.expires<=persisted.clock)continue;
+   const target=snapshot.objectsById[id];
+   target.config.macAddress=previous.mac;
+   target.config.ipv4={interfaceId:target.config.ipv4.interfaceId,mode:"dhcp",
+    address:previous.address,prefix:previous.prefix,lease:copy(previous.lease)};
+   target.config.networkOptions={gateway:previous.gateway,dns:copy(previous.dns)};
+   snapshot.runtime[id]={dhcpStatus:"lease-retained"};
+  }
+  engine=restoreEngine(scenario,snapshot);
  }catch(e){return fail("core_scenario_invalid",e.message);}
+ // L'état persisté contient uniquement les baux effectivement produits par le Core.
+ function saveLeases(){
+  if(typeof registry.setBoxDhcpState!=="function")return {success:true};
+  const snap=engine.exportState(),mapped=new Map();
+  for(const a of accepted)mapped.set(a.clientId,{assetId:a.client.id,portId:a.port.id});
+  for(const c of holders)mapped.set(holderId(c),{assetId:c.assetId,portId:c.portId});
+  const clients=[];
+  for(const [id,identity] of mapped){
+   const object=snap.objectsById[id],ip=object?.config.ipv4;
+   if(!ip?.lease||ip.lease.expires<=snap.simulationClock)continue;
+   clients.push({...identity,mac:object.config.macAddress,address:ip.address,
+    prefix:ip.prefix,gateway:object.config.networkOptions.gateway,
+    dns:copy(object.config.networkOptions.dns),lease:copy(ip.lease)});
+  }
+  return registry.setBoxDhcpState(boxId,{clock:snap.simulationClock,clients});
+ }
  return {success:true,code:"session_created",boxId,routerId:router.id,engine,
   clients:accepted.map(x=>({assetId:x.client.id,clientId:x.clientId,portId:x.port.id,
    medium:x.medium,lanPortId:x.lanPortId??null,association:x.association??null})),
@@ -151,6 +201,8 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
    if(result.status!=="applied")return fail("core_rejected",result.message||result.code||"Demande DHCP refusée.");
    const updated=engine.getSnapshot(),ip=updated.objectsById[coreId].config.ipv4;
    const status=updated.runtime?.[coreId]?.dhcpStatus??"unassigned";
+   const persist=saveLeases();
+   if(!persist.success)return fail("lease_persist_failed",persist.message||"Sauvegarde des baux impossible.");
    return {success:true,code:status,address:ip.address,prefix:ip.prefix,
     gateway:updated.objectsById[coreId].config.networkOptions?.gateway??null,
     dns:copy(updated.objectsById[coreId].config.networkOptions?.dns??[]),
