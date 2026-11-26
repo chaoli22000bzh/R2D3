@@ -337,6 +337,17 @@ function validIntegratedScreen(v){
   (v.tactile===null||typeof v.tactile==="boolean")&&
   (v.typeDalle===""||integratedScreenTypes.includes(v.typeDalle));
 }
+/* Le module caméra est partagé par conception, mais seul l'ordinateur l'utilise dans ce lot. */
+const cameraResolutions=["720p","1080p","2K","4K","Autre"];
+function cameraComponentData(raw={}){
+ return {id:"camera-1",resolution:trim(raw.resolution),
+  microphone:raw.microphone===""||raw.microphone==null?null:raw.microphone};
+}
+function validCameraComponent(v){
+ return !!v&&v.id==="camera-1"&&
+  (v.resolution===""||cameraResolutions.includes(v.resolution))&&
+  (v.microphone===null||typeof v.microphone==="boolean");
+}
 export function createAssetRegistry(saved){
  const s=saved?clone(saved):{revision:0,nextProfile:1,nextAsset:1,nextPortGroup:1,nextPort:1,nextCable:1,cables:[],nextInfrastructure:1,nextInfrastructurePort:1,wallOutlets:[],panels:[],places:[],nextPlace:1,profiles:[],assets:[]};
  if(!Array.isArray(s.profiles)||!Array.isArray(s.assets)||!Number.isInteger(s.revision)||!Number.isInteger(s.nextProfile)||!Number.isInteger(s.nextAsset))throw Error("État R2 invalide");
@@ -415,6 +426,8 @@ export function createAssetRegistry(saved){
    }
    if(a.integratedScreen!==undefined&&(!inventoryEnabled||!validIntegratedScreen(a.integratedScreen)))
     throw Error("Écran intégré invalide ou interdit sur ce profil");
+   if(a.integratedCamera!==undefined&&(!inventoryEnabled||!validCameraComponent(a.integratedCamera)))
+    throw Error("Caméra intégrée invalide ou interdite sur ce profil");
    if(a.interfaceIpv4!==undefined&&
       (!inventoryEnabled||!ipv4InterfaceValid(a.interfaceIpv4,a.ports||[])))
     throw Error("Adressage IPv4 par interface invalide ou interdit pour ce profil");
@@ -519,7 +532,7 @@ export function createAssetRegistry(saved){
   const p=getP(id);
   if(!p)return result(false,"not_found","Profil introuvable.");
   if(typeof enabled!=="boolean")return result(false,"invalid_option","Valeur invalide.");
-  if(!enabled&&s.assets.some(a=>a.profileId===id&&(a.processors?.length||a.ramModules?.length||a.disks?.length||a.integratedScreen)))
+  if(!enabled&&s.assets.some(a=>a.profileId===id&&(a.processors?.length||a.ramModules?.length||a.disks?.length||a.integratedScreen||a.integratedCamera)))
    return result(false,"processors_in_use","Retirer les processeurs des équipements avant de désactiver l'inventaire.");
   if(enabled){
    p.processorInventory=true;
@@ -529,7 +542,7 @@ export function createAssetRegistry(saved){
   }else{
    delete p.processorInventory;
    for(const a of s.assets.filter(a=>a.profileId===id)){
-    delete a.processors;delete a.ramModules;delete a.disks;delete a.integratedScreen;
+    delete a.processors;delete a.ramModules;delete a.disks;delete a.integratedScreen;delete a.integratedCamera;
    }
   }
   s.revision++;
@@ -588,9 +601,35 @@ export function createAssetRegistry(saved){
   delete a.integratedScreen;s.revision++;
   return result(true,"screen_removed","Écran intégré supprimé.");
  }
+ function addAssetIntegratedCamera(assetId,raw={}){
+  const a=getA(assetId);
+  if(!a||!getP(a.profileId)?.processorInventory)return result(false,"not_supported","Caméra intégrée indisponible pour ce profil.");
+  if(a.integratedCamera)return result(false,"camera_exists","Une caméra intégrée existe déjà.");
+  const camera=cameraComponentData(raw);
+  if(!validCameraComponent(camera))return result(false,"invalid_camera","Caractéristiques de la caméra invalides.");
+  a.integratedCamera=camera;s.revision++;
+  return result(true,"camera_added","Caméra intégrée ajoutée.",{component:clone(camera)});
+ }
+ function updateAssetIntegratedCamera(assetId,componentId,raw={}){
+  const a=getA(assetId);
+  if(!a?.integratedCamera||a.integratedCamera.id!==componentId||!getP(a.profileId)?.processorInventory)
+   return result(false,"not_found","Caméra intégrée introuvable.");
+  const camera=cameraComponentData(raw);
+  if(!validCameraComponent(camera))return result(false,"invalid_camera","Caractéristiques de la caméra invalides.");
+  a.integratedCamera=camera;s.revision++;
+  return result(true,"camera_updated","Caméra intégrée modifiée.",{component:clone(camera)});
+ }
+ function removeAssetIntegratedCamera(assetId,componentId){
+  const a=getA(assetId);
+  if(!a?.integratedCamera||a.integratedCamera.id!==componentId||!getP(a.profileId)?.processorInventory)
+   return result(false,"not_found","Caméra intégrée introuvable.");
+  delete a.integratedCamera;s.revision++;
+  return result(true,"camera_removed","Caméra intégrée supprimée.");
+ }
  function componentCollection(kind){return kind==="ram"?"ramModules":kind==="disk"?"disks":null;}
  function addAssetComponent(assetId,kind,raw={}){
   if(kind==="screen")return addAssetIntegratedScreen(assetId,raw);
+  if(kind==="camera")return addAssetIntegratedCamera(assetId,raw);
   const a=getA(assetId),key=componentCollection(kind);
   if(!a||!key||!getP(a.profileId)?.processorInventory)return result(false,"not_supported","Inventaire non disponible pour ce profil.");
   a[key]??=[];
@@ -602,6 +641,7 @@ export function createAssetRegistry(saved){
  }
  function updateAssetComponent(assetId,kind,componentId,raw={}){
   if(kind==="screen")return updateAssetIntegratedScreen(assetId,componentId,raw);
+  if(kind==="camera")return updateAssetIntegratedCamera(assetId,componentId,raw);
   const a=getA(assetId),key=componentCollection(kind),v=a?.[key]?.find(c=>c.id===componentId);
   if(!v||!getP(a.profileId)?.processorInventory)return result(false,"not_found","Composant introuvable.");
   const revised=componentData(kind,raw,componentId);
@@ -610,6 +650,7 @@ export function createAssetRegistry(saved){
  }
  function removeAssetComponent(assetId,kind,componentId){
   if(kind==="screen")return removeAssetIntegratedScreen(assetId,componentId);
+  if(kind==="camera")return removeAssetIntegratedCamera(assetId,componentId);
   const a=getA(assetId),key=componentCollection(kind),i=a?.[key]?.findIndex(c=>c.id===componentId)??-1;
   if(i<0||!getP(a.profileId)?.processorInventory)return result(false,"not_found","Composant introuvable.");
   a[key].splice(i,1);s.revision++;return result(true,"component_removed","Composant supprimé.");
