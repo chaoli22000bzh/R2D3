@@ -563,8 +563,8 @@ test("Inventaire processeurs détaillés : répétition, validation, copie et co
  for(const a of previous.assets)delete a.processors;
  for(const p of previous.profiles)delete p.processorInventory;
  const restored=restoreAssetRegistry(previous);
- assert.equal(restored.getAsset(standard.id).processors.length,0);
- assert.equal(restored.getProfile(base.id).processorInventory,false);
+ assert.equal(restored.getAsset(standard.id).processors,undefined);
+ assert.equal(restored.getProfile(base.id).processorInventory,undefined);
 });
 
 test("CPU : seule la quantité est requise, valeurs préservées",()=>{
@@ -622,4 +622,60 @@ test("RAM et disques : ajout, modification, suppression, quantités et restaurat
  assert.equal(e.removeAssetComponent(a.id,"disk","disk-1").success,true);
  assert.equal(e.getAsset(a.id).ramModules.length,0);
  assert.equal(e.getAsset(a.id).disks.length,0);
+});
+
+test("Isolation informatique : box, switch, écran et profil générique sans inventaire",()=>{
+ const e=createAssetRegistry();
+ const pc=installDesktopProfile(e).profile;
+ const sw=e.createProfile("Switch L2").profile;
+ const screen=installScreenProfile(e).profile;
+ const swAsset=e.createAsset(sw.id,{name:"SW-01"}).asset;
+ const screenAsset=e.createAsset(screen.id,{name:"ECR-01"}).asset;
+ const box=e.createBoxComposite("BOX-01").asset;
+ const pcAsset=e.createAsset(pc.id,{name:"PC-01"}).asset;
+ const saved=e.exportState();
+ for(const asset of [swAsset,screenAsset,box]){
+  const current=saved.assets.find(a=>a.id===asset.id);
+  for(const key of ["processors","ramModules","disks"])
+   assert.equal(Object.hasOwn(current,key),false,asset.name+" "+key);
+  assert.equal(Object.hasOwn(saved.profiles.find(p=>p.id===asset.profileId),"processorInventory"),false);
+  assert.equal(e.addAssetProcessor(asset.id,{quantite:1}).success,false);
+  assert.equal(e.addAssetComponent(asset.id,"ram",{capaciteGo:8,quantite:1}).success,false);
+ }
+ for(const key of ["processors","ramModules","disks"])assert.deepEqual(e.getAsset(pcAsset.id)[key],[]);
+ assert.equal(e.getProfile(pc.id).processorInventory,true);
+ assert.deepEqual(restoreAssetRegistry(saved).exportState(),saved);
+});
+test("Anciennes sauvegardes polluées : effacer uniquement les inventaires vides",()=>{
+ const e=createAssetRegistry(),pc=installDesktopProfile(e).profile,sw=e.createProfile("Switch").profile;
+ const switchAsset=e.createAsset(sw.id,{name:"SW"}).asset;
+ const computer=e.createAsset(pc.id,{name:"PC"}).asset;
+ assert.equal(e.addAssetComponent(computer.id,"ram",{quantite:2,capaciteGo:16}).success,true);
+ const old=e.exportState();
+ for(const p of old.profiles)if(p.id===sw.id)p.processorInventory=false;
+ for(const asset of old.assets)if(asset.id===switchAsset.id){
+  asset.processors=[];asset.ramModules=[];asset.disks=[];
+ }
+ const restored=restoreAssetRegistry(old);
+ const state=restored.exportState();
+ const restoredSwitch=state.assets.find(x=>x.id===switchAsset.id);
+ for(const key of ["processors","ramModules","disks"])assert.equal(Object.hasOwn(restoredSwitch,key),false);
+ assert.equal(Object.hasOwn(state.profiles.find(x=>x.id===sw.id),"processorInventory"),false);
+ assert.equal(restored.getAsset(computer.id).ramModules[0].capaciteGo,16);
+ assert.deepEqual(restoreAssetRegistry(state).exportState(),state);
+ const broken=structuredClone(old);
+ broken.assets.find(x=>x.id===switchAsset.id).disks=[{id:"disk-1",capaciteGo:1000,quantite:1}];
+ assert.throws(()=>restoreAssetRegistry(broken),/non habilité/);
+});
+test("Inventaire sur un profil PC activé après création : aller-retour strict",()=>{
+ const e=createAssetRegistry(),p=e.createProfile("PC de laboratoire").profile;
+ const pc=e.createAsset(p.id,{name:"PC-01"}).asset;
+ assert.equal(e.getAsset(pc.id).processors,undefined);
+ assert.equal(e.setProfileProcessorInventory(p.id,true).success,true);
+ for(const key of ["processors","ramModules","disks"])assert.deepEqual(e.getAsset(pc.id)[key],[]);
+ assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
+ assert.equal(e.setProfileProcessorInventory(p.id,false).success,true);
+ for(const key of ["processors","ramModules","disks"])assert.equal(e.getAsset(pc.id)[key],undefined);
+ assert.equal(e.getProfile(p.id).processorInventory,undefined);
+ assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
 });
