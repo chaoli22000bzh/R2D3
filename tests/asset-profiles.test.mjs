@@ -863,3 +863,34 @@ test("Écran intégré : validation à la restauration et isolation des équipem
  assert.throws(()=>restoreAssetRegistry(saved),/Écran intégré invalide/);
  assert.equal(e.getAsset(b.id).integratedScreen,undefined);
 });
+
+test("Caméra intégrée : une par ordinateur, résolution et microphone facultatifs",()=>{
+ const e=createAssetRegistry(),p=installDesktopProfile(e).profile;
+ const a=e.createAsset(p.id,{name:"PORTABLE-CAMERA"}).asset;
+ assert.equal(e.getAsset(a.id).integratedCamera,undefined);
+ assert.equal(e.addAssetComponent(a.id,"camera",{}).success,true);
+ assert.deepEqual(e.getAsset(a.id).integratedCamera,{id:"camera-1",resolution:"",microphone:null});
+ assert.equal(e.addAssetComponent(a.id,"camera",{}).code,"camera_exists");
+ assert.equal(e.updateAssetComponent(a.id,"camera","camera-1",{resolution:"1080p",microphone:false}).success,true);
+ assert.deepEqual(e.getAsset(a.id).integratedCamera,{id:"camera-1",resolution:"1080p",microphone:false});
+ assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
+ assert.equal(e.updateAssetComponent(a.id,"camera","camera-1",{resolution:"inconnue"}).code,"invalid_camera");
+ assert.equal(e.updateAssetComponent(a.id,"camera","camera-1",{resolution:"4K",microphone:"false"}).code,"invalid_camera");
+ assert.equal(e.setProfileProcessorInventory(p.id,false).success,false);
+ assert.equal(e.removeAssetComponent(a.id,"camera","camera-1").success,true);
+ assert.equal(e.getAsset(a.id).integratedCamera,undefined);
+ assert.equal(e.addAssetComponent(a.id,"camera",{resolution:"720p",microphone:true}).success,true);
+ assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
+});
+
+test("Caméra intégrée : interdite sur les autres profils et données invalides rejetées",()=>{
+ const e=createAssetRegistry(),pc=installDesktopProfile(e).profile,sw=e.createProfile("Switch").profile;
+ const a=e.createAsset(pc.id,{name:"PC"}).asset,b=e.createAsset(sw.id,{name:"SW"}).asset;
+ assert.equal(e.addAssetComponent(b.id,"camera",{}).code,"not_supported");
+ assert.equal(e.addAssetComponent(a.id,"camera",{microphone:"oui"}).code,"invalid_camera");
+ assert.equal(e.addAssetComponent(a.id,"camera",{resolution:"2K",microphone:false}).success,true);
+ const saved=e.exportState();
+ saved.assets.find(x=>x.id===a.id).integratedCamera.microphone="non";
+ assert.throws(()=>restoreAssetRegistry(saved),/Caméra intégrée invalide/);
+ assert.equal(e.getAsset(b.id).integratedCamera,undefined);
+});
