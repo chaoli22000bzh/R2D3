@@ -1044,7 +1044,7 @@ try {
     const isolation=wifiNetwork.locator('[data-field="clientIsolation"]');
     await isolation.check();
     await page.locator('#wifi-admin [data-save]').click();
-    assert.match(await page.locator("#ap-status").innerText(),/Configuration enregistrée/);
+    assert.match(await page.locator("#ap-status").innerText(),/Configuration Wi-Fi enregistrée/);
     assert.equal(await wifiNetwork.locator('[data-field="clientIsolation"]').isChecked(),true);
     await page.locator("#peer-ping").click();
     assert.match(await page.locator("#ping-status").innerText(),/bloque la communication directe/);
@@ -1052,7 +1052,7 @@ try {
     assert.match(await page.locator("#ping-status").innerText(),/Passerelle joignable/);
     await wifiNetwork.locator('[data-field="clientIsolation"]').uncheck();
     await page.locator('#wifi-admin [data-save]').click();
-    assert.match(await page.locator("#ap-status").innerText(),/Configuration enregistrée/);
+    assert.match(await page.locator("#ap-status").innerText(),/Configuration Wi-Fi enregistrée/);
     assert.equal(await wifiNetwork.locator('[data-field="clientIsolation"]').isChecked(),false);
     await page.locator("#peer-ping").click();
     assert.match(await page.locator("#ping-status").innerText(),/Réponse ping reçue/);
