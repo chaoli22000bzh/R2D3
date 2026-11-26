@@ -94,6 +94,18 @@ const ipv4InterfaceValid=(v,ports)=>v&&typeof v==="object"&&!Array.isArray(v)&&O
  (c.gateway===null||ipv4Address(c.gateway))&&Array.isArray(c.dns)&&c.dns.length<=2&&
  c.dns.every(ipv4Address));
 
+// État des baux produit par le Core DHCP et conservé par l'actif box.
+const validBoxDhcpState=v=>v&&typeof v==="object"&&!Array.isArray(v)&&
+ Number.isSafeInteger(v.clock)&&v.clock>=0&&Array.isArray(v.clients)&&
+ new Set(v.clients.map(c=>c.assetId+"|"+c.portId)).size===v.clients.length&&
+ v.clients.every(c=>typeof c.assetId==="string"&&c.assetId.length>0&&
+ typeof c.portId==="string"&&c.portId.length>0&&
+ typeof c.mac==="string"&&/^([0-9A-F]{2}-){5}[0-9A-F]{2}$/i.test(c.mac)&&
+ ipv4InterfaceValid({[c.portId]:{mode:"dhcp",status:"connected",address:c.address,
+  prefix:c.prefix,gateway:c.gateway,dns:c.dns}},[{id:c.portId,type:"wifi"}])&&
+ c.lease&&typeof c.lease.serverId==="string"&&
+ typeof c.lease.poolId==="string"&&Number.isSafeInteger(c.lease.start)&&
+ Number.isSafeInteger(c.lease.expires)&&c.lease.expires>c.lease.start);
 const physicalPortConnector={"ethernet-rj45":"rj45-female","ethernet-fibre":"lc-socket","usb-a":"usb-a-socket","usb-b":"usb-b-socket","usb-c":"usb-c-socket","hdmi":"hdmi-socket","vga":"vga-female","dvi":"dvi-female","displayport":"displayport-socket","mini-displayport":"mini-displayport-socket","db9":"db9-male"};
 
 const portTypes={
@@ -408,6 +420,8 @@ export function createAssetRegistry(saved){
        !a.boxConfig.ports||a.ports.length!==10||!validBoxLan(a,a.boxConfig.lan)||!validBoxWifi(a,a.boxConfig.wifi))
       throw Error("Structure composite de box invalide");
    }else if(a.boxConfig!==undefined)throw Error("Configuration de box sans capacité");
+   if(a.boxConfig?.dhcpState!==undefined&&!validBoxDhcpState(a.boxConfig.dhcpState))
+    throw Error("Baux DHCP persistés de la box invalides");
 
     if(a.networkCapabilities.includes("wifi-ap")&&a.wifiConfig===undefined)a.wifiConfig=wifiDefault(a);
     if(a.networkCapabilities.includes("wifi-ap")&&!validWifiConfig(a,a.wifiConfig))throw Error("Configuration de borne Wi-Fi invalide");
@@ -961,6 +975,12 @@ export function createAssetRegistry(saved){
    a.boxConfig.mode=mode;s.revision++;
    return result(true,"box_mode_updated","Mode de fonctionnement enregistré.",{mode});
   }
+  function setBoxDhcpState(id,dhcpState){
+   const a=getA(id);if(!a?.boxConfig)return result(false,"box_missing","Box introuvable.");
+   if(!validBoxDhcpState(dhcpState))return result(false,"invalid_dhcp_state","État DHCP invalide.");
+   a.boxConfig.dhcpState=clone(dhcpState);s.revision++;
+   return result(true,"box_dhcp_state_updated","Baux DHCP sauvegardés.");
+  }
   function setBoxLanConfig(id,lan){
   const a=getA(id);if(!a?.boxConfig)return result(false,"box_missing","Box introuvable.");
   if(!validBoxLan(a,lan))return result(false,"invalid_box_lan","Réseau LAN ou DHCP de la box invalide.");
@@ -1265,7 +1285,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileProcessorInventory,addAssetComponent,updateAssetComponent,removeAssetComponent,addAssetProcessor,updateAssetProcessor,removeAssetProcessor,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,createBoxComposite,setBoxMode,setBoxLanConfig,setBoxWanConfig,setBoxPatRules,getBoxWanEffective:id=>{const a=getA(id);return a?.boxConfig?effectiveBoxWan(a.boxConfig):null;},getBoxWanRuntime:id=>{const a=getA(id);if(!a?.boxConfig)return null;const config=effectiveBoxWan(a.boxConfig);return {mode:a.boxConfig.mode,owner:a.boxConfig.mode==="bridge"?"lan1-client":"box",boxOwnsAddress:a.boxConfig.mode!=="bridge",config};},setBoxWifiConfig,setAssetWifiConfig,setAssetRouterConfig,setAssetDhcpServerConfig,setAssetManagementConfig,setAssetVlanConfig,updateAssetVlanDefinition,removeAssetVlanDefinition,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,setAssetInterfaceIpv4,updateAsset,
+ return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileProcessorInventory,addAssetComponent,updateAssetComponent,removeAssetComponent,addAssetProcessor,updateAssetProcessor,removeAssetProcessor,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,createBoxComposite,setBoxMode,setBoxLanConfig,setBoxDhcpState,setBoxWanConfig,setBoxPatRules,getBoxWanEffective:id=>{const a=getA(id);return a?.boxConfig?effectiveBoxWan(a.boxConfig):null;},getBoxWanRuntime:id=>{const a=getA(id);if(!a?.boxConfig)return null;const config=effectiveBoxWan(a.boxConfig);return {mode:a.boxConfig.mode,owner:a.boxConfig.mode==="bridge"?"lan1-client":"box",boxOwnsAddress:a.boxConfig.mode!=="bridge",config};},setBoxWifiConfig,setAssetWifiConfig,setAssetRouterConfig,setAssetDhcpServerConfig,setAssetManagementConfig,setAssetVlanConfig,updateAssetVlanDefinition,removeAssetVlanDefinition,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,setAssetInterfaceIpv4,updateAsset,
  listWallOutlets:()=>clone(s.wallOutlets),listPanels:()=>clone(s.panels),getPanel:id=>clone(s.panels.find(p=>p.id===id)||null),listCables:()=>clone(s.cables.filter(c=>!c.internalBoxId)),getCable:id=>clone(s.cables.find(x=>x.id===id&&!x.internalBoxId)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 
