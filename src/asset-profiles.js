@@ -1278,6 +1278,10 @@ export const computingFieldDefinitions=[
  {key:"ram_go",label:"Mémoire RAM",type:"number",unit:"Go"},
  {key:"stockage_go",label:"Capacité de stockage",type:"number",unit:"Go"}
 ];
+export const computerTypeFieldDefinition={
+ key:"type_ordinateur",label:"Type d'ordinateur",type:"select",
+ options:["PC fixe","PC portable","Smartphone","Tablette","Serveur","PC tout-en-un","Station de travail","NAS","Autre"]
+};
 export const desktopFieldDefinitions=[
  {key:"systeme_exploitation",label:"Système d'exploitation",type:"text"},
  {key:"version_os",label:"Version",type:"text"}
@@ -1287,16 +1291,26 @@ export const desktopFieldDefinitions=[
 export function installDesktopProfile(registry){
  const profiles=registry.listProfiles();
  const existing=profiles.find(p=>p.name==="Ordinateur");
- if(existing)return {success:true,code:"already_present",profile:existing};
- const legacy=profiles.find(p=>p.name==="PC fixe");
+ const legacy=existing?null:profiles.find(p=>p.name==="PC fixe");
  if(legacy){
   const renamed=registry.renameProfile(legacy.id,"Ordinateur");
   if(!renamed.success)return renamed;
-  return {success:true,code:"renamed",profile:registry.getProfile(legacy.id)};
+ }
+ const profile=existing||legacy;
+ if(profile){
+  // Enrichir le profil actuel, en conservant ses identifiants et ses équipements.
+  const current=registry.getProfile(profile.id);
+  if(!current.fields.some(f=>f.key===computerTypeFieldDefinition.key)){
+   const added=registry.addField(profile.id,computerTypeFieldDefinition);
+   if(!added.success)throw Error("Impossible d'ajouter le type d'ordinateur");
+   const moved=registry.moveField(profile.id,computerTypeFieldDefinition.key,0);
+   if(!moved.success)throw Error("Impossible de placer le type d'ordinateur");
+  }
+  return {success:true,code:legacy?"renamed":"already_present",profile:registry.getProfile(profile.id)};
  }
  const created=registry.createProfile("Ordinateur");
  if(!created.success)return created;
- for(const field of [...computingFieldDefinitions,...desktopFieldDefinitions]){
+ for(const field of [computerTypeFieldDefinition,...computingFieldDefinitions,...desktopFieldDefinitions]){
   const added=registry.addField(created.profile.id,field);
   if(!added.success)throw Error("Impossible de préparer le champ Ordinateur : "+field.key);
  }
