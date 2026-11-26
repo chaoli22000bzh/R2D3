@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Recette R2D3 - Baux DHCP persistants</title>
+<style>
+:root{font-family:Arial,system-ui,sans-serif;color-scheme:light dark}
+body{max-width:830px;margin:0 auto;padding:18px;line-height:1.48}
+h1{font-size:1.4rem}h2{font-size:1.1rem}
+button{font:inherit;padding:9px 13px;border:1px solid #8091a3;border-radius:7px;cursor:pointer;margin:4px 8px 4px 0}
+button:disabled{opacity:.45;cursor:default}
+.card{border:1px solid #8795a5;border-radius:9px;padding:14px;margin:14px 0}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
+table{width:100%;border-collapse:collapse}td,th{padding:8px;text-align:left;border-bottom:1px solid #8795a5}
+small{opacity:.8}.good{color:light-dark(#137143,#6bdfa0)}.bad{color:light-dark(#ab302e,#ff8987)}
+</style>
+</head>
+<body>
+<h1>R2D3 : persistance des baux DHCP de la box</h1>
+<p>Page de recette indépendante du laboratoire C2-Lab. Les opérations utilisent le registre R2D3 et le moteur DHCP commun. Chaque demande démarre une nouvelle session moteur sur la même box.</p>
+<section class="card">
+<h2>Préparer le parc</h2>
+<button id="reset">Créer BOX-01, PC-01 et PC-02</button>
+<small>Deux ordinateurs sont reliés à deux ports LAN de la box.</small>
+</section>
+<section class="card">
+<h2>Test DHCP</h2>
+<button id="first" disabled>1. Demander DHCP pour PC-01</button>
+<button id="second" disabled>2. Demander DHCP pour PC-02 (nouvelle session)</button>
+<button id="reload" disabled>3. Sauvegarder et restaurer le parc</button>
+<p id="notice" role="status" aria-live="polite">Crée le parc pour commencer.</p>
+<table><thead><tr><th>Client</th><th>IPv4 attribuée</th><th>État</th></tr></thead><tbody id="results"><tr><td colspan="3">Aucun bail</td></tr></tbody></table>
+</section>
+<section class="card"><h2>Table des baux dans l'actif BOX-01</h2><pre id="leases">Aucun état DHCP enregistré.</pre></section>
+<script type="module">
+import {createAssetRegistry,restoreAssetRegistry,installDesktopProfile} from "../src/asset-profiles.js";
+import {createBoxLanDhcpSession} from "../src/box-lan-dhcp-v1.js";
+const $=name=>document.getElementById(name);
+let registry,boxId,pcs=[];
+const required=r=>{if(!r.success)throw Error(r.message||r.code);return r;};
+function show(message,good=true){
+ $("notice").textContent=message;
+ $("notice").className=good?"good":"bad";
+ const clients=registry?.getAsset(boxId)?.boxConfig?.dhcpState?.clients??[];
+ $("results").replaceChildren();
+ if(!clients.length){
+  const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=3;td.textContent="Aucun bail";tr.append(td);$("results").append(tr);
+ }else for(const c of [...clients].sort((a,b)=>a.address.localeCompare(b.address,undefined,{numeric:true}))){
+  const tr=document.createElement("tr");
+  for(const v of [pcs.find(p=>p.id===c.assetId)?.name??c.assetId,c.address,c.lease.expires>=(registry.getAsset(boxId).boxConfig.dhcpState.clock)?"Bail enregistré":"Expiré"]){
+   const td=document.createElement("td");td.textContent=v;tr.append(td);
+  }
+  $("results").append(tr);
+ }
+ const dhcp=registry?.getAsset(boxId)?.boxConfig?.dhcpState;
+ $("leases").textContent=dhcp?JSON.stringify({horloge:dhcp.clock,baux:dhcp.clients.map(c=>({machine:pcs.find(p=>p.id===c.assetId)?.name??c.assetId,port:c.portId,ipv4:c.address,expiration:c.lease.expires}))},null,2):"Aucun état DHCP enregistré.";
+}
+function initialize(){
+ registry=createAssetRegistry();pcs=[];
+ const box=required(registry.createBoxComposite("BOX-01"));boxId=box.asset.id;
+ const p=installDesktopProfile(registry).profile;
+ for(let i=0;i<2;i++){
+  const machine=required(registry.createAsset(p.id,{name:"PC-0"+(i+1)})).asset;
+  const port=required(registry.addExtension(machine.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1})).ports[0];
+  const cable=required(registry.createCable()).cable;
+  required(registry.connectCableEnd(cable.id,0,port.id));
+  required(registry.connectCableEnd(cable.id,1,box.config.ports.lanPortIds[i]));
+  pcs.push({...machine,portId:port.id});
+ }
+ $("first").disabled=false;$("second").disabled=true;$("reload").disabled=true;
+ show("Parc créé. Les deux PC sont raccordés, aucun bail DHCP.");
+}
+function request(index){
+ const c=pcs[index];
+ const session=required(createBoxLanDhcpSession({registry,boxId,clients:[{assetId:c.id,medium:"ethernet",portId:c.portId}]}));
+ const result=required(session.request(c.id,c.portId));
+ if(!result.address||!result.lease)throw Error("Le Core n'a attribué aucun bail.");
+ show(c.name+" a reçu "+result.address+"/24, dans une nouvelle session Core DHCP.");
+ if(index===0)$("second").disabled=false;else $("reload").disabled=false;
+}
+function restore(){
+ const exported=registry.exportState();
+ registry=restoreAssetRegistry(JSON.parse(JSON.stringify(exported)));
+ const session=required(createBoxLanDhcpSession({registry,boxId,clients:[{assetId:pcs[0].id,medium:"ethernet",portId:pcs[0].portId}]}));
+ const result=required(session.request(pcs[0].id,pcs[0].portId));
+ show("Parc restauré. PC-01 retrouve "+result.address+" ; les deux baux restent enregistrés.");
+}
+for(const [name,fn] of [["reset",initialize],["first",()=>request(0)],["second",()=>request(1)],["reload",restore]]){
+ $(name).addEventListener("click",()=>{try{fn()}catch(e){show("ÉCHEC : "+(e.message||String(e)),false)}});
+}
+</script>
+</body></html>
