@@ -281,14 +281,14 @@ const computerComponentSchema={
  disk:{prefix:"disk",fields:["marque","modele","type","interface","capaciteGo","quantite","numeroSerie"]}
 };
 function componentData(kind,raw,id){
- const v={id,marque:trim(raw.marque),modele:trim(raw.modele),quantite:Number(kind==="ram"?raw.quantite:raw.quantite??1)};
+ const v={id,marque:trim(raw.marque),modele:trim(raw.modele),quantite:raw.quantite===""||raw.quantite===null||raw.quantite===undefined?NaN:Number(raw.quantite)};
  if(kind==="ram"){v.type=trim(raw.type);v.frequenceMHz=raw.frequenceMHz===""||raw.frequenceMHz==null?null:Number(raw.frequenceMHz);v.capaciteGo=Number(raw.capaciteGo);}
  else {v.type=trim(raw.type);v.interface=trim(raw.interface);v.capaciteGo=Number(raw.capaciteGo);v.numeroSerie=trim(raw.numeroSerie);}
  return v;
 }
 function componentValid(kind,v){
  return !!computerComponentSchema[kind]&&v&&typeof v.id==="string"&&v.id.length>0&&
-  (kind==="ram"||!!v.marque&&!!v.modele)&&Number.isInteger(v.quantite)&&v.quantite>0&&
+  Number.isInteger(v.quantite)&&v.quantite>0&&
   Number.isFinite(v.capaciteGo)&&v.capaciteGo>0&&
   (kind==="disk"?(typeof v.type==="string"&&typeof v.interface==="string"&&typeof v.numeroSerie==="string"):
    (typeof v.type==="string"&&(v.frequenceMHz===null||Number.isFinite(v.frequenceMHz)&&v.frequenceMHz>0)));
@@ -490,7 +490,7 @@ export function createAssetRegistry(saved){
   a[key]??=[];
   const id=computerComponentSchema[kind].prefix+"-"+(a[key].reduce((n,c)=>Math.max(n,Number(c.id.split("-").at(-1))||0),0)+1);
   const v=componentData(kind,raw,id);
-  if(!componentValid(kind,v))return result(false,"invalid_component",kind==="ram"?"Mémoire RAM invalide : capacité et quantité obligatoires, valeurs positives.":"Composant invalide : vérifier la marque, le modèle, la capacité et la quantité.");
+  if(!componentValid(kind,v))return result(false,"invalid_component",kind==="ram"?"Mémoire RAM invalide : capacité et quantité obligatoires, valeurs positives.":"Disque invalide : capacité et quantité obligatoires, valeurs positives.");
   if(!a[key].length&&a.values)a.values[kind==="ram"?"ram_go":"stockage_go"]=null;
   a[key].push(v);s.revision++;return result(true,"component_added","Composant ajouté.",{component:clone(v)});
  }
