@@ -536,7 +536,7 @@ test("Ordinateur standard : socle Informatique commun, profil léger et registre
  for(const f of computingFieldDefinitions)assert.equal(e.addField(mobile.id,f).success,true);
  assert.equal(e.getProfile(mobile.id).fields.length,4);
  assert.equal(e.getProfile(mobile.id).fields.some(f=>f.key==="systeme_exploitation"),false);
- assert.equal(e.getProfile(p.id).fields.length,7);
+ assert.equal(e.getProfile(p.id).fields.length,7+integratedScreenFieldDefinitions.length);
 });
 
 test("Inventaire processeurs détaillés : répétition, validation, copie et compatibilité",()=>{
