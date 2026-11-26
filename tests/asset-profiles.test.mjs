@@ -759,9 +759,16 @@ test("Interface cellulaire unique 4G/5G/6G : descriptive et compatible",()=>{
  const ethernet=e.addExtension(pc.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1});
  assert.equal(wifi.success,true);assert.equal(ethernet.success,true);
  assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
- const archived=e.exportState();archived.assets[0].ports.find(x=>x.type==="cellular").type="5g";
+ const archived=e.exportState();
+ archived.assets[0].ports.find(x=>x.type==="cellular").type="5g";
+ // Compatibilité d'un profil sauvegardé qui utilisait encore une des anciennes entrées.
+ const oldGroup=e.addPortGroup(p.id,{type:"cellular",prefix:"MOBILE",start:1,count:1});
+ assert.equal(oldGroup.success,true);
+ archived.profiles[0].portGroups.push({...oldGroup.group,type:"4g"});
  const migrated=restoreAssetRegistry(archived);
  assert.equal(migrated.getAsset(pc.id).ports.find(x=>x.name==="CELL01").type,"cellular");
+ assert.equal(migrated.getProfile(p.id).portGroups.some(g=>g.type==="4g"),false);
+ assert.equal(migrated.getProfile(p.id).portGroups.some(g=>g.type==="cellular"),true);
  assert.equal(migrated.getAsset(pc.id).ports.find(x=>x.name==="LAN01").type,"ethernet-rj45");
  assert.equal(e.removeExtension(pc.id,cell.extensionId).success,true);
  assert.equal(e.getAsset(pc.id).ports.some(x=>x.type==="cellular"),false);
