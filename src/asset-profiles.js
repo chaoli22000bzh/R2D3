@@ -1273,7 +1273,8 @@ export function createAssetRegistry(saved){
   const a=getA(id),f=a&&getP(a.profileId)?.fields.find(f=>f.key===key);
   if(!f)return result(false,"not_found","Matériel ou champ introuvable.");
   if(!valueValid(f,value))return result(false,"invalid_value","Type de valeur incorrect.");
-  if(getP(a.profileId)?.name==="Écran"&&!screenFieldValueValid(key,value))
+  if((getP(a.profileId)?.name==="Écran"||key.startsWith("ecran_integre_"))&&
+     !screenFieldValueValid(key.startsWith("ecran_integre_")?key.slice("ecran_integre_".length):key,value))
    return result(false,"invalid_value","Format incorrect pour ce champ.");
   a.values[key]=empty(value)?null:value;s.revision++;return result(true,"value_updated","Valeur enregistrée.");
  }
@@ -1309,6 +1310,11 @@ export const displayFieldDefinitions=[
  {key:"type_dalle",label:"Type de dalle",type:"select",options:["IPS","TN","VA","OLED","Autre"]},
  {key:"forme",label:"Forme",type:"select",options:["Plat","Incurvé"]},
  {key:"tactile",label:"Tactile",type:"boolean"}
+];
+/* Même socle d'affichage, conservé comme champs internes de l'ordinateur. */
+export const integratedScreenFieldDefinitions=[
+ {key:"ecran_integre",label:"Écran intégré",type:"boolean"},
+ ...displayFieldDefinitions.map(field=>({...field,key:"ecran_integre_"+field.key}))
 ];
 export const screenSpecificFieldDefinitions=[
  {key:"type_ecran",label:"Type d'écran",type:"select",options:["Moniteur","Téléviseur"]},
@@ -1375,11 +1381,19 @@ export function installDesktopProfile(registry){
     if(!updated.success)return updated;
    }
   }
+  // Ajout non destructif à l'ancien profil : chaque champ manquant est initialisé
+  // à null sur les actifs existants ; aucune valeur déjà renseignée n'est réécrite.
+  for(const field of integratedScreenFieldDefinitions){
+   if(!registry.getProfile(profile.id).fields.some(f=>f.key===field.key)){
+    const added=registry.addField(profile.id,field);
+    if(!added.success)return added;
+   }
+  }
   return {success:true,code:legacy?"renamed":"already_present",profile:registry.getProfile(profile.id)};
  }
  const created=registry.createProfile("Ordinateur");
  if(!created.success)return created;
- for(const field of [computerTypeFieldDefinition,...computingFieldDefinitions,...desktopFieldDefinitions]){
+ for(const field of [computerTypeFieldDefinition,...computingFieldDefinitions,...desktopFieldDefinitions,...integratedScreenFieldDefinitions]){
   const added=registry.addField(created.profile.id,field);
   if(!added.success)throw Error("Impossible de préparer le champ Ordinateur : "+field.key);
  }
