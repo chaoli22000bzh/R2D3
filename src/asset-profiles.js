@@ -347,6 +347,8 @@ export function createAssetRegistry(saved){
    p.poe??=false;
    if(typeof p.poe!=="boolean")throw Error("Propriété PoE du profil invalide");
    p.portGroups??=[];
+   // Anciennes entrées 4G / 5G / 6G des profils regroupées en un type unique.
+   for(const group of p.portGroups)if(["4g","5g","6g"].includes(group.type))group.type="cellular";
   p.networkCapabilities??=[];
   if(!Array.isArray(p.networkCapabilities)||new Set(p.networkCapabilities).size!==p.networkCapabilities.length||
       p.networkCapabilities.some(x=>!supportedNetworkCapabilities.includes(x)))throw Error("Capacités réseau de profil invalides");
