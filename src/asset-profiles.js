@@ -86,7 +86,7 @@ const isCompatible=(cableEnd,portEnd)=>{
 };
 /* Adresse IPv4 portée par une interface d'ordinateur, jamais par l'actif entier.
    Les valeurs DHCP sont issues du Core via les adaptateurs réseau partagés. */
-const ipv4Address=v=>typeof v==="string"&&/^\\d{1,3}(\\.\\d{1,3}){3}$/.test(v)&&v.split(".").every(o=>Number(o)<=255);
+const ipv4Address=v=>typeof v==="string"&&/^\d{1,3}(\.\d{1,3}){3}$/.test(v)&&v.split(".").every(o=>Number(o)<=255);
 const ipv4InterfaceValid=(v,ports)=>v&&typeof v==="object"&&!Array.isArray(v)&&Object.entries(v).every(([portId,c])=>
  ports.some(p=>p.id===portId&&["ethernet-rj45","wifi"].includes(p.type))&&c&&
  ["dhcp","static"].includes(c.mode)&&["connected","disconnected"].includes(c.status)&&
