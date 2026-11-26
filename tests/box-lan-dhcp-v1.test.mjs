@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createAssetRegistry,restoreAssetRegistry} from "../src/asset-profiles.js";
+import {createAssetRegistry,restoreAssetRegistry,installDesktopProfile} from "../src/asset-profiles.js";
 import {createBoxLanDhcpSession} from "../src/box-lan-dhcp-v1.js";
 
 const good=r=>assert.equal(r.success,true,JSON.stringify(r));
@@ -126,4 +126,43 @@ test("Box bridge : le DHCP LAN et le Wi-Fi sont neutralisés, y compris en sessi
  err(createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,clients:f.clients}),"bridge_mode");
  good(f.registry.setBoxMode(f.box.asset.id,"router"));
  good(createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,clients:f.clients}));
+});
+
+test("Box DHCP multi-interface : Ethernet et Wi-Fi du même ordinateur reçoivent deux baux",()=>{
+ const registry=createAssetRegistry(),box=registry.createBoxComposite("BOX-01");good(box);
+ const p=installDesktopProfile(registry).profile;
+ const pc=registry.createAsset(p.id,{name:"PORTABLE-01"});good(pc);
+ const lan=registry.addExtension(pc.asset.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1});
+ const wifi=registry.addExtension(pc.asset.id,{type:"wifi",prefix:"WIFI",start:1,count:1});
+ good(lan);good(wifi);
+ const c=registry.createCable();good(c);
+ good(registry.connectCableEnd(c.cable.id,0,lan.ports[0].id));
+ good(registry.connectCableEnd(c.cable.id,1,box.config.ports.lanPortIds[0]));
+ const clients=[
+  {assetId:pc.asset.id,portId:lan.ports[0].id,medium:"ethernet"},
+  {assetId:pc.asset.id,portId:wifi.ports[0].id,medium:"wifi",ssidId:"ssid-1",password:"12345678"}
+ ];
+ const session=createBoxLanDhcpSession({registry,boxId:box.asset.id,clients});good(session);
+ err(session.request(pc.asset.id),"ambiguous_interface");
+ const first=session.request(pc.asset.id,lan.ports[0].id),second=session.request(pc.asset.id,wifi.ports[0].id);
+ good(first);good(second);
+ assert.deepEqual([first.address,second.address],["192.168.1.100","192.168.1.101"]);
+ assert.notEqual(first.address,second.address);
+ assert.equal(first.interfaceId,lan.ports[0].id);
+ assert.equal(second.interfaceId,wifi.ports[0].id);
+ const core=session.engine.query({type:"dhcp.leases",serverId:session.routerId});
+ assert.equal(core.status,"ok");assert.equal(core.leases.length,2);
+ const configs=[
+  {portId:lan.ports[0].id,address:first.address},
+  {portId:wifi.ports[0].id,address:second.address}
+ ];
+ for(const {portId,address} of configs){
+  good(registry.setAssetInterfaceIpv4(pc.asset.id,portId,{mode:"dhcp",status:"connected",
+   address,prefix:24,gateway:"192.168.1.1",dns:["192.168.1.1"]}));
+ }
+ assert.equal(Object.keys(registry.getAsset(pc.asset.id).interfaceIpv4).length,2);
+ assert.deepEqual(restoreAssetRegistry(registry.exportState()).exportState(),registry.exportState());
+ const duplicates=createBoxLanDhcpSession({registry,boxId:box.asset.id,
+  clients:[clients[0],clients[0]]});
+ err(duplicates,"duplicate_client");
 });
