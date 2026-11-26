@@ -760,6 +760,9 @@
  .switch-admin.v4 .device-glyph{background:#25394a;color:#c9dde7;border-color:#637c8a}
  .switch-admin.v4 .device-state{background:#214d43;color:#a2efd0}
  .switch-admin.v4 .table-port{color:#7be0b3}
+ .switch-admin.v4 .secondary-danger{background:#25394a;color:#ffaaa3;border-color:#d9867f}
+ .switch-admin.v4 .secondary-danger:hover{background:#4e3036}
+ .switch-admin.v4 form[data-form="router-dhcp-pool"].router-dhcp-grid label{color:#e6eff6}
 }
 
 /* VLAN administrables dans un éditeur hôte : les règles globales du
