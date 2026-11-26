@@ -891,7 +891,7 @@ try {
       buttonHeight:button.getBoundingClientRect().height};
   });
   assert.ok(dhcpBefore.boxWidth<=17&&dhcpBefore.boxHeight<=17&&
-    dhcpBefore.background==="rgb(255, 255, 255)"&&dhcpBefore.colorScheme==="light"&&
+    dhcpBefore.background==="rgb(255, 255, 255)"&&dhcpBefore.colorScheme==="light dark"&&
     dhcpBefore.buttonWidth<115&&dhcpBefore.buttonHeight<=38,
     "Commande d'activation DHCP surdimensionnée : "+JSON.stringify(dhcpBefore));
   await routerAdmin.locator('[data-router-dhcp-edit="lan10"]').click();
@@ -906,7 +906,7 @@ try {
     textareaWidth:rect(textarea).width,buttonWidths:actions.map(x=>rect(x).width)};
   });
   assert.ok(poolLayout.formWidth<=335&&poolLayout.ipWidth<=165&&
-    poolLayout.textareaBackground==="rgb(255, 255, 255)"&&poolLayout.textareaColorScheme==="light"&&
+    poolLayout.textareaBackground==="rgb(255, 255, 255)"&&poolLayout.textareaColorScheme==="light dark"&&
     poolLayout.textareaWidth<=335&&poolLayout.buttonWidths.every(x=>x<190),
     "Formulaire DHCP trop large ou zones sombres : "+JSON.stringify(poolLayout));
   await poolForm.locator('input[name="start"]').fill("192.168.10.105");
@@ -925,7 +925,7 @@ try {
     return {width:rect.width,height:rect.height,colorScheme:cs.colorScheme,background:cs.backgroundColor};
   });
   assert.ok(helperStyle.width<=17&&helperStyle.height<=17&&
-    helperStyle.background==="rgb(255, 255, 255)"&&helperStyle.colorScheme==="light",
+    helperStyle.background==="rgb(255, 255, 255)"&&helperStyle.colorScheme==="light dark",
     "Case IP Helper incorrecte : "+JSON.stringify(helperStyle));
   await routerAdmin.locator('form[data-form="router-helper"] [name="enabled"]').check();
   await routerAdmin.locator('form[data-form="router-helper"] button[type="submit"]').click();
