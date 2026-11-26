@@ -11,9 +11,9 @@ const fail=(code,message)=>({success:false,code,message});
 const copy=x=>JSON.parse(JSON.stringify(x));
 const ethernet=a=>a?.ports.filter(p=>p.type==="ethernet-rj45")??[];
 const live=a=>a?.status==="En service";
-const mac=id=>{
+const mac=(id,interfaceBased=false)=>{
  const n=Number(String(id).match(/\d+$/)?.[0]??0);
- return [2,0,0,(n>>>16)&255,(n>>>8)&255,n&255]
+ return [2,0,interfaceBased?1:0,(n>>>16)&255,(n>>>8)&255,n&255]
   .map(x=>x.toString(16).padStart(2,"0").toUpperCase()).join("-");
 };
 const routerId=id=>id+"/router";
@@ -43,7 +43,7 @@ function admitClient(registry,box,entry){
  if(client.id===box.id)return fail("invalid_client","La box ne peut pas être son propre client.");
  const medium=entry.medium;
  if(medium==="ethernet"){
-  const cp=ethernet(client);
+  const cp=ethernet(client).filter(p=>!entry.portId||p.id===entry.portId);
   if(!cp.length)return fail("client_port","Le client ne possède aucun port Ethernet RJ45.");
   const matched=cp.flatMap(port=>c.ports.lanPortIds.filter(id=>
    registry.explorePhysicalPath(port.id,id).connected).map(lanPortId=>({port,lanPortId})));
@@ -52,13 +52,13 @@ function admitClient(registry,box,entry){
   return {success:true,client,port:matched[0].port,medium,lanPortId:matched[0].lanPortId};
  }
  if(medium==="wifi"){
-  if(!client.ports.some(p=>p.type==="wifi"))return fail("wifi_port_missing","Client sans interface Wi-Fi.");
+  if(!client.ports.some(p=>p.type==="wifi"&&(!entry.portId||p.id===entry.portId)))return fail("wifi_port_missing","Client sans interface Wi-Fi.");
   const ap=projectedAp(box),association=associateWifiClient({
    getAsset:id=>id===ap.id?ap:null
   },{apId:ap.id,ssidId:entry.ssidId,password:entry.password??"",
    bands:entry.bands??["2.4","5"],security:entry.security??["open","wpa2-personal","wpa3-personal","wpa2-wpa3-personal"]});
   if(!association.success)return association;
-  return {success:true,client,port:client.ports.find(p=>p.type==="wifi"),medium,
+  return {success:true,client,port:client.ports.find(p=>p.type==="wifi"&&(!entry.portId||p.id===entry.portId)),medium,
    association};
  }
  return fail("invalid_medium","Type de raccordement inconnu.");
@@ -67,9 +67,9 @@ function coreClient(entry){
  const a=entry.client;
  // Le lien radio/L2 est projeté comme un lien IP Core logique après validation
  // par les composants Wi-Fi et câblage. Aucun faux câble n'est enregistré.
- return {id:a.id,kind:"pc-windows",name:a.name,
+ return {id:entry.clientId,kind:"pc-windows",name:a.name+(entry.clientId!==a.id?" · "+entry.port.name:""),
   ports:[{id:entry.port.id,type:"rj45"}],
-  config:{macAddress:mac(a.id),
+  config:{macAddress:mac(entry.clientId===a.id?a.id:entry.port.id,entry.clientId!==a.id),
    ipv4:{interfaceId:entry.port.id,mode:"dhcp",address:null,prefix:null,lease:null},
    networkOptions:{gateway:null,dns:[]}}};
 }
@@ -81,13 +81,16 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
  if(box.boxConfig.mode==="bridge")return fail("bridge_mode","Serveur DHCP LAN et Wi-Fi désactivés en mode bridge.");
  if(!Array.isArray(clients)||!clients.length)return fail("clients_missing","Indiquer les clients du LAN.");
  const ids=clients.map(x=>x.assetId);
- if(new Set(ids).size!==ids.length)return fail("duplicate_client","Client présent plusieurs fois.");
+ const repeated=new Set(ids.filter((id,i)=>ids.indexOf(id)!==i));
  const accepted=[];
  for(const entry of clients){
   const attempt=admitClient(registry,box,entry);
   if(!attempt.success)return {...attempt,clientId:entry.assetId};
-  accepted.push(attempt);
+  accepted.push({...attempt,requested:entry,
+   clientId:repeated.has(entry.assetId)?entry.assetId+"/interface/"+attempt.port.id:entry.assetId});
  }
+ if(new Set(accepted.map(x=>x.clientId)).size!==accepted.length)
+  return fail("duplicate_client","Interface réseau présente plusieurs fois dans la session.");
  const router=projectedRouter(box),source={
   getAsset:id=>id===router.id?router:null
  };
@@ -99,7 +102,7 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
   const id="box-core-lan-"+(i+1);
   server.ports.push({id,type:"rj45"});
   return {id:"box-lan-link-"+(i+1),kind:"ethernet-cable",connected:true,
-   endpoints:[{objectId:item.client.id,portId:item.port.id},
+   endpoints:[{objectId:item.clientId,portId:item.port.id},
     {objectId:router.id,portId:id}]};
  });
  let engine;
@@ -109,16 +112,19 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
    capabilities:{network:true},objects:[server,...accepted.map(coreClient)],links});
  }catch(e){return fail("core_scenario_invalid",e.message);}
  return {success:true,code:"session_created",boxId,routerId:router.id,engine,
-  clients:accepted.map(x=>({assetId:x.client.id,medium:x.medium,lanPortId:x.lanPortId??null,
-   association:x.association??null})),
-  request(clientId){
-   const initial=accepted.find(x=>x.client.id===clientId);
-   if(!initial)return fail("client_missing","Client absent de la session.");
+  clients:accepted.map(x=>({assetId:x.client.id,clientId:x.clientId,portId:x.port.id,
+   medium:x.medium,lanPortId:x.lanPortId??null,association:x.association??null})),
+  request(clientId,portId){
+   const matches=accepted.filter(x=>(x.client.id===clientId||x.clientId===clientId)&&
+    (!portId||x.port.id===portId));
+   if(matches.length>1)return fail("ambiguous_interface","Préciser l'interface réseau du client.");
+   const initial=matches[0];
+   if(!initial)return fail("client_missing","Client ou interface absent de la session.");
+   const coreId=initial.clientId;
    const currentBox=registry.getAsset(boxId);
    if(!currentBox||!live(currentBox))return fail("box_offline","Box indisponible.");
     if(currentBox.boxConfig.mode==="bridge")return fail("bridge_mode","Serveur DHCP LAN et Wi-Fi désactivés en mode bridge.");
-   const current=admitClient(registry,currentBox,
-    clients.find(x=>x.assetId===clientId));
+   const current=admitClient(registry,currentBox,initial.requested);
    // Convention pédagogique R2D3 : un client DHCP débranché sans bail
    // actif reçoit l'APIPA du Core, plutôt qu'un refus de simulation.
    // Un bail encore valide reste conservé conformément au Core.
@@ -133,22 +139,22 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
    const linked=!disconnected;
    if(snap.linksById[linkId]?.connected!==linked){
     const transition=engine.dispatch({commandVersion:1,
-     id:"box-link-"+clientId+"-"+(snap.revision+1),
+     id:"box-link-"+coreId+"-"+(snap.revision+1),
      type:"network.setLinkConnected",targetId:linkId,params:{connected:linked}});
     if(transition.status!=="applied")return fail("core_link_error","État du lien Core non synchronisé.");
     snap=engine.getSnapshot();
    }
    const result=engine.dispatch({commandVersion:1,id:"box-dhcp-"+(snap.revision+1),
-    type:"dhcp.request",targetId:clientId,
+    type:"dhcp.request",targetId:coreId,
     params:linked&&currentBox.boxConfig.lan.dhcpEnabled?
      {serverId:router.id,poolId:currentBox.boxConfig.lan.pools[0].id}:{}});
    if(result.status!=="applied")return fail("core_rejected",result.message||result.code||"Demande DHCP refusée.");
-   const updated=engine.getSnapshot(),ip=updated.objectsById[clientId].config.ipv4;
-   const status=updated.runtime?.[clientId]?.dhcpStatus??"unassigned";
+   const updated=engine.getSnapshot(),ip=updated.objectsById[coreId].config.ipv4;
+   const status=updated.runtime?.[coreId]?.dhcpStatus??"unassigned";
    return {success:true,code:status,address:ip.address,prefix:ip.prefix,
-    gateway:updated.objectsById[clientId].config.networkOptions?.gateway??null,
-    dns:copy(updated.objectsById[clientId].config.networkOptions?.dns??[]),
-    lease:copy(ip.lease),serverId:router.id,clientId};
+    gateway:updated.objectsById[coreId].config.networkOptions?.gateway??null,
+    dns:copy(updated.objectsById[coreId].config.networkOptions?.dns??[]),
+    lease:copy(ip.lease),serverId:router.id,clientId:initial.client.id,interfaceId:initial.port.id};
   }
  };
 }
