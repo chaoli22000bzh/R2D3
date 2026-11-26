@@ -109,6 +109,7 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
  // client n'est pas présent dans cette nouvelle session. Le Core reste
  // l'unique autorité pour leur validité et les nouvelles allocations.
  const persisted=box.boxConfig.dhcpState??{clock:0,clients:[]};
+ let expectedDhcpState=JSON.stringify(persisted);
  const known=new Map(persisted.clients.map(c=>[c.assetId+"|"+c.portId,c]));
  const activeKeys=new Set(accepted.map(a=>a.client.id+"|"+a.port.id));
  const holders=persisted.clients.filter(c=>!activeKeys.has(c.assetId+"|"+c.portId)&&
@@ -159,7 +160,10 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
     prefix:ip.prefix,gateway:object.config.networkOptions.gateway,
     dns:copy(object.config.networkOptions.dns),lease:copy(ip.lease)});
   }
-  return registry.setBoxDhcpState(boxId,{clock:snap.simulationClock,clients});
+  const saved={clock:snap.simulationClock,clients};
+  const result=registry.setBoxDhcpState(boxId,saved);
+  if(result.success)expectedDhcpState=JSON.stringify(saved);
+  return result;
  }
  return {success:true,code:"session_created",boxId,routerId:router.id,engine,
   clients:accepted.map(x=>({assetId:x.client.id,clientId:x.clientId,portId:x.port.id,
@@ -182,6 +186,8 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
    if(!current.success&&!disconnected)return current;
    // Si le LAN est reconfiguré après la création de session, refuser
    // plutôt que d'attribuer un bail provenant d'une ancienne configuration.
+   if(JSON.stringify(currentBox.boxConfig.dhcpState??{clock:0,clients:[]})!==expectedDhcpState)
+    return fail("dhcp_state_changed","La table DHCP de la box a changé : recréer la session.");
    if(JSON.stringify(currentBox.boxConfig.lan)!==JSON.stringify(box.boxConfig.lan))
     return fail("out_of_sync","Configuration LAN modifiée : recréer la session.");
    let snap=engine.getSnapshot();
