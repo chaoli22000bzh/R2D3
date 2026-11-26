@@ -510,7 +510,7 @@ test("Création de champs : clé interne automatique, accents, doublons et compa
  assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
 });
 
-test("PC fixe standard : socle Informatique commun, profil léger et registre inchangé",()=>{
+test("Ordinateur standard : socle Informatique commun, profil léger et registre inchangé",()=>{
  const e=createAssetRegistry();
  assert.equal(e.listProfiles().length,0);
  const created=installDesktopProfile(e);
@@ -520,6 +520,7 @@ test("PC fixe standard : socle Informatique commun, profil léger et registre in
  assert.equal(p.fields.length,6);
  assert.equal(p.fields.some(f=>["chassis","raid","volumes","frequence_cpu","architecture_os"].includes(f.key)),false);
  assert.equal(p.portGroups.length,0);
+ assert.equal(p.name,"Ordinateur");
  assert.equal(installDesktopProfile(e).code,"already_present");
  assert.equal(e.listProfiles().length,1);
  const a=e.createAsset(p.id,{name:"REN-PC-01",manufacturer:"ASUS",model:"NUC12WSKi7",serialNumber:"BTWS333007EX"}).asset;
@@ -678,4 +679,28 @@ test("Inventaire sur un profil PC activé après création : aller-retour strict
  for(const key of ["processors","ramModules","disks"])assert.equal(e.getAsset(pc.id)[key],undefined);
  assert.equal(e.getProfile(p.id).processorInventory,undefined);
  assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
+});
+
+test("Renommage PC fixe vers Ordinateur : identité, composants et liens conservés",()=>{
+ const e=createAssetRegistry(),p=installDesktopProfile(e).profile;
+ const asset=e.createAsset(p.id,{name:"PC-EXISTANT"}).asset;
+ assert.equal(e.addAssetProcessor(asset.id,{quantite:1,modele:"Intel"}).success,true);
+ assert.equal(e.addAssetComponent(asset.id,"ram",{quantite:2,capaciteGo:16}).success,true);
+ assert.equal(e.addAssetComponent(asset.id,"disk",{quantite:1,capaciteGo:512,type:"SSD NVMe"}).success,true);
+ const before=e.exportState();
+ before.profiles.find(x=>x.id===p.id).name="PC fixe";
+ const registry=restoreAssetRegistry(before);
+ const migrated=installDesktopProfile(registry);
+ assert.equal(migrated.code,"renamed");
+ assert.equal(migrated.profile.name,"Ordinateur");
+ assert.equal(migrated.profile.id,p.id);
+ assert.equal(registry.listProfiles().length,1);
+ assert.equal(registry.getAsset(asset.id).profileId,p.id);
+ assert.deepEqual(registry.getAsset(asset.id).processors,before.assets[0].processors);
+ assert.deepEqual(registry.getAsset(asset.id).ramModules,before.assets[0].ramModules);
+ assert.deepEqual(registry.getAsset(asset.id).disks,before.assets[0].disks);
+ assert.deepEqual(registry.getAsset(asset.id).ports,before.assets[0].ports);
+ assert.deepEqual(registry.exportState().cables,before.cables);
+ assert.deepEqual(restoreAssetRegistry(registry.exportState()).exportState(),registry.exportState());
+ assert.equal(installDesktopProfile(registry).code,"already_present");
 });
