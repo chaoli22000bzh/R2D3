@@ -1033,6 +1033,13 @@ try {
     assert.equal(theme.background,colorScheme==="dark"?"rgb(19, 29, 39)":"rgb(239, 243, 247)");
     assert.equal(theme.panel,colorScheme==="dark"?"rgb(32, 47, 60)":"rgb(255, 255, 255)");
     assert.equal(theme.overflow,false);
+    const wifiAdminColors=await page.locator(".wifi-admin").evaluate(el=>({
+      background:getComputedStyle(el).backgroundColor,
+      scheme:getComputedStyle(el).colorScheme
+    }));
+    assert.equal(wifiAdminColors.background,colorScheme==="dark"?"rgb(32, 47, 60)":"rgb(255, 255, 255)",
+      "Fond du composant Wi-Fi partagé en thème "+colorScheme);
+    assert.equal(wifiAdminColors.scheme,colorScheme,"Thème du composant Wi-Fi partagé");
     assert.equal(await page.locator("#ip-1").innerText(),"192.168.10.100");
     assert.equal(await page.locator("#ip-2").innerText(),"192.168.10.101");
     await page.locator("#peer-ping").click();
@@ -1059,6 +1066,46 @@ try {
     assert.deepEqual(errors,[]);
     await page.close();passed++;
     console.log("PASS Wi-Fi Isolation mode "+colorScheme+" : DHCP distinct, ping, blocage, passerelle et thème");
+  }
+  // Les quatre équipements réutilisent deux thèmes CSS partagés.
+  // Tester leurs styles calculés sans imposer de changements au laboratoire C2-Lab.
+  for(const colorScheme of ["light","dark"]){
+    const page=await browser.newPage({colorScheme});
+    await page.setContent(`<!doctype html><html><head>
+      <link rel="stylesheet" href="http://127.0.0.1:8766/src/switch-admin-ui-v1.css">
+      <link rel="stylesheet" href="http://127.0.0.1:8766/src/box-admin-ui-v1.css">
+      </head><body>
+      <div class="switch-admin v4" id="switch-theme"><div class="device-bar">Switch</div></div>
+      <div class="switch-admin v4 router-admin" id="router-theme">
+        <form data-form="vpn"><input type="checkbox" id="vpn-check"></form>
+        <form data-form="router-dhcp-pool" class="router-dhcp-grid"><label>Plage<input id="router-dhcp-field"></label></form>
+        <button class="secondary-danger" id="danger">Supprimer</button>
+      </div>
+      <div class="switch-admin v4 router-admin box-admin" id="box-theme">
+        <div class="admin-content">Box Internet</div>
+      </div></body></html>`,{waitUntil:"load"});
+    const actual=await page.evaluate(()=>{
+      const style=id=>getComputedStyle(document.getElementById(id));
+      return {
+        switchBg:style("switch-theme").backgroundColor,
+        routerBg:style("router-theme").backgroundColor,
+        boxBg:style("box-theme").backgroundColor,
+        vpnCheckScheme:style("vpn-check").colorScheme,
+        dhcpFieldScheme:style("router-dhcp-field").colorScheme,
+        dangerBg:style("danger").backgroundColor
+      };
+    });
+    const bg=colorScheme==="dark"?"rgb(32, 47, 60)":"rgb(255, 255, 255)";
+    assert.equal(actual.switchBg,bg,"Fond switch "+colorScheme);
+    assert.equal(actual.routerBg,bg,"Fond routeur "+colorScheme);
+    assert.equal(actual.boxBg,bg,"Fond box "+colorScheme);
+    if(colorScheme==="dark"){
+      assert.equal(actual.vpnCheckScheme,"dark","Case VPN doit hériter du thème sombre");
+      assert.equal(actual.dhcpFieldScheme,"dark","Champ DHCP doit hériter du thème sombre");
+      assert.equal(actual.dangerBg,"rgb(37, 57, 74)","Bouton danger en thème sombre");
+    }
+    await page.close();passed++;
+    console.log("PASS thèmes partagés "+colorScheme+" : switch, routeur, box et champs VPN/DHCP");
   }
   console.log("SUCCÈS : " + passed + " essais navigateur réussis");
 } finally {
