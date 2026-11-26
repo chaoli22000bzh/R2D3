@@ -470,7 +470,18 @@ export function createAssetRegistry(saved){
   if(typeof enabled!=="boolean")return result(false,"invalid_option","Valeur invalide.");
   if(!enabled&&s.assets.some(a=>a.profileId===id&&(a.processors?.length||a.ramModules?.length||a.disks?.length)))
    return result(false,"processors_in_use","Retirer les processeurs des équipements avant de désactiver l'inventaire.");
-  if(enabled)p.processorInventory=true;else delete p.processorInventory;s.revision++;
+  if(enabled){
+   p.processorInventory=true;
+   for(const a of s.assets.filter(a=>a.profileId===id)){
+    a.processors??=[];a.ramModules??=[];a.disks??=[];
+   }
+  }else{
+   delete p.processorInventory;
+   for(const a of s.assets.filter(a=>a.profileId===id)){
+    delete a.processors;delete a.ramModules;delete a.disks;
+   }
+  }
+  s.revision++;
   return result(true,"processor_inventory_updated","Inventaire détaillé des processeurs mis à jour.");
  }
  function addAssetProcessor(assetId,raw={}){
