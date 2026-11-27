@@ -2,6 +2,7 @@
  * Une caméra physique, interfaces réseau clientes communes.
  * Ne crée ni point d'accès, ni serveur DHCP, ni session réseau fictive.
  */
+import {requestAssetInterfaceDhcp} from "./network-client-dhcp-v1.js";
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const choices=(values,selected)=>values.map(([value,label])=>
  '<option value="'+esc(value)+'"'+(String(selected)===String(value)?" selected":"")+'>'+esc(label)+'</option>').join("");
@@ -48,7 +49,7 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
     '<form data-nc-form="network" class="nc-form">'+
     select("mode","Mode d'adressage",[["dhcp","Automatique (DHCP)"],["static","IPv4 fixe"]],mode)+
     (mode==="dhcp"?
-      '<p class="nc-hint nc-wide">La NetCam obtient son IPv4 du serveur DHCP lorsqu’une demande réseau aboutit. Une réservation éventuelle se configure sur le serveur DHCP, à partir de l’adresse MAC de cette interface. Aucune adresse n’est attribuée par cette fenêtre.</p>'+
+      '<p class="nc-hint nc-wide">Le Core DHCP obtient l’adresse ou attribue une APIPA si aucun serveur n’est joignable. La réservation éventuelle se configure sur le serveur DHCP.</p>'+
       '<p class="nc-hint nc-wide">Adresse obtenue : <strong>'+esc(status)+'</strong></p>':
       control("address","Adresse IPv4",c?.mode==="static"?c.address:"",'required inputmode="decimal" class="nc-ip"')+
       control("prefix","Préfixe",c?.mode==="static"?c.prefix:24,'required inputmode="numeric" pattern="[0-9]{1,2}" class="nc-prefix"')+
@@ -61,7 +62,8 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
       select("security","Sécurité",security,wifi?.security??"wpa2-personal")+
       '<label>Mot de passe<input name="password" type="password" autocomplete="new-password" maxlength="63" value="'+esc(wifi?.password??"")+'" class="nc-password"></label>'+
       '<p class="nc-hint nc-wide">Renseigner le SSID ne prouve pas la connexion. L’association est vérifiée par les composants réseau communs.</p>':'')+
-    '<div class="nc-actions nc-wide"><button type="submit">Enregistrer</button></div>'+
+    '<div class="nc-actions nc-wide"><button type="submit">Enregistrer</button>'+
+      (mode==="dhcp"?'<button type="button" data-nc-renew class="nc-secondary">Renouveler DHCP</button>':'')+'</div>'+
     '</form></section>';
  }
  function camera(){
@@ -139,7 +141,14 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
     const v=registry.setAssetInterfaceIpv4(assetId,p.id,config);
     if(!v.success)return message(v.message,true);
    }
-   editMode=null;onChange?.();message("Configuration de l'interface enregistrée.");
+   editMode=null;
+   if(mode==="dhcp"){
+    const requested=requestAssetInterfaceDhcp({registry,assetId,portId:p.id});
+    if(!requested.success){onChange?.();return message("DHCP : "+requested.message,true);}
+    onChange?.();
+    return message(requested.code==="apipa"?"Aucun serveur DHCP accessible : adresse APIPA attribuée.":"Configuration DHCP obtenue.");
+   }
+   onChange?.();message("Configuration de l'interface enregistrée.");
   }else if(kind==="camera"){
    const microphone=String(data.get("microphone"));
    const r=registry.updateAssetComponent(assetId,"camera",a.netCamera.id,{
@@ -159,6 +168,13 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
   }
  }
  function click(e){
+  const renew=e.target.closest("[data-nc-renew]");
+  if(renew){
+   const r=requestAssetInterfaceDhcp({registry,assetId,portId});
+   if(r.success)onChange?.();
+   message(r.success?(r.code==="apipa"?"Aucun serveur DHCP accessible : adresse APIPA attribuée.":"Configuration DHCP obtenue."):r.message,!r.success);
+   return;
+  }
   const port=e.target.closest("[data-nc-port]");
   if(port){
    portId=port.dataset.ncPort;editMode=null;feedback="";render();
@@ -167,6 +183,12 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
   const button=e.target.closest("[data-nc-tab]");
   if(!button)return;
   page=button.dataset.ncTab;feedback="";render();
+ }
+ // Une interface DHCP fraîchement créée demande immédiatement sa
+ // configuration au Core, même si aucun équipement n'est raccordé.
+ for(const p of interfaces().filter(p=>!p.ipv4||p.ipv4.mode==="dhcp")){
+  const response=requestAssetInterfaceDhcp({registry,assetId,portId:p.id});
+  if(!response.success){feedback="DHCP "+p.name+" : "+response.message;isError=true;}
  }
  root.addEventListener("change",change);
  root.addEventListener("submit",submit);
