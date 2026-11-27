@@ -49,31 +49,47 @@ export function createBoxInternetSession({registry,boxId,clients=[],services=[]}
   if(!["http","https","dns"].includes(service)||ipNumber(targetAddress)===null||
      !Number.isInteger(sourcePort)||sourcePort<1024||sourcePort>65535)
     return fail("request_invalid","Destination, service ou port source invalide.");
-  // Réconcilier d'abord les interfaces déjà configurées en DHCP mais
-  // absentes de la table des baux persistée. Une session héritée peut avoir
-  // conservé leur IPv4 dans l'actif sans conserver le bail côté serveur.
-  // Seul le Core DHCP renouvelle alors ces interfaces avant le client demandé.
-  const persisted=current.boxConfig.dhcpState?.clients??[];
-  for(const peer of lan.clients){
-   if(peer.assetId===clientId&&peer.portId===interfaceId)continue;
-   const prior=registry.getAsset(peer.assetId)?.interfaceIpv4?.[peer.portId];
-   if(prior?.mode!=="dhcp"||!prior.address||prior.address.startsWith("169.254."))continue;
-   if(persisted.some(c=>c.assetId===peer.assetId&&c.portId===peer.portId))continue;
-   const repaired=lan.request(peer.assetId,peer.portId);
-   if(!repaired.success)return repaired;
-  }
-  const obtained=lan.request(clientId,interfaceId);
-  if(!obtained.success)return obtained;
-  if(!sameSubnet(obtained.address,current.boxConfig.lan.address,current.boxConfig.lan.prefix)||
-     obtained.gateway!==current.boxConfig.lan.address||
-     !["lease","lease-retained"].includes(obtained.code))
-    return fail("client_network","PC sans adresse LAN et passerelle DHCP valides.");
   const client=registry.getAsset(clientId);
-  if(!client||client.status!=="En service")return fail("client_offline","PC hors service.");
-  // Le Core peut conserver un bail après déconnexion : il ne donne pas un accès Internet.
-  const matchingAdmissions=lan.clients.filter(x=>x.assetId===clientId&&(!interfaceId||x.portId===interfaceId));
-  if(matchingAdmissions.length!==1)return fail(matchingAdmissions.length?"ambiguous_interface":"client_missing","Interface du PC absente ou ambiguë.");
-  const admission=matchingAdmissions[0];
+  if(!client||client.status!=="En service")return fail("client_offline","Client hors service.");
+  const matches=lan.clients.filter(x=>x.assetId===clientId&&(!interfaceId||x.portId===interfaceId));
+  if(matches.length!==1)return fail(matches.length?"ambiguous_interface":"client_missing",
+   "Interface du client absente ou ambiguë.");
+  const admission=matches[0];
+  const configured=client.interfaceIpv4?.[admission.portId];
+  let obtained;
+  if(configured?.mode==="static"){
+   // Une IPv4 fixe ne déclenche jamais DHCP, ni sur cette interface,
+   // ni sur les autres interfaces de l'équipement.
+   const connected=lan.checkClient(clientId,admission.portId);
+   if(!connected.success)return connected;
+   const prefix=current.boxConfig.lan.prefix,router=current.boxConfig.lan.address;
+   const address=ipNumber(configured.address),gateway=ipNumber(configured.gateway);
+   const mask=(0xffffffff<<(32-prefix))>>>0;
+   const network=(ipNumber(router)&mask)>>>0,broadcast=(network|(~mask>>>0))>>>0;
+   if(!sameSubnet(configured.address,router,prefix)||
+      configured.prefix!==prefix||gateway===null||configured.gateway!==router||
+      address===network||address===broadcast||address===ipNumber(router))
+    return fail("client_network","Adresse IPv4 fixe, préfixe ou passerelle incompatibles avec le LAN de la box.");
+   obtained={address:configured.address,prefix:configured.prefix,
+    gateway:configured.gateway,code:"static"};
+  }else{
+   // Seuls les clients DHCP passent par le moteur DHCP commun.
+   const persisted=current.boxConfig.dhcpState?.clients??[];
+   for(const peer of lan.clients){
+    if(peer.assetId===clientId&&peer.portId===admission.portId)continue;
+    const prior=registry.getAsset(peer.assetId)?.interfaceIpv4?.[peer.portId];
+    if(prior?.mode!=="dhcp"||!prior.address||prior.address.startsWith("169.254."))continue;
+    if(persisted.some(c=>c.assetId===peer.assetId&&c.portId===peer.portId))continue;
+    const repaired=lan.request(peer.assetId,peer.portId);
+    if(!repaired.success)return repaired;
+   }
+   obtained=lan.request(clientId,admission.portId);
+   if(!obtained.success)return obtained;
+   if(!sameSubnet(obtained.address,current.boxConfig.lan.address,current.boxConfig.lan.prefix)||
+      obtained.gateway!==current.boxConfig.lan.address||
+      !["lease","lease-retained"].includes(obtained.code))
+    return fail("client_network","Client sans adresse LAN et passerelle DHCP valides.");
+  }
   // Un PC peut disposer simultanément de RJ45 et de Wi-Fi : seul le
   // support choisi pour cette session doit servir à valider son accès.
   if(admission.medium==="ethernet"){
