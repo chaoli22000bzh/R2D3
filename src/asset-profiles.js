@@ -434,7 +434,7 @@ export function createAssetRegistry(saved){
    if(a.integratedCamera!==undefined&&(!inventoryEnabled||!validCameraComponent(a.integratedCamera)))
     throw Error("Caméra intégrée invalide ou interdite sur ce profil");
    if(a.interfaceIpv4!==undefined&&
-      (!inventoryEnabled||!ipv4InterfaceValid(a.interfaceIpv4,a.ports||[])))
+      (!(inventoryEnabled||s.profiles.find(p=>p.id===a.profileId)?.netcamProfile)||!ipv4InterfaceValid(a.interfaceIpv4,a.ports||[])))
     throw Error("Adressage IPv4 par interface invalide ou interdit pour ce profil");
    if(a.networkCapabilities?.includes("dhcp-server")&&a.dhcpServerConfig===undefined)
     a.dhcpServerConfig={assetId:a.id,enabled:false,pools:[]};
@@ -1356,7 +1356,7 @@ export function createAssetRegistry(saved){
  function setAssetInterfaceIpv4(assetId,portId,configuration){
   const a=getA(assetId);
   if(!a)return result(false,"not_found","Équipement introuvable.");
-  if(getP(a.profileId)?.processorInventory!==true)return result(false,"unsupported_profile","Adressage IPv4 réservé aux ordinateurs.");
+  if(getP(a.profileId)?.processorInventory!==true&&getP(a.profileId)?.netcamProfile!==true)return result(false,"unsupported_profile","Adressage IPv4 non disponible sur ce profil.");
   if(!a.ports.some(p=>p.id===portId&&["ethernet-rj45","wifi"].includes(p.type)))
    return result(false,"unsupported_interface","Interface IPv4 Ethernet ou Wi-Fi introuvable.");
   if(configuration===null){
@@ -1370,7 +1370,7 @@ export function createAssetRegistry(saved){
    return result(false,"invalid_ipv4","Configuration IPv4 de l'interface invalide.");
   // Conserver deux interfaces distinctes, empêcher le doublon IPv4 sur un même ordinateur.
   if(Object.entries(a.interfaceIpv4||{}).some(([id,c])=>id!==portId&&c.address===configuration.address))
-   return result(false,"duplicate_ipv4","Cette adresse IPv4 est déjà attribuée à une autre interface de l'ordinateur.");
+   return result(false,"duplicate_ipv4","Cette adresse IPv4 est déjà attribuée à une autre interface de cet équipement.");
   a.interfaceIpv4??={};
   a.interfaceIpv4[portId]=clone(configuration);s.revision++;
   return result(true,"interface_ipv4_updated","Configuration IPv4 de l'interface enregistrée.");
