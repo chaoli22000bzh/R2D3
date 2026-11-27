@@ -201,9 +201,9 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
   if(!button)return;
   page=button.dataset.ncTab;feedback="";render();
  }
- // Une interface DHCP fraîchement créée demande immédiatement sa
- // configuration au Core, même si aucun équipement n'est raccordé.
- for(const p of interfaces().filter(p=>!p.ipv4||p.ipv4.mode==="dhcp")){
+ // Initialiser uniquement les interfaces DHCP sans adresse. Ouvrir la fenêtre
+ // ne doit jamais renouveler un bail existant ni altérer le serveur DHCP.
+ for(const p of interfaces().filter(p=>!p.ipv4||(p.ipv4.mode==="dhcp"&&!p.ipv4.address))){
   const response=requestAssetInterfaceDhcp({registry,assetId,portId:p.id});
   if(!response.success){feedback="DHCP "+p.name+" : "+response.message;isError=true;}
  }
