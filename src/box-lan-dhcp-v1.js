@@ -169,6 +169,14 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
  return {success:true,code:"session_created",boxId,routerId:router.id,engine,
   clients:accepted.map(x=>({assetId:x.client.id,clientId:x.clientId,portId:x.port.id,
    medium:x.medium,lanPortId:x.lanPortId??null,association:x.association??null})),
+  checkClient(clientId,portId){
+   const matches=accepted.filter(x=>x.client.id===clientId&&(!portId||x.port.id===portId));
+   if(matches.length!==1)return fail(matches.length?"ambiguous_interface":"client_missing",
+    "Interface du client absente ou ambiguë.");
+   const currentBox=registry.getAsset(boxId);
+   if(!currentBox||!live(currentBox))return fail("box_offline","Box indisponible.");
+   return admitClient(registry,currentBox,matches[0].requested);
+  },
   request(clientId,portId){
    const matches=accepted.filter(x=>(x.client.id===clientId||x.clientId===clientId)&&
     (!portId||x.port.id===portId));
