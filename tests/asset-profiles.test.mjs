@@ -958,3 +958,27 @@ test("NetCam : sauvegarde historique avec protection IP en texte préservée",()
  assert.equal(restored.getAsset(a.id).values.protection_ip,"IP66");
  assert.deepEqual(restored.exportState(),historical);
 });
+
+test("Interfaces réseau communes : IPv4 indépendante de la catégorie de matériel",()=>{
+ const e=createAssetRegistry();
+ const hardware=e.createProfile("Robot industriel");assert.equal(hardware.success,true);
+ assert.equal(e.addPortGroup(hardware.profile.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1}).success,true);
+ assert.equal(e.addPortGroup(hardware.profile.id,{type:"wifi",prefix:"WIFI",start:1,count:1}).success,true);
+ const robot=e.createAsset(hardware.profile.id,{name:"ROBOT-01"}).asset;
+ const [lan,wifi]=robot.ports;
+ const ipv4=address=>({mode:"dhcp",status:"connected",address,prefix:24,
+  gateway:"192.168.1.1",dns:["192.168.1.1"]});
+ assert.equal(e.setAssetInterfaceIpv4(robot.id,lan.id,ipv4("192.168.1.100")).success,true);
+ assert.equal(e.setAssetInterfaceIpv4(robot.id,wifi.id,ipv4("192.168.1.101")).success,true);
+ assert.deepEqual(e.listAssetNetworkInterfaces(robot.id).map(p=>[p.id,p.ipv4.address]),[
+  [lan.id,"192.168.1.100"],[wifi.id,"192.168.1.101"]]);
+ const duplicate=e.setAssetInterfaceIpv4(robot.id,wifi.id,ipv4("192.168.1.100"));
+ assert.equal(duplicate.success,false);assert.equal(duplicate.code,"duplicate_ipv4");
+ assert.equal(e.getAsset(robot.id).interfaceIpv4[wifi.id].address,"192.168.1.101");
+ const netProfile=installNetCamProfile(e).profile;
+ assert.equal(e.addPortGroup(netProfile.id,{type:"wifi",prefix:"WIFI",start:1,count:1}).success,true);
+ const net=e.createAsset(netProfile.id,{name:"NETCAM-01"}).asset;
+ assert.ok(net.netCamera);assert.equal(e.listAssetNetworkInterfaces(net.id).length,1);
+ assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
+ assert.deepEqual(e.listAssetNetworkInterfaces("absent"),[]);
+});
