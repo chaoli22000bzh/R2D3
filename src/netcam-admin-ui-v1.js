@@ -30,10 +30,20 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
   const p=ports.find(p=>p.id===portId),c=p.ipv4,wifi=p.clientWifi;
   const mode=editMode??c?.mode??"dhcp",isWifi=p.type==="wifi";
   const status=c?.address?c.address+"/"+c.prefix:"Adresse non attribuée";
-  return '<section class="nc-panel"><h3>Interface cliente</h3>'+
-    '<div class="nc-port-select">'+select("portId","Carte réseau",ports.map(v=>[v.id,v.name+" ("+(v.type==="wifi"?"Wi-Fi":"Ethernet")+")"]),portId)+'</div>'+
+  const rows=ports.map(v=>{
+   const label=v.name+" ("+(v.type==="wifi"?"Wi-Fi":"Ethernet")+")";
+   const modeLabel=v.ipv4?.mode==="static"?"IPv4 fixe":"DHCP";
+   const address=v.ipv4?.address?v.ipv4.address+"/"+v.ipv4.prefix:"Non attribuée";
+   const active=v.id===portId;
+   return '<tr class="'+(active?"nc-selected":"")+'"><td><button type="button" data-nc-port="'+esc(v.id)+'" aria-pressed="'+active+'">'+esc(label)+'</button></td>'+
+    '<td>'+esc(modeLabel)+'</td><td>'+esc(address)+'</td></tr>';
+  }).join("");
+  return '<section class="nc-panel"><h3>Interfaces réseau</h3>'+
+    '<div class="nc-table-wrap"><table class="nc-interfaces"><thead><tr><th>Interface</th><th>Mode</th><th>IPv4</th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table></div>'+
+    '<p class="nc-hint">Sélectionnez une interface pour afficher et modifier ses paramètres.</p>'+
+    '<h3 class="nc-config-heading">Configuration : '+esc(p.name)+' ('+(isWifi?"Wi-Fi":"Ethernet")+')</h3>'+
     '<dl class="nc-details">'+info("Adressage actuel",status)+
-     info("Mode",c?.mode==="static"?"IPv4 fixe":"Client DHCP")+
      info("Passerelle",c?.gateway)+info("DNS",c?.dns?.join(", ")||null)+'</dl>'+
     '<form data-nc-form="network" class="nc-form">'+
     select("mode","Mode d'adressage",[["dhcp","Automatique (DHCP)"],["static","IPv4 fixe"]],mode)+
@@ -149,6 +159,11 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
   }
  }
  function click(e){
+  const port=e.target.closest("[data-nc-port]");
+  if(port){
+   portId=port.dataset.ncPort;editMode=null;feedback="";render();
+   return;
+  }
   const button=e.target.closest("[data-nc-tab]");
   if(!button)return;
   page=button.dataset.ncTab;feedback="";render();
