@@ -211,7 +211,7 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
    if(!persist.success)return fail("lease_persist_failed",persist.message||"Sauvegarde des baux impossible.");
    // Toute interface cliente DHCP conserve son IPv4 dans l'actif associé.
    // Aucun choix n'est fait selon le type de matériel (PC, caméra, imprimante...).
-   if(["lease","lease-retained"].includes(status)&&ip.address){
+   if(["lease","lease-retained","apipa"].includes(status)&&ip.address){
     const saved=registry.setAssetInterfaceIpv4(initial.client.id,initial.port.id,{
      mode:"dhcp",status:linked?"connected":"disconnected",
      address:ip.address,prefix:ip.prefix,
