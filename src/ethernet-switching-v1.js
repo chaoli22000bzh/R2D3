@@ -10,6 +10,43 @@ const unavailable=reason=>({status:"unavailable",success:false,reason});
 const isEthernet=p=>p?.type==="ethernet-rj45"&&p.medium==="ethernet"&&p.connector==="RJ45";
 const live=a=>a?.status==="En service";
 
+/* Continuité Ethernet simple, utilisée par le ping et les clients DHCP.
+ * Les câbles/prises/panneaux proviennent du registre, la commutation active
+ * existe uniquement sur un équipement déclaré comme switch Ethernet.
+ * Ne traverse pas un équipement hors service, n'infère aucun VLAN.
+ */
+export function ethernetPortReachable(registry,fromPortId,toPortId){
+ if(!registry||["listAssets","listCables","listWallOutlets","listPanels","listCablePoints"]
+    .some(fn=>typeof registry[fn]!=="function"))return false;
+ const ids=new Set(registry.listCablePoints()
+  .filter(p=>p.portType==="ethernet-rj45").map(p=>p.portId));
+ if(!ids.has(fromPortId)||!ids.has(toPortId))return false;
+ const graph=new Map([...ids].map(id=>new Set()));
+ const link=(a,b)=>{
+  if(!graph.has(a)||!graph.has(b))return;
+  graph.get(a).add(b);graph.get(b).add(a);
+ };
+ for(const cable of registry.listCables()){
+  const a=cable.ends?.[0]?.portId,b=cable.ends?.[1]?.portId;
+  if(a&&b)link(a,b);
+ }
+ for(const infrastructure of [...registry.listWallOutlets(),...registry.listPanels()])
+  for(const slot of infrastructure.ports)link(slot.front.id,slot.back.id);
+ for(const asset of registry.listAssets()){
+  if(!live(asset)||!asset.networkCapabilities?.includes("ethernet-switching"))continue;
+  // VLAN configurés : la continuité L2 dépend d'un autre mécanisme VLAN.
+  if(asset.vlanConfig)continue;
+  const ports=asset.ports.filter(isEthernet).map(p=>p.id);
+  for(let i=0;i<ports.length;i++)
+   for(let j=i+1;j<ports.length;j++)link(ports[i],ports[j]);
+ }
+ const visited=new Set([fromPortId]),queue=[fromPortId];
+ for(let i=0;i<queue.length&&!visited.has(toPortId);i++)
+  for(const next of graph.get(queue[i])||[])
+   if(!visited.has(next)){visited.add(next);queue.push(next);}
+ return visited.has(toPortId);
+}
+
 export function observeEthernetNetworkPing(registry,sourceId,targetId,addresses){
  if(!registry || ["getAsset","listAssets","listCables","listWallOutlets","listPanels","listCablePoints"].some(fn=>typeof registry[fn]!=="function"))
   return unavailable("Registre R2 indisponible");
@@ -24,35 +61,9 @@ export function observeEthernetNetworkPing(registry,sourceId,targetId,addresses)
  const a=addresses?.[sourceId],b=addresses?.[targetId];
  if(!a||!b)return unavailable("Configuration IPv4 manquante");
 
- // Graphe de continuité physique, strictement tiré des câbles et des traversées passives.
- const ethernetIds=new Set(registry.listCablePoints().filter(p=>p.portType==="ethernet-rj45").map(p=>p.portId));
- const graph=new Map([...ethernetIds].map(id=>[id,new Set()]));
- const link=(x,y)=>{
-  if(!graph.has(x)||!graph.has(y))return;
-  graph.get(x).add(y);graph.get(y).add(x);
- };
- for(const cable of registry.listCables()){
-  const x=cable.ends?.[0]?.portId,y=cable.ends?.[1]?.portId;
-  if(x&&y)link(x,y);
- }
- for(const infrastructure of [...registry.listWallOutlets(),...registry.listPanels()])
-  for(const slot of infrastructure.ports)link(slot.front.id,slot.back.id);
-
- // Une seule fonction active crée une continuité entre ports d'un switch :
- // elle est attachée à l'équipement, pas inférée de son nom ou de son nombre de ports.
- for(const asset of registry.listAssets()){
-  if(!live(asset)||!asset.networkCapabilities?.includes("ethernet-switching"))continue;
-  const ports=asset.ports.filter(isEthernet).map(p=>p.id);
-  for(let i=0;i<ports.length;i++)
-   for(let j=i+1;j<ports.length;j++)link(ports[i],ports[j]);
- }
  const start=sourcePorts[0].id,end=targetPorts[0].id;
- const visited=new Set([start]),queue=[start];
- for(let i=0;i<queue.length&&!visited.has(end);i++)
-  for(const next of graph.get(queue[i])||[])
-   if(!visited.has(next)){visited.add(next);queue.push(next);}
- const connected=visited.has(end);
-
+ const connected=ethernetPortReachable(registry,start,end);
+ 
  // Le cœur IPv4 existant reste responsable des masques, doublons et réponses ping.
  // Une liaison *dérivée* représente uniquement la communication permise par Ethernet.
  const scenario={
