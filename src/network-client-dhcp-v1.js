@@ -4,6 +4,7 @@
  */
 import {createEngine} from "./r2d3-core.js";
 import {createBoxLanDhcpSession} from "./box-lan-dhcp-v1.js";
+import {ethernetPortReachable} from "./ethernet-switching-v1.js?dhcp-wired-v1=1";
 
 const fail=(code,message)=>({success:false,code,message});
 const mac=id=>{
@@ -41,7 +42,7 @@ function ethernetBox(registry,port){
  const candidates=[];
  for(const box of registry.listAssets().filter(a=>a.boxConfig&&isLive(a)&&a.boxConfig.mode!=="bridge")){
   for(const lanPortId of box.boxConfig.ports.lanPortIds){
-   if(registry.explorePhysicalPath(port.id,lanPortId).connected)candidates.push(box);
+   if(ethernetPortReachable(registry,port.id,lanPortId))candidates.push(box);
   }
  }
  return [...new Map(candidates.map(b=>[b.id,b])).values()];
@@ -88,7 +89,7 @@ export function requestAssetInterfaceDhcp({registry,assetId,portId}={}){
    !p.ipv4.address.startsWith("169.254.")&&
    !recorded.some(c=>c.assetId===assetId&&c.portId===p.id));
   const repair=siblings.filter(p=>p.type==="ethernet-rj45"&&
-   box.boxConfig.ports.lanPortIds.some(id=>registry.explorePhysicalPath(p.id,id).connected))
+   box.boxConfig.ports.lanPortIds.some(id=>ethernetPortReachable(registry,p.id,id)))
    .map(p=>({assetId,portId:p.id,medium:"ethernet"}));
   const session=createBoxLanDhcpSession({registry,boxId:box.id,clients:[...repair,entry]});
   if(!session.success)return session;
