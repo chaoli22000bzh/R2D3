@@ -548,6 +548,7 @@ export function createAssetRegistry(saved){
   if(!enabled&&s.assets.some(a=>a.profileId===id&&(a.processors?.length||a.ramModules?.length||a.disks?.length||a.integratedScreen||a.integratedCamera)))
    return result(false,"processors_in_use","Retirer les processeurs des équipements avant de désactiver l'inventaire.");
   if(enabled){
+   if(p.netcamProfile)return result(false,"incompatible_profile","Inventaire informatique interdit sur une NetCam.");
    p.processorInventory=true;
    for(const a of s.assets.filter(a=>a.profileId===id)){
     a.processors??=[];a.ramModules??=[];a.disks??=[];
