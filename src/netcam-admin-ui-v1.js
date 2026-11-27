@@ -12,7 +12,7 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
  if(!root||!registry?.getAsset||!registry?.getProfile||!registry?.listAssetNetworkInterfaces||
     !registry?.setAssetInterfaceIpv4||!registry?.setAssetClientWifi||!registry?.updateAssetComponent||!registry?.setAssetField)
   throw Error("Registre réseau R2D3 indisponible.");
- let page="network",portId=null,feedback="",isError=false;
+ let page="network",portId=null,editMode=null,feedback="",isError=false;
  const get=()=>{
   const a=registry.getAsset(assetId);
   if(!a||registry.getProfile(a.profileId)?.netcamProfile!==true)throw Error("NetCam introuvable.");
@@ -28,7 +28,7 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
   if(!ports.length)return '<section class="nc-panel"><h3>Interfaces réseau</h3><p>Aucune interface Ethernet ou Wi-Fi sur cet actif. Ajoutez une interface au profil ou à l’actif.</p></section>';
   if(!ports.some(p=>p.id===portId))portId=ports[0].id;
   const p=ports.find(p=>p.id===portId),c=p.ipv4,wifi=p.clientWifi;
-  const mode=c?.mode??"dhcp",isWifi=p.type==="wifi";
+  const mode=editMode??c?.mode??"dhcp",isWifi=p.type==="wifi";
   const status=c?.address?c.address+"/"+c.prefix:"Adresse non attribuée";
   return '<section class="nc-panel"><h3>Interface cliente</h3>'+
     '<div class="nc-port-select">'+select("portId","Carte réseau",ports.map(v=>[v.id,v.name+" ("+(v.type==="wifi"?"Wi-Fi":"Ethernet")+")"]),portId)+'</div>'+
@@ -90,29 +90,9 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
    '</div>';
  }
  function change(e){
-  if(e.target.name==="portId"){portId=e.target.value;feedback="";render();}
-  if(e.target.name==="mode"){const mode=e.target.value;const p=interfaces().find(p=>p.id===portId);
-   if(!p)return;
-   // Basculer l'édition sans enregistrer de faux bail ni de fausse adresse.
-   const form=e.target.closest("form"),data=new FormData(form);
-   page="network";feedback="";
-   render();
-   const current=root.querySelector('[data-nc-form="network"]');
-   const selected=current?.elements?.namedItem("mode");if(selected)selected.value=mode;
-   if(mode==="static"){
-    const prior=p.ipv4?.mode==="static"?p.ipv4:null;
-    const el=current?.elements;if(el){if(!el.namedItem("address")){
-      const stub={...p,ipv4:{mode:"static",address:prior?.address??"",prefix:prior?.prefix??24,gateway:prior?.gateway??"",dns:prior?.dns??[]}};
-      // Recomposer les champs statiques sans créer de configuration réseau.
-      const original=p.ipv4;p.ipv4=stub.ipv4;
-      const panel=network();p.ipv4=original;
-      root.querySelector(".nc-panel").outerHTML=panel;
-      root.querySelector('[name="mode"]').value="static";
-     }}
-   }else{
-    // Le changement de mode de présentation ne touche pas aux données persistées.
-    render();root.querySelector('[name="mode"]').value="dhcp";
-   }
+  if(e.target.name==="portId"){portId=e.target.value;editMode=null;feedback="";render();}
+  if(e.target.name==="mode"){
+   editMode=e.target.value;feedback="";render();
   }
  }
  function submit(e){
@@ -149,7 +129,7 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
     const v=registry.setAssetInterfaceIpv4(assetId,p.id,config);
     if(!v.success)return message(v.message,true);
    }
-   onChange?.();message("Configuration de l'interface enregistrée.");
+   editMode=null;onChange?.();message("Configuration de l'interface enregistrée.");
   }else if(kind==="camera"){
    const microphone=String(data.get("microphone"));
    const r=registry.updateAssetComponent(assetId,"camera",a.netCamera.id,{
