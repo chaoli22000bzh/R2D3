@@ -78,8 +78,24 @@ export function requestAssetInterfaceDhcp({registry,assetId,portId}={}){
  let result;
  if(candidates.length===1){
   const {box,entry}=candidates[0];
-  const session=createBoxLanDhcpSession({registry,boxId:box.id,clients:[entry]});
+  // En présence d'une IPv4 DHCP héritée sans bail serveur correspondant,
+  // refaire d'abord une demande sur les autres interfaces du même actif,
+  // uniquement si elles sont effectivement reliées à cette box.
+  // Le Core réattribue ainsi des baux distincts, sans inventer de réservation.
+  const recorded=box.boxConfig.dhcpState?.clients??[];
+  const siblings=registry.listAssetNetworkInterfaces(assetId).filter(p=>
+   p.id!==portId&&p.ipv4?.mode==="dhcp"&&p.ipv4.address&&
+   !p.ipv4.address.startsWith("169.254.")&&
+   !recorded.some(c=>c.assetId===assetId&&c.portId===p.id));
+  const repair=siblings.filter(p=>p.type==="ethernet-rj45"&&
+   box.boxConfig.ports.lanPortIds.some(id=>registry.explorePhysicalPath(p.id,id).connected))
+   .map(p=>({assetId,portId:p.id,medium:"ethernet"}));
+  const session=createBoxLanDhcpSession({registry,boxId:box.id,clients:[...repair,entry]});
   if(!session.success)return session;
+  for(const peer of repair){
+   const repaired=session.request(assetId,peer.portId);
+   if(!repaired.success)return repaired;
+  }
   result=session.request(assetId,portId);
   if(!result.success)return result;
  }else{
