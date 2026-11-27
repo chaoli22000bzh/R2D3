@@ -2,7 +2,7 @@
  * Une caméra physique, interfaces réseau clientes communes.
  * Ne crée ni point d'accès, ni serveur DHCP, ni session réseau fictive.
  */
-import {requestAssetInterfaceDhcp} from "./network-client-dhcp-v1.js";
+import {requestAssetInterfaceDhcp} from "./network-client-dhcp-v1.js?dhcp-multi-v1=1";
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const choices=(values,selected)=>values.map(([value,label])=>
  '<option value="'+esc(value)+'"'+(String(selected)===String(value)?" selected":"")+'>'+esc(label)+'</option>').join("");
