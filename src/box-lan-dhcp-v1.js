@@ -209,6 +209,18 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
    const status=updated.runtime?.[coreId]?.dhcpStatus??"unassigned";
    const persist=saveLeases();
    if(!persist.success)return fail("lease_persist_failed",persist.message||"Sauvegarde des baux impossible.");
+   // Une NetCam est un équipement réseau : conserver l'IPv4 par interface
+   // directement dans le registre partagé, sans inventaire informatique fictif.
+   if(registry.getProfile(initial.client.profileId)?.netcamProfile===true&&
+      ["lease","lease-retained"].includes(status)&&ip.address){
+    const saved=registry.setAssetInterfaceIpv4(initial.client.id,initial.port.id,{
+     mode:"dhcp",status:linked?"connected":"disconnected",
+     address:ip.address,prefix:ip.prefix,
+     gateway:updated.objectsById[coreId].config.networkOptions?.gateway??null,
+     dns:copy(updated.objectsById[coreId].config.networkOptions?.dns??[])
+    });
+    if(!saved.success)return fail("interface_ipv4_rejected",saved.message||"IPv4 de la NetCam refusée.");
+   }
    return {success:true,code:status,address:ip.address,prefix:ip.prefix,
     gateway:updated.objectsById[coreId].config.networkOptions?.gateway??null,
     dns:copy(updated.objectsById[coreId].config.networkOptions?.dns??[]),
