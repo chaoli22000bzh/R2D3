@@ -21,7 +21,7 @@ export function ethernetPortReachable(registry,fromPortId,toPortId){
  const ids=new Set(registry.listCablePoints()
   .filter(p=>p.portType==="ethernet-rj45").map(p=>p.portId));
  if(!ids.has(fromPortId)||!ids.has(toPortId))return false;
- const graph=new Map([...ids].map(id=>new Set()));
+ const graph=new Map([...ids].map(id=>[id,new Set()]));
  const link=(a,b)=>{
   if(!graph.has(a)||!graph.has(b))return;
   graph.get(a).add(b);graph.get(b).add(a);
