@@ -383,6 +383,7 @@ export function createAssetRegistry(saved){
    // Les anciennes sauvegardes contiennent parfois un « false » ajouté partout.
    if(p.processorInventory===false)delete p.processorInventory;
    if(p.processorInventory!==undefined&&p.processorInventory!==true)throw Error("Option d'inventaire processeurs invalide");
+   if(p.netcamProfile!==undefined&&p.netcamProfile!==true)throw Error("Profil NetCam invalide");
    p.poe??=false;
    if(typeof p.poe!=="boolean")throw Error("Propriété PoE du profil invalide");
    p.portGroups??=[];
@@ -426,6 +427,10 @@ export function createAssetRegistry(saved){
    }
    if(a.integratedScreen!==undefined&&(!inventoryEnabled||!validIntegratedScreen(a.integratedScreen)))
     throw Error("Écran intégré invalide ou interdit sur ce profil");
+   if(a.netCamera!==undefined&&(!s.profiles.find(p=>p.id===a.profileId)?.netcamProfile||!validCameraComponent(a.netCamera)))
+    throw Error("Caméra NetCam invalide ou interdite sur ce profil");
+   if(s.profiles.find(p=>p.id===a.profileId)?.netcamProfile&&!a.netCamera)
+    throw Error("NetCam sans composant caméra");
    if(a.integratedCamera!==undefined&&(!inventoryEnabled||!validCameraComponent(a.integratedCamera)))
     throw Error("Caméra intégrée invalide ou interdite sur ce profil");
    if(a.interfaceIpv4!==undefined&&
@@ -524,10 +529,18 @@ export function createAssetRegistry(saved){
   const p=getP(id);if(!p)return result(false,"not_found","Profil introuvable.");
   if(p.networkCapabilities.includes("box-internet"))return result(false,"composite_fixed","La box utilise un profil matériel fixe.");
   const r=createProfile(name||p.name+" (copie)");if(!r.success)return r;
-  const target=getP(r.profile.id);target.fields=clone(p.fields);target.portGroups=clone(p.portGroups).map(g=>({...g,id:"portgroup-"+s.nextPortGroup++}));target.networkCapabilities=clone(p.networkCapabilities);target.poe=p.poe;if(p.processorInventory===true)target.processorInventory=true;s.revision++;
+  const target=getP(r.profile.id);target.fields=clone(p.fields);target.portGroups=clone(p.portGroups).map(g=>({...g,id:"portgroup-"+s.nextPortGroup++}));target.networkCapabilities=clone(p.networkCapabilities);target.poe=p.poe;if(p.processorInventory===true)target.processorInventory=true;if(p.netcamProfile===true)target.netcamProfile=true;s.revision++;
   return result(true,"duplicated","Profil dupliqué.",{profile:clone(target)});
  }
 
+ function setProfileNetCam(id,enabled){
+  const p=getP(id);if(!p)return result(false,"not_found","Profil introuvable.");
+  if(typeof enabled!=="boolean")return result(false,"invalid_option","Valeur invalide.");
+  if(!enabled&&s.assets.some(a=>a.profileId===id))return result(false,"profile_in_use","Profil NetCam utilisé.");
+  if(enabled){if(p.processorInventory)return result(false,"incompatible_profile","Inventaires incompatibles.");p.netcamProfile=true;}
+  else delete p.netcamProfile;
+  s.revision++;return result(true,"netcam_profile_updated","Profil NetCam mis à jour.");
+ }
  function setProfileProcessorInventory(id,enabled){
   const p=getP(id);
   if(!p)return result(false,"not_found","Profil introuvable.");
@@ -601,29 +614,32 @@ export function createAssetRegistry(saved){
   delete a.integratedScreen;s.revision++;
   return result(true,"screen_removed","Écran intégré supprimé.");
  }
+ function cameraLocation(a){const p=getP(a?.profileId);return p?.netcamProfile?"netCamera":p?.processorInventory?"integratedCamera":null;}
  function addAssetIntegratedCamera(assetId,raw={}){
   const a=getA(assetId);
-  if(!a||!getP(a.profileId)?.processorInventory)return result(false,"not_supported","Caméra intégrée indisponible pour ce profil.");
-  if(a.integratedCamera)return result(false,"camera_exists","Une caméra intégrée existe déjà.");
+  const key=cameraLocation(a);
+  if(!a||!key)return result(false,"not_supported","Caméra indisponible pour ce profil.");
+  if(a[key])return result(false,"camera_exists","Une caméra existe déjà.");
   const camera=cameraComponentData(raw);
   if(!validCameraComponent(camera))return result(false,"invalid_camera","Caractéristiques de la caméra invalides.");
-  a.integratedCamera=camera;s.revision++;
+  a[key]=camera;s.revision++;
   return result(true,"camera_added","Caméra intégrée ajoutée.",{component:clone(camera)});
  }
  function updateAssetIntegratedCamera(assetId,componentId,raw={}){
   const a=getA(assetId);
-  if(!a?.integratedCamera||a.integratedCamera.id!==componentId||!getP(a.profileId)?.processorInventory)
-   return result(false,"not_found","Caméra intégrée introuvable.");
+  const key=cameraLocation(a);
+  if(!key||!a[key]||a[key].id!==componentId)return result(false,"not_found","Caméra introuvable.");
   const camera=cameraComponentData(raw);
   if(!validCameraComponent(camera))return result(false,"invalid_camera","Caractéristiques de la caméra invalides.");
-  a.integratedCamera=camera;s.revision++;
+  a[key]=camera;s.revision++;
   return result(true,"camera_updated","Caméra intégrée modifiée.",{component:clone(camera)});
  }
  function removeAssetIntegratedCamera(assetId,componentId){
   const a=getA(assetId);
-  if(!a?.integratedCamera||a.integratedCamera.id!==componentId||!getP(a.profileId)?.processorInventory)
-   return result(false,"not_found","Caméra intégrée introuvable.");
-  delete a.integratedCamera;s.revision++;
+  const key=cameraLocation(a);
+  if(!key||!a[key]||a[key].id!==componentId)return result(false,"not_found","Caméra introuvable.");
+  if(key==="netCamera")return result(false,"camera_required","Une NetCam possède toujours une caméra.");
+  delete a[key];s.revision++;
   return result(true,"camera_removed","Caméra intégrée supprimée.");
  }
  function componentCollection(kind){return kind==="ram"?"ramModules":kind==="disk"?"disks":null;}
@@ -1041,6 +1057,7 @@ export function createAssetRegistry(saved){
   if(!["En service","Hors service","En stock"].includes(status))return result(false,"invalid_status","Statut incorrect.");
   const a={id:"asset-"+s.nextAsset++,profileId,name,manufacturer:trim(info.manufacturer),model:trim(info.model),serialNumber:trim(info.serialNumber),status,location:trim(info.location),placeId:null,reservable:!!info.reservable,values:Object.fromEntries(p.fields.map(f=>[f.key,null])),ports:buildPorts(p.portGroups,"integrated"),networkCapabilities:clone(p.networkCapabilities),poe:p.poe};
   if(p.processorInventory===true){a.processors=[];a.ramModules=[];a.disks=[];}
+  if(p.netcamProfile===true)a.netCamera=cameraComponentData();
   if(a.networkCapabilities.includes("vlan")){
    a.vlanConfig=vlanDefault(a);
    a.managementConfig=managementDefault(a);
@@ -1372,7 +1389,7 @@ export function createAssetRegistry(saved){
   for(const key of common)if(info[key]!==undefined)a[key]=key==="reservable"?!!info[key]:trim(info[key]);
   s.revision++;return result(true,"asset_updated","Matériel modifié.");
  }
- return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileProcessorInventory,addAssetComponent,updateAssetComponent,removeAssetComponent,addAssetProcessor,updateAssetProcessor,removeAssetProcessor,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,createBoxComposite,setBoxMode,setBoxLanConfig,setBoxDhcpState,setBoxWanConfig,setBoxPatRules,getBoxWanEffective:id=>{const a=getA(id);return a?.boxConfig?effectiveBoxWan(a.boxConfig):null;},getBoxWanRuntime:id=>{const a=getA(id);if(!a?.boxConfig)return null;const config=effectiveBoxWan(a.boxConfig);return {mode:a.boxConfig.mode,owner:a.boxConfig.mode==="bridge"?"lan1-client":"box",boxOwnsAddress:a.boxConfig.mode!=="bridge",config};},setBoxWifiConfig,setAssetWifiConfig,setAssetRouterConfig,setAssetDhcpServerConfig,setAssetManagementConfig,setAssetVlanConfig,updateAssetVlanDefinition,removeAssetVlanDefinition,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,setAssetInterfaceIpv4,updateAsset,
+ return {createPlace,moveAssetToPlace,listPlaces:()=>clone(s.places),getPlace:id=>clone(s.places.find(p=>p.id===id)||null),createProfile,duplicateProfile,renameProfile,setProfileProcessorInventory,setProfileNetCam,addAssetComponent,updateAssetComponent,removeAssetComponent,addAssetProcessor,updateAssetProcessor,removeAssetProcessor,setProfileNetworkCapability,setProfilePoe,addField,editField,removeField,moveField,addPortGroup,removePortGroup,addExtension,removeExtension,createWallOutlet,createPanel,movePanelToPlace,removePanel,createCable,connectCableEnd,disconnectCableEnd,updateCableConnectors,deleteCable,listCablePoints,explorePhysicalPath,createAsset,createBoxComposite,setBoxMode,setBoxLanConfig,setBoxDhcpState,setBoxWanConfig,setBoxPatRules,getBoxWanEffective:id=>{const a=getA(id);return a?.boxConfig?effectiveBoxWan(a.boxConfig):null;},getBoxWanRuntime:id=>{const a=getA(id);if(!a?.boxConfig)return null;const config=effectiveBoxWan(a.boxConfig);return {mode:a.boxConfig.mode,owner:a.boxConfig.mode==="bridge"?"lan1-client":"box",boxOwnsAddress:a.boxConfig.mode!=="bridge",config};},setBoxWifiConfig,setAssetWifiConfig,setAssetRouterConfig,setAssetDhcpServerConfig,setAssetManagementConfig,setAssetVlanConfig,updateAssetVlanDefinition,removeAssetVlanDefinition,setAssetRoutingConfig,setAssetIpHelperConfig,removeAsset,setAssetField,setAssetInterfaceIpv4,updateAsset,
  listWallOutlets:()=>clone(s.wallOutlets),listPanels:()=>clone(s.panels),getPanel:id=>clone(s.panels.find(p=>p.id===id)||null),listCables:()=>clone(s.cables.filter(c=>!c.internalBoxId)),getCable:id=>clone(s.cables.find(x=>x.id===id&&!x.internalBoxId)||null),cableConnectors:()=>[...cableConnectors],listProfiles:()=>clone(s.profiles),listAssets:()=>clone(s.assets),getProfile:id=>clone(getP(id)||null),getAsset:id=>clone(getA(id)||null),exportState:()=>clone(s)};
 }
 
@@ -1499,4 +1516,26 @@ export function installDesktopProfile(registry){
  return {success:true,code:"created",profile:registry.getProfile(created.profile.id)};
 }
 
+/* NetCam : la caméra est obligatoire, les propriétés réseau restent dans les ports communs. */
+export const netCamFieldDefinitions=[
+ {key:"usage_netcam",label:"Installation",type:"select",options:["Intérieur","Extérieur","Mixte"]},
+ {key:"vision_nocturne",label:"Vision nocturne",type:"boolean"},
+ {key:"vue_panoramique",label:"Vue panoramique",type:"boolean"},
+ {key:"protection_ip",label:"Protection IPxx",type:"text"},
+ {key:"alimentation_netcam",label:"Alimentation",type:"select",options:["PoE","Externe","Les deux"]}
+];
+export function installNetCamProfile(registry){
+ const existing=registry.listProfiles().find(p=>p.name==="NetCam");
+ if(existing)return {success:true,code:"already_present",profile:existing};
+ const created=registry.createProfile("NetCam");
+ if(!created.success)return created;
+ const profileId=created.profile.id;
+ const marked=registry.setProfileNetCam(profileId,true);
+ if(!marked.success)return marked;
+ for(const field of netCamFieldDefinitions){
+  const added=registry.addField(profileId,field);
+  if(!added.success)throw Error("Impossible d'ajouter le champ NetCam : "+field.key);
+ }
+ return {success:true,code:"created",profile:registry.getProfile(profileId)};
+}
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);
