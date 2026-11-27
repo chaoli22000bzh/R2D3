@@ -982,3 +982,25 @@ test("Interfaces réseau communes : IPv4 indépendante de la catégorie de maté
  assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
  assert.deepEqual(e.listAssetNetworkInterfaces("absent"),[]);
 });
+
+test("NetCam administration : DHCP sans bail, IP fixe, Wi-Fi client et restauration",()=>{
+ const reg=createAssetRegistry(),p=installNetCamProfile(reg).profile;
+ assert.equal(reg.addPortGroup(p.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1}).success,true);
+ assert.equal(reg.addPortGroup(p.id,{type:"wifi",prefix:"WIFI",start:1,count:1}).success,true);
+ const cam=reg.createAsset(p.id,{name:"NETCAM-ADMIN"}).asset;
+ const [lan,wifi]=cam.ports;
+ const pending={mode:"dhcp",status:"disconnected",address:null,prefix:null,gateway:null,dns:[]};
+ assert.equal(reg.setAssetInterfaceIpv4(cam.id,lan.id,pending).success,true);
+ assert.equal(reg.setAssetInterfaceIpv4(cam.id,wifi.id,pending).success,true);
+ assert.equal(reg.listAssetNetworkInterfaces(cam.id)[0].ipv4.address,null);
+ assert.equal(reg.setAssetClientWifi(cam.id,wifi.id,{ssid:"ATELIER",security:"wpa2-personal",password:"secret123"}).success,true);
+ assert.equal(reg.listAssetNetworkInterfaces(cam.id)[1].clientWifi.ssid,"ATELIER");
+ assert.equal(reg.setAssetClientWifi(cam.id,lan.id,{ssid:"ATELIER",security:"open",password:""}).success,false);
+ assert.equal(reg.setAssetClientWifi(cam.id,wifi.id,{ssid:"ATELIER",security:"open",password:"secret123"}).success,false);
+ const fixed={mode:"static",status:"disconnected",address:"192.168.10.50",prefix:24,gateway:"192.168.10.1",dns:["192.168.10.1"]};
+ assert.equal(reg.setAssetInterfaceIpv4(cam.id,lan.id,fixed).success,true);
+ assert.equal(reg.setAssetInterfaceIpv4(cam.id,wifi.id,{...fixed}).code,"duplicate_ipv4");
+ assert.equal(reg.updateAssetComponent(cam.id,"camera","camera-1",{resolution:"1080p",microphone:true}).success,true);
+ assert.equal(reg.getAsset(cam.id).netCamera.resolution,"1080p");
+ assert.deepEqual(restoreAssetRegistry(reg.exportState()).exportState(),reg.exportState());
+});
