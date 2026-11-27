@@ -27,13 +27,18 @@
 .netcam-admin select[name="alimentation_netcam"]{width:145px}
 .netcam-admin .nc-wide{flex-basis:100%;width:100%}
 .netcam-admin .nc-actions{display:flex;justify-content:flex-start}
-.netcam-admin .nc-actions button{background:#1867a3;color:white;border:0;border-radius:6px;padding:9px 14px;font-weight:600;cursor:pointer}
+.netcam-admin .nc-actions{gap:8px;flex-wrap:wrap}
+.netcam-admin .nc-actions button{background:#1867a3;color:white;border:1px solid #1867a3;border-radius:6px;padding:9px 14px;font-weight:600;cursor:pointer;transition:background-color .09s ease,transform .09s ease,box-shadow .09s ease}
+.netcam-admin .nc-actions button.nc-secondary{background:var(--nc-summary,#f2f6fa);color:var(--nc-fg,#1c3852);border-color:var(--nc-border,#cbd9e6)}
+.netcam-admin .nc-actions button:hover{filter:brightness(1.12)}
+.netcam-admin .nc-actions button:active{transform:translateY(1px);filter:brightness(.82);box-shadow:inset 0 2px 5px #0003}
+.netcam-admin .nc-actions button:focus-visible{outline:2px solid #2688ca;outline-offset:2px}
 .netcam-admin .nc-hint{font-size:13px;font-weight:400;color:var(--nc-muted,#596d80);margin:0;max-width:780px}
 .netcam-admin .nc-details{display:flex;flex-wrap:wrap;gap:12px 22px;margin:6px 0 20px;padding:10px 12px;background:var(--nc-summary,#f2f6fa);border-radius:7px}
 .netcam-admin .nc-details div{min-width:135px}
 .netcam-admin .nc-details dt{font-size:12px;color:var(--nc-muted,#596d80)}
 .netcam-admin .nc-details dd{font-weight:600;margin:2px 0;overflow-wrap:anywhere}
-.netcam-admin .nc-feedback{padding:10px 12px;background:var(--nc-summary,#f2f6fa);border:1px solid var(--nc-border,#cbd9e6);border-radius:6px;margin:10px 0 0}
+.netcam-admin .nc-feedback{padding:10px 12px;background:var(--nc-summary,#f2f6fa);color:var(--nc-fg,#1c3852);border:1px solid var(--nc-border,#cbd9e6);border-radius:6px;margin:10px 0 0;font-weight:600}
 .netcam-admin .nc-feedback.nc-error{color:#b2343d;border-color:#b2343d}
 /* Liste des interfaces réseau clientes, sélectionnable sans changer les données. */
 .netcam-admin .nc-table-wrap{max-width:100%;overflow-x:auto;margin-bottom:8px}
@@ -42,7 +47,7 @@
 .netcam-admin .nc-interfaces th{font-weight:700;background:var(--nc-summary,#f2f6fa);white-space:nowrap}
 .netcam-admin .nc-interfaces tr.nc-selected{background:var(--nc-summary,#f2f6fa)}
 .netcam-admin .nc-interfaces button{background:transparent;border:1px solid transparent;border-radius:5px;padding:6px 8px;color:var(--nc-fg,#1c3852);font:inherit;text-align:left;cursor:pointer}
-.netcam-admin .nc-interfaces button[aria-pressed="true"]{border-color:var(--nc-border,#cbd9e6);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.netcam-admin .nc-interfaces button[aria-pressed="true"]{font-weight:700;border-color:transparent;text-decoration:none}
 .netcam-admin .nc-interfaces button:hover,.netcam-admin .nc-interfaces button:focus-visible{outline:2px solid #2688ca;outline-offset:1px}
 .netcam-admin .nc-config-heading{margin-top:18px!important}
 @media(max-width:520px){.netcam-admin .nc-interfaces th,.netcam-admin .nc-interfaces td{padding:6px 5px}.netcam-admin .nc-interfaces button{padding:5px 3px}}
