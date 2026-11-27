@@ -536,6 +536,7 @@ export function createAssetRegistry(saved){
  function setProfileNetCam(id,enabled){
   const p=getP(id);if(!p)return result(false,"not_found","Profil introuvable.");
   if(typeof enabled!=="boolean")return result(false,"invalid_option","Valeur invalide.");
+  if(enabled&&s.assets.some(a=>a.profileId===id))return result(false,"profile_in_use","Actifs existants : impossible de convertir ce profil en NetCam.");
   if(!enabled&&s.assets.some(a=>a.profileId===id))return result(false,"profile_in_use","Profil NetCam utilisé.");
   if(enabled){if(p.processorInventory)return result(false,"incompatible_profile","Inventaires incompatibles.");p.netcamProfile=true;}
   else delete p.netcamProfile;
