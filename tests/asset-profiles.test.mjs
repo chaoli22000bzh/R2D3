@@ -914,6 +914,11 @@ test("NetCam : profil descriptif, caméra obligatoire et champs facultatifs",()=
  assert.equal(e.setAssetField(a.id,"usage_netcam","Extérieur").success,true);
  assert.equal(e.setAssetField(a.id,"vision_nocturne",true).success,true);
  assert.equal(e.setAssetField(a.id,"vue_panoramique",false).success,true);
+ assert.deepEqual(profile.fields.find(f=>f.key==="protection_ip").options,["IP54","IP65","IP66","IP67","IP68"]);
+ for(const ip of ["IP54","IP65","IP66","IP67","IP68"])
+  assert.equal(e.setAssetField(a.id,"protection_ip",ip).success,true,ip);
+ assert.equal(e.setAssetField(a.id,"protection_ip","IP99").success,false);
+ assert.equal(e.setAssetField(a.id,"protection_ip",null).success,true);
  assert.equal(e.setAssetField(a.id,"protection_ip","IP66").success,true);
  assert.equal(e.setAssetField(a.id,"alimentation_netcam","PoE").success,true);
  assert.equal(e.setAssetField(a.id,"alimentation_netcam","200 W").success,false);
@@ -937,4 +942,19 @@ test("NetCam : ports physiques réutilisés et pas de modification des caméras 
  assert.equal(e.getAsset(p.id).integratedCamera.resolution,"1080p");
  assert.equal(e.getAsset(p.id).netCamera,undefined);
  assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
+});
+
+test("NetCam : sauvegarde historique avec protection IP en texte préservée",()=>{
+ const e=createAssetRegistry(),p=installNetCamProfile(e).profile;
+ const a=e.createAsset(p.id,{name:"NETCAM-ANCIENNE"}).asset;
+ assert.equal(e.setAssetField(a.id,"protection_ip","IP66").success,true);
+ const historical=e.exportState();
+ const oldField=historical.profiles.find(x=>x.id===p.id).fields.find(f=>f.key==="protection_ip");
+ oldField.type="text";delete oldField.options;
+ const restored=restoreAssetRegistry(historical);
+ assert.equal(restored.getAsset(a.id).values.protection_ip,"IP66");
+ assert.equal(restored.getProfile(p.id).fields.find(f=>f.key==="protection_ip").type,"text");
+ assert.equal(installNetCamProfile(restored).code,"already_present");
+ assert.equal(restored.getAsset(a.id).values.protection_ip,"IP66");
+ assert.deepEqual(restored.exportState(),historical);
 });
