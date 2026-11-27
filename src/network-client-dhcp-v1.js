@@ -89,7 +89,9 @@ export function requestAssetInterfaceDhcp({registry,assetId,portId}={}){
  // Le Core (ou la session box qui s'appuie sur lui) est l'autorité.
  // Réutiliser l'API IPv4 commune pour tous les équipements.
  const saved=registry.setAssetInterfaceIpv4(assetId,portId,{
-  mode:"dhcp",status:result.code==="apipa"?"disconnected":"connected",
+  mode:"dhcp",status:port.type==="ethernet-rj45"?
+   (port.connectedCableIds?.length?"connected":"disconnected"):
+   (result.code==="apipa"?"disconnected":"connected"),
   address:result.address,prefix:result.prefix,
   gateway:result.gateway??null,dns:result.dns??[]
  });
