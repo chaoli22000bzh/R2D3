@@ -5,6 +5,7 @@
  */
 import {createBoxLanDhcpSession} from "./box-lan-dhcp-v1.js?dhcp-multi-v1=1";
 import {createEngine} from "./r2d3-core.js";
+import {ethernetPortReachable} from "./ethernet-switching-v1.js?dhcp-wired-v1=1";
 const fail=(code,message)=>({success:false,code,message});
 const ipNumber=v=>{
  if(typeof v!=="string"||!/^\d{1,3}(\.\d{1,3}){3}$/.test(v))return null;
@@ -78,7 +79,7 @@ export function createBoxInternetSession({registry,boxId,clients=[],services=[]}
   if(admission.medium==="ethernet"){
    const cp=client.ports.filter(p=>p.type==="ethernet-rj45");
    const linked=cp.flatMap(port=>current.boxConfig.ports.lanPortIds.filter(p=>
-     registry.explorePhysicalPath(port.id,p).connected).map(lanPortId=>({port,lanPortId})));
+     ethernetPortReachable(registry,port.id,p)).map(lanPortId=>({port,lanPortId})));
    if(linked.length!==1)
     return fail(linked.length?"ambiguous_lan":"link_down",
      linked.length?"Plusieurs ports Ethernet du PC sont raccordés au LAN.":"PC non raccordé au LAN.");
