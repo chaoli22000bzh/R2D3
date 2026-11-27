@@ -3,7 +3,7 @@
  * Clients DHCP issus du Core partagé ; endpoints Internet explicitement fournis
  * par le scénario, jamais supposés répondre.
  */
-import {createBoxLanDhcpSession} from "./box-lan-dhcp-v1.js?multi-ipv4-v1=1";
+import {createBoxLanDhcpSession} from "./box-lan-dhcp-v1.js?netcam-dhcp-v1=1";
 import {createEngine} from "./r2d3-core.js";
 const fail=(code,message)=>({success:false,code,message});
 const ipNumber=v=>{
