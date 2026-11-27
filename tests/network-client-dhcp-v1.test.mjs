@@ -226,3 +226,42 @@ test("DHCP NetCam : Wi-Fi sans bail valide passe en APIPA si serveur box désact
  assert.match(res.address,/^169\\.254\\./);
  assert.equal(res.gateway,null);
 });
+
+test("NetCam Live : aperçu disponible, jour, nuit et panoramique depuis les caractéristiques partagées",()=>{
+ const f=fixture(),box=f.registry.createBoxComposite("BOX-01");good(box);
+ const cable=f.registry.createCable();good(cable);
+ good(f.registry.connectCableEnd(cable.cable.id,0,f.eth.id));
+ good(f.registry.connectCableEnd(cable.cable.id,1,box.config.ports.lanPortIds[0]));
+ good(requestAssetInterfaceDhcp({registry:f.registry,assetId:f.cam.id,portId:f.eth.id}));
+ const handlers=new Map(),root={innerHTML:"",
+  addEventListener(type,fn){handlers.set(type,fn);},
+  removeEventListener(type){handlers.delete(type);},replaceChildren(){}};
+ const ui=mountNetCamAdmin({root,registry:f.registry,assetId:f.cam.id});
+ handlers.get("click")({target:{closest:s=>s==="[data-nc-tab]"?{dataset:{ncTab:"live"}}:null}});
+ assert.match(root.innerHTML,/netcam-live-scene-v1\.svg/);
+ assert.match(root.innerHTML,/Aperçu fixe illustratif/);
+ assert.doesNotMatch(root.innerHTML,/nc-live-night/);
+ assert.doesNotMatch(root.innerHTML,/nc-live-panorama/);
+ good(f.registry.setAssetField(f.cam.id,"vision_nocturne",true));
+ good(f.registry.setAssetField(f.cam.id,"vue_panoramique",true));
+ ui.render();
+ assert.match(root.innerHTML,/nc-live-night/);
+ assert.match(root.innerHTML,/nc-live-panorama/);
+ assert.match(root.innerHTML,/VISION NOCTURNE/);
+ assert.match(root.innerHTML,/PANORAMIQUE/);
+ ui.destroy();
+});
+test("NetCam Live : équipement hors service ou sans IPv4 utilisable indique indisponible",()=>{
+ const f=fixture(),handlers=new Map(),root={innerHTML:"",
+  addEventListener(type,fn){handlers.set(type,fn);},
+  removeEventListener(type){handlers.delete(type);},replaceChildren(){}};
+ const ui=mountNetCamAdmin({root,registry:f.registry,assetId:f.cam.id});
+ handlers.get("click")({target:{closest:s=>s==="[data-nc-tab]"?{dataset:{ncTab:"live"}}:null}});
+ assert.match(root.innerHTML,/Caméra non joignable/);
+ assert.doesNotMatch(root.innerHTML,/<img class="nc-live-scene"/);
+ good(f.registry.updateAsset(f.cam.id,{status:"Hors service"}));
+ ui.render();
+ assert.match(root.innerHTML,/Flux indisponible/);
+ assert.doesNotMatch(root.innerHTML,/<img class="nc-live-scene"/);
+ ui.destroy();
+});
