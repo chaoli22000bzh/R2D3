@@ -24,6 +24,18 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
  const select=(name,label,items,value)=>'<label>'+label+'<select name="'+name+'">'+choices(items,value)+'</select></label>';
  const info=(label,value)=>'<div><dt>'+esc(label)+'</dt><dd>'+esc(value??"Non renseigné")+'</dd></div>';
  const message=(text,error=false)=>{feedback=text;isError=error;render();};
+ function wifiDiagnosis(port){
+  if(port.type!=="wifi"||!port.clientWifi?.ssid||typeof registry.listAssets!=="function")return "";
+  const boxes=registry.listAssets().filter(a=>a.boxConfig?.mode!=="bridge"&&a.boxConfig?.wifi?.enabled);
+  const names=[...new Set(boxes.flatMap(b=>b.boxConfig.wifi.ssids.filter(s=>s.enabled).map(s=>s.name)))];
+  if(!names.length)return " Aucune box Wi-Fi active disponible dans le parc.";
+  if(!names.includes(port.clientWifi.ssid))
+   return " Aucun réseau Wi-Fi de box ne diffuse le SSID « "+port.clientWifi.ssid+" ». SSID disponibles : "+names.join(", ")+".";
+  const matches=boxes.flatMap(b=>b.boxConfig.wifi.ssids.filter(s=>s.enabled&&s.name===port.clientWifi.ssid));
+  if(!matches.some(s=>s.security===port.clientWifi.security))
+   return " Le SSID est reconnu, mais le mode de sécurité ne correspond pas à celui de la box.";
+  return " Vérifier l'association Wi-Fi et le serveur DHCP.";
+ }
  function network(){
   const ports=interfaces();
   if(!ports.length)return '<section class="nc-panel"><h3>Interfaces réseau</h3><p>Aucune interface Ethernet ou Wi-Fi sur cet actif. Ajoutez une interface au profil ou à l’actif.</p></section>';
@@ -144,9 +156,12 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
    editMode=null;
    if(mode==="dhcp"){
     const requested=requestAssetInterfaceDhcp({registry,assetId,portId:p.id});
-    if(!requested.success){onChange?.();return message("DHCP : "+requested.message,true);}
+    const savedText=p.type==="wifi"?"Paramètres Wi-Fi enregistrés. ":"Configuration réseau enregistrée. ";
+    if(!requested.success){onChange?.();return message(savedText+"Connexion : "+requested.message,true);}
     onChange?.();
-    return message(requested.code==="apipa"?"Aucun serveur DHCP accessible : adresse APIPA attribuée.":"Configuration DHCP obtenue.");
+    return message(requested.code==="apipa"?
+     savedText+"Adresse APIPA attribuée."+wifiDiagnosis(interfaces().find(v=>v.id===p.id)):
+     savedText+"Connexion DHCP établie : "+requested.address+"/"+requested.prefix+".");
    }
    onChange?.();message("Configuration de l'interface enregistrée.");
   }else if(kind==="camera"){
@@ -172,7 +187,9 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
   if(renew){
    const r=requestAssetInterfaceDhcp({registry,assetId,portId});
    if(r.success)onChange?.();
-   message(r.success?(r.code==="apipa"?"Aucun serveur DHCP accessible : adresse APIPA attribuée.":"Configuration DHCP obtenue."):r.message,!r.success);
+   message(r.success?(r.code==="apipa"?
+    "Adresse APIPA attribuée."+wifiDiagnosis(interfaces().find(v=>v.id===portId)):
+    "Configuration DHCP obtenue : "+r.address+"/"+r.prefix+"."):r.message,!r.success);
    return;
   }
   const port=e.target.closest("[data-nc-port]");
