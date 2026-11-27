@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createAssetRegistry,restoreAssetRegistry,installScreenProfile,displayFieldDefinitions,screenSpecificFieldDefinitions,installDesktopProfile,computingFieldDefinitions,desktopFieldDefinitions,computerTypeFieldDefinition} from "../src/asset-profiles.js";
+import {createAssetRegistry,restoreAssetRegistry,installScreenProfile,displayFieldDefinitions,screenSpecificFieldDefinitions,installDesktopProfile,installNetCamProfile,netCamFieldDefinitions,computingFieldDefinitions,desktopFieldDefinitions,computerTypeFieldDefinition} from "../src/asset-profiles.js";
 
 const panelAt=(e,name,location,count,start,prefix="")=>{
  const place=e.listPlaces().find(p=>p.name===location&&p.parentId===null)||
@@ -893,4 +893,48 @@ test("Caméra intégrée : interdite sur les autres profils et données invalide
  saved.assets.find(x=>x.id===a.id).integratedCamera.microphone="non";
  assert.throws(()=>restoreAssetRegistry(saved),/Caméra intégrée invalide/);
  assert.equal(e.getAsset(b.id).integratedCamera,undefined);
+});
+
+test("NetCam : profil descriptif, caméra obligatoire et champs facultatifs",()=>{
+ const e=createAssetRegistry();
+ const installed=installNetCamProfile(e);
+ assert.equal(installed.success,true);
+ assert.equal(installNetCamProfile(e).code,"already_present");
+ const profile=e.getProfile(installed.profile.id);
+ assert.equal(profile.netcamProfile,true);
+ assert.equal(profile.processorInventory,undefined);
+ assert.deepEqual(profile.fields.map(f=>f.key),netCamFieldDefinitions.map(f=>f.key));
+ const a=e.createAsset(profile.id,{name:"NETCAM-01"}).asset;
+ assert.deepEqual(e.getAsset(a.id).netCamera,{id:"camera-1",resolution:"",microphone:null});
+ assert.equal(e.getAsset(a.id).integratedCamera,undefined);
+ assert.equal(e.getAsset(a.id).processors,undefined);
+ assert.equal(e.addAssetComponent(a.id,"camera",{}).code,"camera_exists");
+ assert.equal(e.removeAssetComponent(a.id,"camera","camera-1").code,"camera_required");
+ assert.equal(e.updateAssetComponent(a.id,"camera","camera-1",{resolution:"4K",microphone:false}).success,true);
+ assert.equal(e.setAssetField(a.id,"usage_netcam","Extérieur").success,true);
+ assert.equal(e.setAssetField(a.id,"vision_nocturne",true).success,true);
+ assert.equal(e.setAssetField(a.id,"vue_panoramique",false).success,true);
+ assert.equal(e.setAssetField(a.id,"protection_ip","IP66").success,true);
+ assert.equal(e.setAssetField(a.id,"alimentation_netcam","PoE").success,true);
+ assert.equal(e.setAssetField(a.id,"alimentation_netcam","200 W").success,false);
+ assert.equal(e.setProfileProcessorInventory(profile.id,true).success,false);
+ assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
+ const broken=e.exportState();delete broken.assets[0].netCamera;
+ assert.throws(()=>restoreAssetRegistry(broken),/NetCam sans composant caméra/);
+});
+
+test("NetCam : ports physiques réutilisés et pas de modification des caméras PC",()=>{
+ const e=createAssetRegistry();
+ const net=installNetCamProfile(e).profile,pc=installDesktopProfile(e).profile;
+ const p=e.createAsset(pc.id,{name:"PORTABLE"}).asset;
+ assert.equal(e.addAssetComponent(p.id,"camera",{resolution:"1080p",microphone:true}).success,true);
+ assert.equal(e.addPortGroup(net.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1}).success,true);
+ assert.equal(e.addPortGroup(net.id,{type:"wifi",prefix:"WIFI",start:1,count:1}).success,true);
+ const a=e.createAsset(net.id,{name:"NETCAM-02"}).asset;
+ assert.equal(a.ports.length,2);
+ assert.equal(e.updateAssetComponent(a.id,"camera","camera-1",{resolution:"2K",microphone:true}).success,true);
+ assert.equal(e.getAsset(a.id).netCamera.resolution,"2K");
+ assert.equal(e.getAsset(p.id).integratedCamera.resolution,"1080p");
+ assert.equal(e.getAsset(p.id).netCamera,undefined);
+ assert.deepEqual(restoreAssetRegistry(e.exportState()).exportState(),e.exportState());
 });
