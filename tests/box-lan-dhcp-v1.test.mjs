@@ -260,6 +260,9 @@ test("Box DHCP NetCam : Ethernet puis Wi-Fi en sessions distinctes gardent deux 
  const radio=wifiSession.request(camera.asset.id,wifi.id);good(radio);
  assert.equal(radio.address,"192.168.1.101");
  assert.notEqual(eth.address,radio.address);
+ const assigned=registry.getAsset(camera.asset.id).interfaceIpv4;
+ assert.equal(assigned[lan.id].address,eth.address);
+ assert.equal(assigned[wifi.id].address,radio.address);
  const leases=registry.getAsset(box.asset.id).boxConfig.dhcpState.clients;
  assert.equal(leases.length,2);
  assert.equal(new Set(leases.map(c=>c.mac)).size,2);
