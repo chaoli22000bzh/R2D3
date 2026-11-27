@@ -3,7 +3,7 @@
  * Clients DHCP issus du Core partagé ; endpoints Internet explicitement fournis
  * par le scénario, jamais supposés répondre.
  */
-import {createBoxLanDhcpSession} from "./box-lan-dhcp-v1.js?dhcp-multi-v1=1";
+import {createBoxLanDhcpSession} from "./box-lan-dhcp-v1.js?dhcp-sync-v1=1";
 import {createEngine} from "./r2d3-core.js";
 import {ethernetPortReachable} from "./ethernet-switching-v1.js?dhcp-wired-v1=1";
 const fail=(code,message)=>({success:false,code,message});
