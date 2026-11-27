@@ -1523,7 +1523,7 @@ export const netCamFieldDefinitions=[
  {key:"usage_netcam",label:"Installation",type:"select",options:["Intérieur","Extérieur","Mixte"]},
  {key:"vision_nocturne",label:"Vision nocturne",type:"boolean"},
  {key:"vue_panoramique",label:"Vue panoramique",type:"boolean"},
- {key:"protection_ip",label:"Protection IPxx",type:"text"},
+ {key:"protection_ip",label:"Protection IPxx",type:"select",options:["IP54","IP65","IP66","IP67","IP68"]},
  {key:"alimentation_netcam",label:"Alimentation",type:"select",options:["PoE","Externe","Les deux"]}
 ];
 export function installNetCamProfile(registry){
