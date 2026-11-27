@@ -3,7 +3,7 @@
  * Aucun bail ni adresse de secours n'est créé directement par cet adaptateur.
  */
 import {createEngine} from "./r2d3-core.js";
-import {createBoxLanDhcpSession} from "./box-lan-dhcp-v1.js";
+import {createBoxLanDhcpSession} from "./box-lan-dhcp-v1.js?dhcp-sync-v1=1";
 import {ethernetPortReachable} from "./ethernet-switching-v1.js?dhcp-wired-v1=1";
 
 const fail=(code,message)=>({success:false,code,message});
