@@ -6,6 +6,7 @@
 import {createEngine,restoreEngine} from "./r2d3-core.js";
 import {createRouterDhcpCoreObject} from "./router-dhcp-service-v1.js";
 import {associateWifiClient} from "./wifi-ap-v1.js";
+import {ethernetPortReachable} from "./ethernet-switching-v1.js?dhcp-wired-v1=1";
 
 const fail=(code,message)=>({success:false,code,message});
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -46,7 +47,7 @@ function admitClient(registry,box,entry){
   const cp=ethernet(client).filter(p=>!entry.portId||p.id===entry.portId);
   if(!cp.length)return fail("client_port","Le client ne possède aucun port Ethernet RJ45.");
   const matched=cp.flatMap(port=>c.ports.lanPortIds.filter(id=>
-   registry.explorePhysicalPath(port.id,id).connected).map(lanPortId=>({port,lanPortId})));
+   ethernetPortReachable(registry,port.id,id)).map(lanPortId=>({port,lanPortId})));
   if(matched.length!==1)return fail(matched.length?"ambiguous_lan":"link_down",
    matched.length?"Plusieurs prises Ethernet du client sont raccordées au LAN de la box.":"Client non raccordé au LAN.");
   return {success:true,client,port:matched[0].port,medium,lanPortId:matched[0].lanPortId};
