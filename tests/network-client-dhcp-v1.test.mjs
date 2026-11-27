@@ -177,3 +177,52 @@ test("DHCP client : bail Wi-Fi orphelin réconcilié avant une demande Ethernet"
  assert.equal(current[f.eth.id].address,"192.168.1.101");
  assert.equal(f.registry.getAsset(box.asset.id).boxConfig.dhcpState.clients.length,2);
 });
+
+
+test("DHCP NetCam : bail Wi-Fi valide conservé lorsque serveur box désactivé",()=>{
+ const f=fixture(),box=f.registry.createBoxComposite("BOX-01");good(box);
+ const c=f.registry.createCable();good(c);
+ good(f.registry.connectCableEnd(c.cable.id,0,f.eth.id));
+ good(f.registry.connectCableEnd(c.cable.id,1,box.config.ports.lanPortIds[0]));
+ good(f.registry.setAssetClientWifi(f.cam.id,f.wifi.id,{
+  ssid:"BOX-WIFI",security:"wpa2-personal",password:"12345678"}));
+ const ethernet=requestAssetInterfaceDhcp({registry:f.registry,assetId:f.cam.id,portId:f.eth.id});
+ good(ethernet);assert.equal(ethernet.code,"lease");
+ const wifi=requestAssetInterfaceDhcp({registry:f.registry,assetId:f.cam.id,portId:f.wifi.id});
+ good(wifi);assert.equal(wifi.code,"lease");
+ assert.notEqual(ethernet.address,wifi.address);
+ const before=f.registry.getAsset(box.asset.id).boxConfig.dhcpState;
+ const persisted=before.clients.find(c=>c.assetId===f.cam.id&&c.portId===f.wifi.id);
+ assert.ok(persisted?.lease,"Bail Wi-Fi présent dans BOX-01 avant arrêt");
+ assert.equal(persisted.address,wifi.address);
+ assert.ok(persisted.lease.expires>before.clock,"Bail Wi-Fi encore valide");
+ const prior=f.registry.getAsset(f.cam.id).interfaceIpv4;
+ const lan=f.registry.getAsset(box.asset.id).boxConfig.lan;
+ good(f.registry.setBoxLanConfig(box.asset.id,{...lan,dhcpEnabled:false}));
+ assert.deepEqual(f.registry.getAsset(box.asset.id).boxConfig.dhcpState,before,
+  "Arrêter DHCP ne doit pas effacer la table des baux");
+ const renewed=requestAssetInterfaceDhcp({registry:f.registry,assetId:f.cam.id,portId:f.wifi.id});
+ good(renewed);
+ assert.equal(renewed.code,"lease-retained");
+ assert.equal(renewed.address,wifi.address);
+ assert.equal(renewed.prefix,wifi.prefix);
+ assert.equal(renewed.gateway,wifi.gateway);
+ const after=f.registry.getAsset(f.cam.id).interfaceIpv4;
+ assert.equal(after[f.wifi.id].address,prior[f.wifi.id].address);
+ assert.equal(after[f.eth.id].address,prior[f.eth.id].address);
+ const saved=f.registry.getAsset(box.asset.id).boxConfig.dhcpState.clients.find(
+  c=>c.assetId===f.cam.id&&c.portId===f.wifi.id);
+ assert.ok(saved?.lease,"Bail valide toujours présent après renouvellement impossible");
+ assert.equal(saved.address,wifi.address);
+});
+test("DHCP NetCam : Wi-Fi sans bail valide passe en APIPA si serveur box désactivé",()=>{
+ const f=fixture(),box=f.registry.createBoxComposite("BOX-01");good(box);
+ good(f.registry.setAssetClientWifi(f.cam.id,f.wifi.id,{
+  ssid:"BOX-WIFI",security:"wpa2-personal",password:"12345678"}));
+ const lan=f.registry.getAsset(box.asset.id).boxConfig.lan;
+ good(f.registry.setBoxLanConfig(box.asset.id,{...lan,dhcpEnabled:false}));
+ const res=requestAssetInterfaceDhcp({registry:f.registry,assetId:f.cam.id,portId:f.wifi.id});
+ good(res);assert.equal(res.code,"apipa");
+ assert.match(res.address,/^169\\.254\\./);
+ assert.equal(res.gateway,null);
+});
