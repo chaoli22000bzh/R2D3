@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {createAssetRegistry,installNetCamProfile,restoreAssetRegistry} from "../src/asset-profiles.js";
 import {requestAssetInterfaceDhcp} from "../src/network-client-dhcp-v1.js";
+import {mountNetCamAdmin} from "../src/netcam-admin-ui-v1.js";
 const good=r=>assert.equal(r.success,true,JSON.stringify(r));
 function fixture(){
  const registry=createAssetRegistry(),p=installNetCamProfile(registry).profile;
@@ -139,4 +140,40 @@ test("DHCP partagé : 30 Ethernet via switch L2 et 30 Wi-Fi sur la même box",()
  const restored=restoreAssetRegistry(registry.exportState());
  const response=requestAssetInterfaceDhcp({registry:restored,...clients[35]});good(response);
  assert.equal(response.address,initial[35].address);
+});
+
+test("NetCam : ouvrir l'administration ne renouvelle pas deux baux déjà obtenus",()=>{
+ const f=fixture(),box=f.registry.createBoxComposite("BOX-01");good(box);
+ const c=f.registry.createCable();good(c);
+ good(f.registry.connectCableEnd(c.cable.id,0,f.eth.id));
+ good(f.registry.connectCableEnd(c.cable.id,1,box.config.ports.lanPortIds[0]));
+ good(f.registry.setAssetClientWifi(f.cam.id,f.wifi.id,{
+  ssid:"BOX-WIFI",security:"wpa2-personal",password:"12345678"}));
+ good(requestAssetInterfaceDhcp({registry:f.registry,assetId:f.cam.id,portId:f.eth.id}));
+ good(requestAssetInterfaceDhcp({registry:f.registry,assetId:f.cam.id,portId:f.wifi.id}));
+ const previousState=f.registry.exportState();
+ const root={innerHTML:"",addEventListener(){},removeEventListener(){},replaceChildren(){}};
+ const admin=mountNetCamAdmin({root,registry:f.registry,assetId:f.cam.id});
+ assert.deepEqual(f.registry.exportState(),previousState);
+ assert.match(root.innerHTML,/192\.168\.1\.100/);
+ assert.match(root.innerHTML,/192\.168\.1\.101/);
+ admin.destroy();
+});
+
+test("DHCP client : bail Wi-Fi orphelin réconcilié avant une demande Ethernet",()=>{
+ const f=fixture(),box=f.registry.createBoxComposite("BOX-01");good(box);
+ const c=f.registry.createCable();good(c);
+ good(f.registry.connectCableEnd(c.cable.id,0,f.eth.id));
+ good(f.registry.connectCableEnd(c.cable.id,1,box.config.ports.lanPortIds[0]));
+ good(f.registry.setAssetClientWifi(f.cam.id,f.wifi.id,{
+  ssid:"BOX-WIFI",security:"wpa2-personal",password:"12345678"}));
+ good(f.registry.setAssetInterfaceIpv4(f.cam.id,f.wifi.id,{
+  mode:"dhcp",status:"connected",address:"192.168.1.100",prefix:24,
+  gateway:"192.168.1.1",dns:["192.168.1.1"]}));
+ const ethernet=requestAssetInterfaceDhcp({registry:f.registry,assetId:f.cam.id,portId:f.eth.id});
+ good(ethernet);
+ const current=f.registry.getAsset(f.cam.id).interfaceIpv4;
+ assert.equal(current[f.wifi.id].address,"192.168.1.100");
+ assert.equal(current[f.eth.id].address,"192.168.1.101");
+ assert.equal(f.registry.getAsset(box.asset.id).boxConfig.dhcpState.clients.length,2);
 });
