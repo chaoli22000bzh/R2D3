@@ -184,3 +184,29 @@ test("Bridge DHCP : services arrêtés, retour Routeur et sauvegarde WAN",()=>{
  assert.equal(f.registry.getBoxWanRuntime(id).owner,"box");
  yes(f.start().request({clientId:f.a.id,targetAddress:"80.10.246.50"}));
 });
+
+test("Internet multi-interface : un ancien bail Ethernet non persisté ne bloque pas le Wi-Fi",()=>{
+ const registry=createAssetRegistry(),box=registry.createBoxComposite("BOX-01");yes(box);
+ const p=registry.createProfile("Client réseau");yes(p);
+ yes(registry.addPortGroup(p.profile.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1}));
+ yes(registry.addPortGroup(p.profile.id,{type:"wifi",prefix:"WIFI",start:1,count:1}));
+ const cam=registry.createAsset(p.profile.id,{name:"CAM-01"});yes(cam);
+ const [eth,wifi]=cam.asset.ports;
+ const cable=registry.createCable();yes(cable);
+ yes(registry.connectCableEnd(cable.cable.id,0,eth.id));
+ yes(registry.connectCableEnd(cable.cable.id,1,box.config.ports.lanPortIds[0]));
+ yes(registry.setAssetInterfaceIpv4(cam.asset.id,eth.id,{
+  mode:"dhcp",status:"connected",address:"192.168.1.100",prefix:24,
+  gateway:"192.168.1.1",dns:["192.168.1.1"]}));
+ const session=createBoxInternetSession({registry,boxId:box.asset.id,clients:[
+  {assetId:cam.asset.id,medium:"wifi",portId:wifi.id,ssidId:"ssid-1",password:"12345678"},
+  {assetId:cam.asset.id,medium:"ethernet",portId:eth.id}
+ ],services:[{id:"web",address:"80.10.246.50",kind:"http",available:true}]});yes(session);
+ const result=session.request({clientId:cam.asset.id,interfaceId:wifi.id,
+  targetAddress:"80.10.246.50",service:"http"});yes(result);
+ const network=registry.getAsset(cam.asset.id).interfaceIpv4;
+ assert.equal(network[eth.id].address,"192.168.1.100");
+ assert.equal(network[wifi.id].address,"192.168.1.101");
+ assert.equal(result.nat.internalAddress,"192.168.1.101");
+ assert.equal(registry.getAsset(box.asset.id).boxConfig.dhcpState.clients.length,2);
+});
