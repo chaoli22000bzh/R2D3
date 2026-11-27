@@ -87,6 +87,27 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
    select("microphone","Microphone",[["","Non renseigné"],["yes","Oui"],["no","Non"]],c.microphone===null?"":c.microphone?"yes":"no")+
    '<div class="nc-actions nc-wide"><button type="submit">Enregistrer</button></div></form></section>';
  }
+ function live(){
+  const a=get(),night=a.values.vision_nocturne===true,panorama=a.values.vue_panoramique===true;
+  const network=interfaces();
+  const hasUsableIpv4=network.some(p=>p.ipv4?.address&&!p.ipv4.address.startsWith("169.254."));
+  const unavailable=a.status!=="En service"?"Flux indisponible":
+   !hasUsableIpv4?"Caméra non joignable":null;
+  const scene="https://chaoli22000bzh.github.io/R2D3/src/netcam-live-scene-v1.svg?live-v1=1";
+  return '<section class="nc-panel nc-live-panel"><h3>Live</h3>'+
+   '<div class="nc-live-viewport'+(night?" nc-live-night":"")+(panorama?" nc-live-panorama":"")+'" role="img" aria-label="'+
+   esc(unavailable||"Aperçu illustratif du parking d’un entrepôt")+'">'+
+   (unavailable?'<div class="nc-live-unavailable"><strong>'+esc(unavailable)+'</strong>'+
+    '<span>'+(a.status!=="En service"?"Équipement hors service.":"Aucune interface dotée d’une IPv4 LAN utilisable.")+'</span></div>':
+    '<img class="nc-live-scene" src="'+scene+'" alt="" draggable="false">'+
+    '<div class="nc-live-shading"></div>'+
+    '<div class="nc-live-overlays"><span class="nc-live-status"><i></i> LIVE</span>'+
+    '<span class="nc-live-camera-name">'+esc(a.name)+'</span></div>'+
+    '<div class="nc-live-bottom"><span>'+(night?"VISION NOCTURNE":"JOUR")+'</span>'+
+    (panorama?'<span>PANORAMIQUE</span>':'')+'</div>')+
+   '</div><p class="nc-hint nc-live-caption">Aperçu fixe illustratif. Aucune image réelle n’est captée ni transmise.</p>'+
+   '</section>';
+ }
  function details(){
   const a=get(),p=registry.getProfile(a.profileId);
   const keys=["usage_netcam","vision_nocturne","vue_panoramique","protection_ip","alimentation_netcam"];
@@ -107,9 +128,9 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
   const a=get();
   root.innerHTML='<div class="netcam-admin"><header class="nc-head"><div><strong>'+esc(a.name)+'</strong><span>Administration NetCam</span></div></header>'+
    '<nav class="nc-tabs" aria-label="Rubriques NetCam">'+
-   [["network","Réseau"],["camera","Caméra"],["details","Informations"]].map(([key,name])=>
+   [["network","Réseau"],["camera","Caméra"],["details","Informations"],["live","Live"]].map(([key,name])=>
     '<button type="button" data-nc-tab="'+key+'" aria-pressed="'+(page===key)+'">'+name+'</button>').join("")+'</nav>'+
-   (page==="network"?network():page==="camera"?camera():details())+
+   (page==="network"?network():page==="camera"?camera():page==="details"?details():live())+
    (feedback?'<p class="nc-feedback'+(isError?" nc-error":"")+'" role="status">'+esc(feedback)+'</p>':"")+
    '</div>';
  }
