@@ -208,10 +208,10 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
    if(result.status!=="applied")return fail("core_rejected",result.message||result.code||"Demande DHCP refusée.");
    const updated=engine.getSnapshot(),ip=updated.objectsById[coreId].config.ipv4;
    const status=updated.runtime?.[coreId]?.dhcpStatus??"unassigned";
-   const persist=saveLeases();
-   if(!persist.success)return fail("lease_persist_failed",persist.message||"Sauvegarde des baux impossible.");
-   // Toute interface cliente DHCP conserve son IPv4 dans l'actif associé.
-   // Aucun choix n'est fait selon le type de matériel (PC, caméra, imprimante...).
+   // Le registre reste le garde-fou d'unicité IPv4. Valider l'adresse
+   // sur l'interface AVANT de persister le bail : si elle est refusée,
+   // ne surtout pas conserver de bail fantôme dans la box DHCP.
+   const previous=registry.getAsset(initial.client.id)?.interfaceIpv4?.[initial.port.id]??null;
    if(["lease","lease-retained","apipa"].includes(status)&&ip.address){
     const saved=registry.setAssetInterfaceIpv4(initial.client.id,initial.port.id,{
      mode:"dhcp",status:linked?"connected":"disconnected",
@@ -220,6 +220,12 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
      dns:copy(updated.objectsById[coreId].config.networkOptions?.dns??[])
     });
     if(!saved.success)return fail("interface_ipv4_rejected",saved.message||"IPv4 du client DHCP refusée.");
+   }
+   const persist=saveLeases();
+   if(!persist.success){
+    // Si le serveur refuse la sauvegarde, restaurer l'état IPv4 précédent.
+    registry.setAssetInterfaceIpv4(initial.client.id,initial.port.id,previous);
+    return fail("lease_persist_failed",persist.message||"Sauvegarde des baux impossible.");
    }
    return {success:true,code:status,address:ip.address,prefix:ip.prefix,
     gateway:updated.objectsById[coreId].config.networkOptions?.gateway??null,
