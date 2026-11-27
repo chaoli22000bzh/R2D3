@@ -210,3 +210,79 @@ test("Internet multi-interface : un ancien bail Ethernet non persisté ne bloque
  assert.equal(result.nat.internalAddress,"192.168.1.101");
  assert.equal(registry.getAsset(box.asset.id).boxConfig.dhcpState.clients.length,2);
 });
+
+test("Internet IPv4 fixe : accès sans DHCP et sans modification du parc",()=>{
+ const f=fixture(),port=f.a.ports[0].id,boxId=f.box.asset.id;
+ const ipv4={mode:"static",status:"connected",address:"192.168.1.150",
+  prefix:24,gateway:"192.168.1.1",dns:["192.168.1.1"]};
+ yes(f.registry.setAssetInterfaceIpv4(f.a.id,port,ipv4));
+ const before=f.registry.getAsset(f.a.id).interfaceIpv4;
+ const beforeDhcp=f.registry.getAsset(boxId).boxConfig.dhcpState;
+ const session=f.start();yes(session);
+ const result=session.request({clientId:f.a.id,targetAddress:"80.10.246.50"});yes(result);
+ assert.equal(result.nat.internalAddress,"192.168.1.150");
+ assert.equal(result.route.gateway,"192.168.1.1");
+ assert.deepEqual(f.registry.getAsset(f.a.id).interfaceIpv4,before);
+ assert.deepEqual(f.registry.getAsset(boxId).boxConfig.dhcpState,beforeDhcp);
+ assert.equal(session.listNat().length,1);
+});
+
+test("Internet IPv4 fixe : fonctionne même avec serveur DHCP de box inactif",()=>{
+ const f=fixture(),port=f.a.ports[0].id,lan=f.registry.getAsset(f.box.asset.id).boxConfig.lan;
+ yes(f.registry.setAssetInterfaceIpv4(f.a.id,port,{
+  mode:"static",status:"connected",address:"192.168.1.150",
+  prefix:24,gateway:"192.168.1.1",dns:["192.168.1.1"]}));
+ yes(f.registry.setBoxLanConfig(f.box.asset.id,{...lan,dhcpEnabled:false}));
+ const s=f.start();yes(s);
+ const result=s.request({clientId:f.a.id,targetAddress:"80.10.246.50"});yes(result);
+ assert.equal(result.nat.internalAddress,"192.168.1.150");
+ assert.equal(f.registry.getAsset(f.a.id).interfaceIpv4[port].mode,"static");
+});
+
+test("Internet IPv4 fixe : passerelle ou réseau invalide refusés sans DHCP",()=>{
+ const samples=[
+  {address:"192.168.2.150",prefix:24,gateway:"192.168.1.1"},
+  {address:"192.168.1.150",prefix:24,gateway:"192.168.1.254"},
+  {address:"192.168.1.150",prefix:25,gateway:"192.168.1.1"},
+  {address:"192.168.1.1",prefix:24,gateway:"192.168.1.1"},
+  {address:"192.168.1.255",prefix:24,gateway:"192.168.1.1"}
+ ];
+ for(const sample of samples){
+  const f=fixture(),port=f.a.ports[0].id;
+  yes(f.registry.setAssetInterfaceIpv4(f.a.id,port,{
+   mode:"static",status:"connected",...sample,dns:["192.168.1.1"]}));
+  const before=f.registry.getAsset(f.a.id).interfaceIpv4;
+  const s=f.start();yes(s);
+  no(s.request({clientId:f.a.id,targetAddress:"80.10.246.50"}),"client_network");
+  assert.deepEqual(f.registry.getAsset(f.a.id).interfaceIpv4,before);
+ }
+});
+
+test("Internet IPv4 fixe : débranchement Ethernet coupe le PAT et conserve l'IP",()=>{
+ const f=fixture(),port=f.a.ports[0].id;
+ yes(f.registry.setAssetInterfaceIpv4(f.a.id,port,{
+  mode:"static",status:"connected",address:"192.168.1.150",
+  prefix:24,gateway:"192.168.1.1",dns:["192.168.1.1"]}));
+ const s=f.start();yes(s);
+ yes(s.request({clientId:f.a.id,targetAddress:"80.10.246.50"}));
+ yes(f.registry.disconnectCableEnd(f.cables[0],1));
+ no(s.request({clientId:f.a.id,targetAddress:"80.10.246.50"}),"link_down");
+ assert.equal(f.registry.getAsset(f.a.id).interfaceIpv4[port].address,"192.168.1.150");
+});
+
+test("Internet IPv4 fixe et DHCP : une interface statique ne modifie aucun bail DHCP",()=>{
+ const f=fixture(),port=f.a.ports[0].id,peer=f.b.ports[0].id;
+ const first=f.start();yes(first);
+ const allocated=first.request({clientId:f.b.id,targetAddress:"80.10.246.50"});yes(allocated);
+ yes(f.registry.setAssetInterfaceIpv4(f.a.id,port,{
+  mode:"static",status:"connected",address:"192.168.1.150",
+  prefix:24,gateway:"192.168.1.1",dns:["192.168.1.1"]}));
+ const boxId=f.box.asset.id,previous=f.registry.getAsset(boxId).boxConfig.dhcpState;
+ const s=f.start();yes(s);
+ const result=s.request({clientId:f.a.id,targetAddress:"80.10.246.50"});yes(result);
+ assert.equal(result.nat.internalAddress,"192.168.1.150");
+ assert.deepEqual(f.registry.getAsset(boxId).boxConfig.dhcpState,previous);
+ assert.equal(f.registry.getAsset(f.b.id).interfaceIpv4[peer].address,allocated.nat.internalAddress);
+ const dhcp=s.request({clientId:f.b.id,targetAddress:"80.10.246.50"});yes(dhcp);
+ assert.equal(dhcp.nat.internalAddress,allocated.nat.internalAddress);
+});
