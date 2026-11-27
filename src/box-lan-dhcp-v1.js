@@ -11,9 +11,9 @@ const fail=(code,message)=>({success:false,code,message});
 const copy=x=>JSON.parse(JSON.stringify(x));
 const ethernet=a=>a?.ports.filter(p=>p.type==="ethernet-rj45")??[];
 const live=a=>a?.status==="En service";
-const mac=(id,interfaceBased=false)=>{
+const mac=(id)=>{
  const n=Number(String(id).match(/\d+$/)?.[0]??0);
- return [2,0,interfaceBased?1:0,(n>>>16)&255,(n>>>8)&255,n&255]
+ return [2,0,1,(n>>>16)&255,(n>>>8)&255,n&255]
   .map(x=>x.toString(16).padStart(2,"0").toUpperCase()).join("-");
 };
 const routerId=id=>id+"/router";
@@ -69,7 +69,7 @@ function coreClient(entry){
  // par les composants Wi-Fi et câblage. Aucun faux câble n'est enregistré.
  return {id:entry.clientId,kind:"pc-windows",name:a.name+(entry.clientId!==a.id?" · "+entry.port.name:""),
   ports:[{id:entry.port.id,type:"rj45"}],
-  config:{macAddress:mac(entry.clientId===a.id?a.id:entry.port.id,entry.clientId!==a.id),
+  config:{macAddress:mac(entry.port.id),
    ipv4:{interfaceId:entry.port.id,mode:"dhcp",address:null,prefix:null,lease:null},
    networkOptions:{gateway:null,dns:[]}}};
 }
@@ -118,7 +118,7 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
  const priorObjects=holders.map(c=>({
   id:holderId(c),kind:"pc-windows",name:"Bail DHCP réservé",
   ports:[{id:c.portId,type:"rj45"}],
-  config:{macAddress:c.mac,
+  config:{macAddress:mac(c.portId),
    ipv4:{interfaceId:c.portId,mode:"dhcp",address:null,prefix:null,lease:null},
    networkOptions:{gateway:null,dns:[]}}
  }));
@@ -138,7 +138,7 @@ export function createBoxLanDhcpSession({registry,boxId,clients=[]}={}){
    const previous=known.get(key);
    if(!previous||previous.lease.expires<=persisted.clock)continue;
    const target=snapshot.objectsById[id];
-   target.config.macAddress=previous.mac;
+   target.config.macAddress=mac(key.slice(key.indexOf("|")+1));
    target.config.ipv4={interfaceId:target.config.ipv4.interfaceId,mode:"dhcp",
     address:previous.address,prefix:previous.prefix,lease:copy(previous.lease)};
    target.config.networkOptions={gateway:previous.gateway,dns:copy(previous.dns)};
