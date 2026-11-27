@@ -100,3 +100,43 @@ test("DHCP client : Ethernet conserve une IPv4 ancienne sans bail et Wi-Fi reço
  assert.equal(state[f.wifi.id].address,"192.168.1.101");
  assert.equal(f.registry.getAsset(box.asset.id).boxConfig.dhcpState.clients.length,2);
 });
+
+test("DHCP partagé : 30 Ethernet via switch L2 et 30 Wi-Fi sur la même box",()=>{
+ const registry=createAssetRegistry(),box=registry.createBoxComposite("BOX-60");good(box);
+ const swp=registry.createProfile("Switch simple 32 ports");good(swp);
+ good(registry.addPortGroup(swp.profile.id,{type:"ethernet-rj45",prefix:"P",start:1,count:32}));
+ good(registry.setProfileNetworkCapability(swp.profile.id,"ethernet-switching",true));
+ const sw=registry.createAsset(swp.profile.id,{name:"SW-01"});good(sw);
+ const ethernetProfile=registry.createProfile("Client Ethernet");good(ethernetProfile);
+ const wifiProfile=registry.createProfile("Client Wi-Fi");good(wifiProfile);
+ good(registry.addPortGroup(ethernetProfile.profile.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1}));
+ good(registry.addPortGroup(wifiProfile.profile.id,{type:"wifi",prefix:"WIFI",start:1,count:1}));
+ function cable(portA,portB){
+  const c=registry.createCable();good(c);
+  good(registry.connectCableEnd(c.cable.id,0,portA));
+  good(registry.connectCableEnd(c.cable.id,1,portB));
+ }
+ cable(sw.asset.ports[0].id,box.config.ports.lanPortIds[0]);
+ const clients=[];
+ for(let i=0;i<30;i++){
+  const wired=registry.createAsset(ethernetProfile.profile.id,{name:"ETH-"+(i+1)});good(wired);
+  const wifi=registry.createAsset(wifiProfile.profile.id,{name:"WIFI-"+(i+1)});good(wifi);
+  cable(wired.asset.ports[0].id,sw.asset.ports[i+1].id);
+  good(registry.setAssetClientWifi(wifi.asset.id,wifi.asset.ports[0].id,{
+   ssid:"BOX-WIFI",security:"wpa2-personal",password:"12345678"}));
+  clients.push({assetId:wired.asset.id,portId:wired.asset.ports[0].id});
+  clients.push({assetId:wifi.asset.id,portId:wifi.asset.ports[0].id});
+ }
+ const initial=clients.map(c=>requestAssetInterfaceDhcp({registry,...c}));
+ initial.forEach(good);
+ assert.equal(initial.every(r=>r.code==="lease"),true);
+ assert.equal(new Set(initial.map(r=>r.address)).size,60);
+ assert.equal(registry.getAsset(box.asset.id).boxConfig.dhcpState.clients.length,60);
+ for(let i=59;i>=0;i--){
+  const response=requestAssetInterfaceDhcp({registry,...clients[i]});good(response);
+  assert.equal(response.address,initial[i].address);
+ }
+ const restored=restoreAssetRegistry(registry.exportState());
+ const response=requestAssetInterfaceDhcp({registry:restored,...clients[35]});good(response);
+ assert.equal(response.address,initial[35].address);
+});
