@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createAssetRegistry,restoreAssetRegistry,installDesktopProfile} from "../src/asset-profiles.js";
+import {createAssetRegistry,restoreAssetRegistry,installDesktopProfile,installNetCamProfile} from "../src/asset-profiles.js";
 import {createBoxLanDhcpSession} from "../src/box-lan-dhcp-v1.js";
 
 const good=r=>assert.equal(r.success,true,JSON.stringify(r));
@@ -238,4 +238,41 @@ test("Box DHCP persistant 04 : session ancienne refusée après une attribution 
  const fresh=createBoxLanDhcpSession({registry:f.registry,boxId:f.box.asset.id,
   clients:[f.clients[1]]});good(fresh);
  assert.equal(fresh.request(f.wire2.id).address,"192.168.1.101");
+});
+
+test("Box DHCP NetCam : Ethernet puis Wi-Fi en sessions distinctes gardent deux baux distincts",()=>{
+ const registry=createAssetRegistry(),box=registry.createBoxComposite("BOX-01");good(box);
+ const profile=installNetCamProfile(registry).profile;
+ good(registry.addPortGroup(profile.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1}));
+ good(registry.addPortGroup(profile.id,{type:"wifi",prefix:"WIFI",start:1,count:1}));
+ const camera=registry.createAsset(profile.id,{name:"NETCAM-01"});good(camera);
+ const lan=camera.asset.ports.find(p=>p.type==="ethernet-rj45");
+ const wifi=camera.asset.ports.find(p=>p.type==="wifi");
+ const cable=registry.createCable();good(cable);
+ good(registry.connectCableEnd(cable.cable.id,0,lan.id));
+ good(registry.connectCableEnd(cable.cable.id,1,box.config.ports.lanPortIds[0]));
+ const ethernet={assetId:camera.asset.id,portId:lan.id,medium:"ethernet"};
+ const wireless={assetId:camera.asset.id,portId:wifi.id,medium:"wifi",ssidId:"ssid-1",password:"12345678"};
+ const ethSession=createBoxLanDhcpSession({registry,boxId:box.asset.id,clients:[ethernet]});good(ethSession);
+ const eth=ethSession.request(camera.asset.id,lan.id);good(eth);
+ assert.equal(eth.address,"192.168.1.100");
+ const wifiSession=createBoxLanDhcpSession({registry,boxId:box.asset.id,clients:[wireless]});good(wifiSession);
+ const radio=wifiSession.request(camera.asset.id,wifi.id);good(radio);
+ assert.equal(radio.address,"192.168.1.101");
+ assert.notEqual(eth.address,radio.address);
+ const leases=registry.getAsset(box.asset.id).boxConfig.dhcpState.clients;
+ assert.equal(leases.length,2);
+ assert.equal(new Set(leases.map(c=>c.mac)).size,2);
+ assert.equal(new Set(leases.map(c=>c.address)).size,2);
+ const both=createBoxLanDhcpSession({registry,boxId:box.asset.id,clients:[ethernet,wireless]});good(both);
+ const a=both.request(camera.asset.id,lan.id),b=both.request(camera.asset.id,wifi.id);
+ good(a);good(b);
+ assert.equal(a.address,eth.address);assert.equal(b.address,radio.address);
+ good(registry.setAssetInterfaceIpv4(camera.asset.id,lan.id,{
+  mode:"dhcp",status:"connected",address:a.address,prefix:24,gateway:"192.168.1.1",dns:["192.168.1.1"]}));
+ good(registry.setAssetInterfaceIpv4(camera.asset.id,wifi.id,{
+  mode:"dhcp",status:"connected",address:b.address,prefix:24,gateway:"192.168.1.1",dns:["192.168.1.1"]}));
+ err(registry.setAssetInterfaceIpv4(camera.asset.id,wifi.id,{
+  mode:"dhcp",status:"connected",address:a.address,prefix:24,gateway:"192.168.1.1",dns:["192.168.1.1"]}),"duplicate_ipv4");
+ assert.deepEqual(restoreAssetRegistry(registry.exportState()).exportState(),registry.exportState());
 });
