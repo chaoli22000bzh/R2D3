@@ -84,13 +84,27 @@ export function requestAssetInterfaceDhcp({registry,assetId,portId}={}){
   // uniquement si elles sont effectivement reliées à cette box.
   // Le Core réattribue ainsi des baux distincts, sans inventer de réservation.
   const recorded=box.boxConfig.dhcpState?.clients??[];
-  const siblings=registry.listAssetNetworkInterfaces(assetId).filter(p=>
-   p.id!==portId&&p.ipv4?.mode==="dhcp"&&p.ipv4.address&&
-   !p.ipv4.address.startsWith("169.254.")&&
-   !recorded.some(c=>c.assetId===assetId&&c.portId===p.id));
-  const repair=siblings.filter(p=>p.type==="ethernet-rj45"&&
-   box.boxConfig.ports.lanPortIds.some(id=>ethernetPortReachable(registry,p.id,id)))
-   .map(p=>({assetId,portId:p.id,medium:"ethernet"}));
+  const siblings=registry.listAssetNetworkInterfaces(assetId).filter(p=>{
+   if(p.id===portId||p.ipv4?.mode!=="dhcp"||!p.ipv4.address||
+      p.ipv4.address.startsWith("169.254."))return false;
+   const lease=recorded.find(c=>c.assetId===assetId&&c.portId===p.id);
+   // Réconcilier les baux absents ET ceux dont l'adresse n'est plus
+   // cohérente avec l'interface, sans inventer de bail.
+   return !lease||lease.address!==p.ipv4.address;
+  });
+  const repair=siblings.flatMap(p=>{
+   if(p.type==="ethernet-rj45"&&box.boxConfig.ports.lanPortIds.some(
+     id=>ethernetPortReachable(registry,p.id,id)))
+    return [{assetId,portId:p.id,medium:"ethernet"}];
+   if(p.type==="wifi"&&p.clientWifi){
+    const ssid=box.boxConfig.wifi?.enabled&&box.boxConfig.wifi.ssids.find(
+     x=>x.enabled&&x.name===p.clientWifi.ssid&&x.security===p.clientWifi.security&&
+      x.password===p.clientWifi.password);
+    if(ssid)return [{assetId,portId:p.id,medium:"wifi",
+     ssidId:ssid.id,password:p.clientWifi.password}];
+   }
+   return [];
+  });
   const session=createBoxLanDhcpSession({registry,boxId:box.id,clients:[...repair,entry]});
   if(!session.success)return session;
   for(const peer of repair){
