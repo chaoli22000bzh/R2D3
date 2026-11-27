@@ -279,3 +279,24 @@ test("Box DHCP NetCam : Ethernet puis Wi-Fi en sessions distinctes gardent deux 
   mode:"dhcp",status:"connected",address:a.address,prefix:24,gateway:"192.168.1.1",dns:["192.168.1.1"]}),"duplicate_ipv4");
  assert.deepEqual(restoreAssetRegistry(registry.exportState()).exportState(),registry.exportState());
 });
+
+test("Box DHCP : le bail suit une interface d'équipement générique, sans profil PC ou NetCam",()=>{
+ const registry=createAssetRegistry(),box=registry.createBoxComposite("BOX-01");good(box);
+ const p=registry.createProfile("Imprimante professionnelle");good(p);
+ good(registry.addPortGroup(p.profile.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1}));
+ good(registry.addPortGroup(p.profile.id,{type:"wifi",prefix:"WIFI",start:1,count:1}));
+ const printer=registry.createAsset(p.profile.id,{name:"IMPRIMANTE-01"});good(printer);
+ const [lan,wifi]=printer.asset.ports,c=registry.createCable();good(c);
+ good(registry.connectCableEnd(c.cable.id,0,lan.id));
+ good(registry.connectCableEnd(c.cable.id,1,box.config.ports.lanPortIds[0]));
+ const wifiSession=createBoxLanDhcpSession({registry,boxId:box.asset.id,clients:[
+  {assetId:printer.asset.id,portId:wifi.id,medium:"wifi",ssidId:"ssid-1",password:"12345678"}]});good(wifiSession);
+ const wireless=wifiSession.request(printer.asset.id,wifi.id);good(wireless);
+ const lanSession=createBoxLanDhcpSession({registry,boxId:box.asset.id,clients:[
+  {assetId:printer.asset.id,portId:lan.id,medium:"ethernet"}]});good(lanSession);
+ const wired=lanSession.request(printer.asset.id,lan.id);good(wired);
+ assert.deepEqual([wireless.address,wired.address],["192.168.1.100","192.168.1.101"]);
+ assert.equal(registry.getAsset(printer.asset.id).interfaceIpv4[wifi.id].address,wireless.address);
+ assert.equal(registry.getAsset(printer.asset.id).interfaceIpv4[lan.id].address,wired.address);
+ assert.deepEqual(restoreAssetRegistry(registry.exportState()).exportState(),registry.exportState());
+});
