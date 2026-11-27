@@ -48,6 +48,19 @@ export function createBoxInternetSession({registry,boxId,clients=[],services=[]}
   if(!["http","https","dns"].includes(service)||ipNumber(targetAddress)===null||
      !Number.isInteger(sourcePort)||sourcePort<1024||sourcePort>65535)
     return fail("request_invalid","Destination, service ou port source invalide.");
+  // Réconcilier d'abord les interfaces déjà configurées en DHCP mais
+  // absentes de la table des baux persistée. Une session héritée peut avoir
+  // conservé leur IPv4 dans l'actif sans conserver le bail côté serveur.
+  // Seul le Core DHCP renouvelle alors ces interfaces avant le client demandé.
+  const persisted=current.boxConfig.dhcpState?.clients??[];
+  for(const peer of lan.clients){
+   if(peer.assetId===clientId&&peer.portId===interfaceId)continue;
+   const prior=registry.getAsset(peer.assetId)?.interfaceIpv4?.[peer.portId];
+   if(prior?.mode!=="dhcp"||!prior.address||prior.address.startsWith("169.254."))continue;
+   if(persisted.some(c=>c.assetId===peer.assetId&&c.portId===peer.portId))continue;
+   const repaired=lan.request(peer.assetId,peer.portId);
+   if(!repaired.success)return repaired;
+  }
   const obtained=lan.request(clientId,interfaceId);
   if(!obtained.success)return obtained;
   if(!sameSubnet(obtained.address,current.boxConfig.lan.address,current.boxConfig.lan.prefix)||
