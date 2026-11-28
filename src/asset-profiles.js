@@ -1467,6 +1467,12 @@ export function createAssetRegistry(saved){
   if(!valueValid(f,value))return result(false,"invalid_value","Type de valeur incorrect.");
   if(getP(a.profileId)?.name==="Scanner"&&key==="scanner_adf_capacite"&&!empty(value)&&(!Number.isInteger(value)||value<0))
    return result(false,"invalid_value","ADF : capacité entière positive ou zéro attendue.");
+  if(getP(a.profileId)?.name==="Imprimante laser monochrome"&&!empty(value)){
+   if(key==="printer_bac1"&&(!Number.isInteger(value)||value<=0))
+    return result(false,"invalid_value","Bac 1 : capacité entière strictement positive attendue.");
+   if(key==="printer_vitesse"&&!(typeof value==="number"&&Number.isFinite(value)&&value>0))
+    return result(false,"invalid_value","Vitesse : nombre strictement positif attendu.");
+  }
   if(getP(a.profileId)?.name==="Écran"&&!screenFieldValueValid(key,value))
    return result(false,"invalid_value","Format incorrect pour ce champ.");
   a.values[key]=empty(value)?null:value;s.revision++;return result(true,"value_updated","Valeur enregistrée.");
@@ -1662,6 +1668,25 @@ export function installScannerProfile(registry){
   const added=registry.addField(created.profile.id,field);
   if(!added.success)throw Error("Impossible d'ajouter le champ Scanner : "+field.key);
  }
+ return {success:true,code:"created",profile:registry.getProfile(created.profile.id)};
+}
+/* Profil minimal de l'imprimante réseau : descriptif, sans moteur d'impression. */
+export const printerFieldDefinitions=[
+ {key:"printer_bac1",label:"Bac 1",type:"number",unit:"feuilles"},
+ {key:"printer_recto_verso",label:"Recto verso",type:"boolean"},
+ {key:"printer_vitesse",label:"Vitesse",type:"number",unit:"ppm"}
+];
+export function installMonochromePrinterProfile(registry){
+ const existing=registry.listProfiles().find(p=>p.name==="Imprimante laser monochrome");
+ if(existing)return {success:true,code:"already_present",profile:existing};
+ const created=registry.createProfile("Imprimante laser monochrome");
+ if(!created.success)return created;
+ for(const f of printerFieldDefinitions){
+  const added=registry.addField(created.profile.id,f);
+  if(!added.success)throw Error("Champ Imprimante impossible : "+f.key);
+ }
+ const port=registry.addPortGroup(created.profile.id,{type:"ethernet-rj45",prefix:"LAN",start:1,count:1,digits:2});
+ if(!port.success)throw Error("Port Ethernet Imprimante impossible.");
  return {success:true,code:"created",profile:registry.getProfile(created.profile.id)};
 }
 export const restoreAssetRegistry=saved=>createAssetRegistry(saved);
