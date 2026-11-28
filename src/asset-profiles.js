@@ -358,6 +358,25 @@ function validCameraComponent(v){
   (v.resolution===""||cameraResolutions.includes(v.resolution))&&
   (v.microphone===null||typeof v.microphone==="boolean");
 }
+/* Scanner : composant descriptif unique, destiné au futur module Impression/MFC.
+   Aucun réseau, port, moteur de numérisation ou destination propre au composant. */
+const scannerTypes=["À plat","Défilement","Mixte"];
+const scannerResolutions=["300 dpi","600 dpi","1200 dpi"];
+const scannerFormats=["A4","A3","A4 et A3"];
+function scannerComponentData(raw={}){
+ const adf=raw.adfFeuilles===null||raw.adfFeuilles===undefined||raw.adfFeuilles===""?null:Number(raw.adfFeuilles);
+ return {id:"scanner-1",type:trim(raw.type),adfFeuilles:adf,
+  rectoVerso:raw.rectoVerso===null||raw.rectoVerso===undefined||raw.rectoVerso===""?null:raw.rectoVerso,
+  resolution:trim(raw.resolution),format:trim(raw.format)};
+}
+function validScannerComponent(v){
+ return !!v&&v.id==="scanner-1"&&
+  (v.type===""||scannerTypes.includes(v.type))&&
+  (v.adfFeuilles===null||Number.isInteger(v.adfFeuilles)&&v.adfFeuilles>=0)&&
+  (v.rectoVerso===null||typeof v.rectoVerso==="boolean")&&
+  (v.resolution===""||scannerResolutions.includes(v.resolution))&&
+  (v.format===""||scannerFormats.includes(v.format));
+}
 export function createAssetRegistry(saved){
  const s=saved?clone(saved):{revision:0,nextProfile:1,nextAsset:1,nextPortGroup:1,nextPort:1,nextCable:1,cables:[],nextInfrastructure:1,nextInfrastructurePort:1,wallOutlets:[],panels:[],places:[],nextPlace:1,profiles:[],assets:[]};
  if(!Array.isArray(s.profiles)||!Array.isArray(s.assets)||!Number.isInteger(s.revision)||!Number.isInteger(s.nextProfile)||!Number.isInteger(s.nextAsset))throw Error("État R2 invalide");
@@ -443,6 +462,8 @@ export function createAssetRegistry(saved){
     throw Error("NetCam sans composant caméra");
    if(a.integratedCamera!==undefined&&(!inventoryEnabled||!validCameraComponent(a.integratedCamera)))
     throw Error("Caméra intégrée invalide ou interdite sur ce profil");
+   if(a.scanner!==undefined&&(!validScannerComponent(a.scanner)||a.boxConfig||s.profiles.find(p=>p.id===a.profileId)?.netcamProfile))
+    throw Error("Composant Scanner invalide ou incompatible");
    if(a.clientWifi!==undefined&&!validClientWifi(a.clientWifi,a.ports||[]))
     throw Error("Configuration cliente Wi-Fi invalide");
    if(a.interfaceIpv4!==undefined&&
@@ -656,10 +677,37 @@ export function createAssetRegistry(saved){
   delete a[key];s.revision++;
   return result(true,"camera_removed","Caméra intégrée supprimée.");
  }
+ function scannerEligible(a){return !!a&&!a.boxConfig&&!getP(a.profileId)?.netcamProfile;}
+ function addAssetScanner(assetId,raw={}){
+  const a=getA(assetId);
+  if(!scannerEligible(a))return result(false,"not_supported","Composant Scanner incompatible avec cet équipement.");
+  if(a.scanner)return result(false,"scanner_exists","Un scanner est déjà présent.");
+  const scanner=scannerComponentData(raw);
+  if(!validScannerComponent(scanner))return result(false,"invalid_scanner","Caractéristiques du Scanner invalides.");
+  a.scanner=scanner;s.revision++;
+  return result(true,"scanner_added","Scanner ajouté.",{component:clone(scanner)});
+ }
+ function updateAssetScanner(assetId,componentId,raw={}){
+  const a=getA(assetId);
+  if(!scannerEligible(a)||!a.scanner||a.scanner.id!==componentId)
+   return result(false,"not_found","Composant Scanner introuvable.");
+  const scanner=scannerComponentData(raw);
+  if(!validScannerComponent(scanner))return result(false,"invalid_scanner","Caractéristiques du Scanner invalides.");
+  a.scanner=scanner;s.revision++;
+  return result(true,"scanner_updated","Scanner modifié.",{component:clone(scanner)});
+ }
+ function removeAssetScanner(assetId,componentId){
+  const a=getA(assetId);
+  if(!scannerEligible(a)||!a.scanner||a.scanner.id!==componentId)
+   return result(false,"not_found","Composant Scanner introuvable.");
+  delete a.scanner;s.revision++;
+  return result(true,"scanner_removed","Scanner retiré.");
+ }
  function componentCollection(kind){return kind==="ram"?"ramModules":kind==="disk"?"disks":null;}
  function addAssetComponent(assetId,kind,raw={}){
   if(kind==="screen")return addAssetIntegratedScreen(assetId,raw);
   if(kind==="camera")return addAssetIntegratedCamera(assetId,raw);
+  if(kind==="scanner")return addAssetScanner(assetId,raw);
   const a=getA(assetId),key=componentCollection(kind);
   if(!a||!key||!getP(a.profileId)?.processorInventory)return result(false,"not_supported","Inventaire non disponible pour ce profil.");
   a[key]??=[];
@@ -672,6 +720,7 @@ export function createAssetRegistry(saved){
  function updateAssetComponent(assetId,kind,componentId,raw={}){
   if(kind==="screen")return updateAssetIntegratedScreen(assetId,componentId,raw);
   if(kind==="camera")return updateAssetIntegratedCamera(assetId,componentId,raw);
+  if(kind==="scanner")return updateAssetScanner(assetId,componentId,raw);
   const a=getA(assetId),key=componentCollection(kind),v=a?.[key]?.find(c=>c.id===componentId);
   if(!v||!getP(a.profileId)?.processorInventory)return result(false,"not_found","Composant introuvable.");
   const revised=componentData(kind,raw,componentId);
@@ -681,6 +730,7 @@ export function createAssetRegistry(saved){
  function removeAssetComponent(assetId,kind,componentId){
   if(kind==="screen")return removeAssetIntegratedScreen(assetId,componentId);
   if(kind==="camera")return removeAssetIntegratedCamera(assetId,componentId);
+  if(kind==="scanner")return removeAssetScanner(assetId,componentId);
   const a=getA(assetId),key=componentCollection(kind),i=a?.[key]?.findIndex(c=>c.id===componentId)??-1;
   if(i<0||!getP(a.profileId)?.processorInventory)return result(false,"not_found","Composant introuvable.");
   a[key].splice(i,1);s.revision++;return result(true,"component_removed","Composant supprimé.");
