@@ -14,7 +14,7 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
     !registry?.setAssetInterfaceIpv4||!registry?.setAssetClientWifi||!registry?.updateAssetComponent||!registry?.setAssetField)
   throw Error("Registre réseau R2D3 indisponible.");
  let page="network",portId=null,editMode=null,feedback="",isError=false;
- let liveNight=false,livePanorama=false;
+ let liveMode="day";
  const get=()=>{
   const a=registry.getAsset(assetId);
   if(!a||registry.getProfile(a.profileId)?.netcamProfile!==true)throw Error("NetCam introuvable.");
@@ -90,7 +90,13 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
  }
  function live(){
   const a=get(),hasNight=a.values.vision_nocturne===true,hasPanorama=a.values.vue_panoramique===true;
-  const night=hasNight&&liveNight,panorama=hasPanorama&&livePanorama;
+  const modes=[["day","Jour normal"]];
+  if(hasNight)modes.push(["night","Nuit infrarouge"]);
+  if(hasPanorama)modes.push(["panorama-day","Jour panoramique"]);
+  if(hasNight&&hasPanorama)modes.push(["panorama-night","Nuit panoramique"]);
+  if(!modes.some(([mode])=>mode===liveMode))liveMode="day";
+  const night=liveMode==="night"||liveMode==="panorama-night";
+  const panorama=liveMode==="panorama-day"||liveMode==="panorama-night";
   const network=interfaces();
   const hasUsableIpv4=network.some(p=>p.ipv4?.address&&!p.ipv4.address.startsWith("169.254."));
   const unavailable=a.status!=="En service"?"Flux indisponible":
@@ -98,10 +104,7 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
   const scene="https://chaoli22000bzh.github.io/R2D3/src/netcam-live-jour-optimise.webp?live-v3=1";
   const fallback="https://chaoli22000bzh.github.io/R2D3/src/netcam-live-scene-v1.svg?live-v1=1";
   return '<section class="nc-panel nc-live-panel"><h3>Live</h3>'+ 
-   (hasNight||hasPanorama?'<div class="nc-live-controls">'+
-    (hasNight?'<fieldset><legend>Affichage</legend><button type="button" data-nc-live-night="false" aria-pressed="'+(!night)+'">Jour</button><button type="button" data-nc-live-night="true" aria-pressed="'+night+'">Nuit</button></fieldset>':'')+
-    (hasPanorama?'<fieldset><legend>Cadrage</legend><button type="button" data-nc-live-panorama="false" aria-pressed="'+(!panorama)+'">Normal</button><button type="button" data-nc-live-panorama="true" aria-pressed="'+panorama+'">Panoramique</button></fieldset>':'')+
-    '</div>':'')+
+   (modes.length>1?'<div class="nc-live-controls"><label>Mode d’affichage<select data-nc-live-mode aria-label="Mode d’affichage">'+choices(modes,liveMode)+'</select></label></div>':'')+
    '<div class="nc-live-viewport'+(night?" nc-live-night":"")+(panorama?" nc-live-panorama":"")+'" role="img" aria-label="'+
    esc(unavailable||"Aperçu illustratif du parking d’un entrepôt")+'">'+
    (unavailable?'<div class="nc-live-unavailable"><strong>'+esc(unavailable)+'</strong>'+
@@ -142,6 +145,7 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
    '</div>';
  }
  function change(e){
+  if(e.target.matches("[data-nc-live-mode]")){liveMode=e.target.value;feedback="";render();return;}
   if(e.target.name==="portId"){portId=e.target.value;editMode=null;feedback="";render();}
   if(e.target.name==="mode"){
    editMode=e.target.value;feedback="";render();
@@ -211,10 +215,6 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
   }
  }
  function click(e){
-  const nightButton=e.target.closest("[data-nc-live-night]");
-  if(nightButton){liveNight=nightButton.dataset.ncLiveNight==="true";render();return;}
-  const panoramaButton=e.target.closest("[data-nc-live-panorama]");
-  if(panoramaButton){livePanorama=panoramaButton.dataset.ncLivePanorama==="true";render();return;}
   const renew=e.target.closest("[data-nc-renew]");
   if(renew){
    const r=requestAssetInterfaceDhcp({registry,assetId,portId});
