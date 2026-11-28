@@ -62,13 +62,9 @@
 
 /* Live NetCam V1 : aperçu illustratif fixe, sans capture, vidéo ni moteur PTZ. */
 .netcam-admin .nc-live-panel{max-width:100%}
-.netcam-admin .nc-live-controls{display:flex;flex-wrap:wrap;gap:9px 18px;margin:0 0 12px}
-.netcam-admin .nc-live-controls fieldset{min-width:0;border:0;padding:0;margin:0;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
-.netcam-admin .nc-live-controls legend{float:left;margin:0 9px 0 0;padding:5px 0;font-size:13px;font-weight:600}
-.netcam-admin .nc-live-controls button{font:inherit;font-size:13px;padding:5px 11px;border:1px solid var(--nc-border,#cbd9e6);border-radius:5px;background:var(--nc-summary,#f2f6fa);color:var(--nc-fg,#1c3852);cursor:pointer}
-.netcam-admin .nc-live-controls button[aria-pressed="true"]{background:#1867a3;border-color:#1867a3;color:#fff;font-weight:700}
-.netcam-admin .nc-live-controls button:focus-visible{outline:2px solid #2688ca;outline-offset:2px}
-
+.netcam-admin .nc-live-controls{margin:0 0 12px}
+.netcam-admin .nc-live-controls label{display:inline-grid;gap:4px;font-size:13px;font-weight:600}
+.netcam-admin .nc-live-controls select{width:190px;max-width:100%;min-height:34px;padding:5px 8px}
 .netcam-admin .nc-live-viewport{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:#111b24;border:1px solid var(--nc-border,#cbd9e6);border-radius:8px;color:#fff;isolation:isolate}
 .netcam-admin .nc-live-scene{display:block;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;user-select:none;pointer-events:none}
 .netcam-admin .nc-live-panorama{aspect-ratio:2.25/1}
