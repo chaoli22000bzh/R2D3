@@ -1584,8 +1584,7 @@ export const scannerFieldDefinitions=[
  {key:"scanner_adf_capacite",label:"Capacité ADF",type:"number",unit:"feuilles"},
  {key:"scanner_recto_verso",label:"Recto verso automatique",type:"boolean"},
  {key:"scanner_resolution",label:"Résolution optique",type:"select",options:["300 dpi","600 dpi","1200 dpi"]},
- {key:"scanner_format",label:"Formats acceptés",type:"select",options:["A4","A3","A4 et A3"]},
- {key:"scanner_mode",label:"Mode de numérisation",type:"select",options:["Couleur","Niveaux de gris","Noir et blanc"]}
+ {key:"scanner_format",label:"Formats acceptés",type:"select",options:["A4","A3","A4 et A3"]}
 ];
 export function installScannerProfile(registry){
  const existing=registry.listProfiles().find(p=>p.name==="Scanner");
