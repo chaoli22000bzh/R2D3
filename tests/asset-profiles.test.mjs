@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createAssetRegistry,restoreAssetRegistry,installScreenProfile,displayFieldDefinitions,screenSpecificFieldDefinitions,installDesktopProfile,installNetCamProfile,netCamFieldDefinitions,computingFieldDefinitions,desktopFieldDefinitions,computerTypeFieldDefinition} from "../src/asset-profiles.js";
+import {createAssetRegistry,restoreAssetRegistry,installScreenProfile,displayFieldDefinitions,screenSpecificFieldDefinitions,installDesktopProfile,installNetCamProfile,installScannerProfile,scannerFieldDefinitions,netCamFieldDefinitions,computingFieldDefinitions,desktopFieldDefinitions,computerTypeFieldDefinition} from "../src/asset-profiles.js";
 
 const panelAt=(e,name,location,count,start,prefix="")=>{
  const place=e.listPlaces().find(p=>p.name===location&&p.parentId===null)||
@@ -1003,4 +1003,26 @@ test("NetCam administration : DHCP sans bail, IP fixe, Wi-Fi client et restaurat
  assert.equal(reg.updateAssetComponent(cam.id,"camera","camera-1",{resolution:"1080p",microphone:true}).success,true);
  assert.equal(reg.getAsset(cam.id).netCamera.resolution,"1080p");
  assert.deepEqual(restoreAssetRegistry(reg.exportState()).exportState(),reg.exportState());
+});
+
+test("Scanner V1 : profil autonome, champs descriptifs et réinstallation sans doublon",()=>{
+ const registry=createAssetRegistry();
+ const first=installScannerProfile(registry);
+ assert.equal(first.success,true);
+ assert.equal(first.code,"created");
+ assert.deepEqual(first.profile.fields.map(f=>f.key),scannerFieldDefinitions.map(f=>f.key));
+ const second=installScannerProfile(registry);
+ assert.equal(second.code,"already_present");
+ assert.equal(second.profile.id,first.profile.id);
+ assert.equal(registry.listProfiles().filter(p=>p.name==="Scanner").length,1);
+ const scanner=registry.createAsset(first.profile.id,{name:"SCAN-01"});
+ assert.equal(scanner.success,true);
+ assert.equal(registry.setAssetField(scanner.asset.id,"scanner_recto_verso",true).success,true);
+ assert.equal(registry.setAssetField(scanner.asset.id,"scanner_resolution","600 dpi").success,true);
+ const saved=registry.exportState();
+ assert.deepEqual(restoreAssetRegistry(saved).exportState(),saved);
+ const restored=restoreAssetRegistry(saved).getAsset(scanner.asset.id);
+ assert.equal(restored.values.scanner_recto_verso,true);
+ assert.equal(restored.values.scanner_resolution,"600 dpi");
+ assert.equal(restored.netCamera,undefined);
 });
