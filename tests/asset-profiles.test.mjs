@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createAssetRegistry,restoreAssetRegistry,installScreenProfile,displayFieldDefinitions,screenSpecificFieldDefinitions,installDesktopProfile,installNetCamProfile,installScannerProfile,scannerFieldDefinitions,netCamFieldDefinitions,computingFieldDefinitions,desktopFieldDefinitions,computerTypeFieldDefinition} from "../src/asset-profiles.js";
+import {createAssetRegistry,restoreAssetRegistry,installScreenProfile,displayFieldDefinitions,screenSpecificFieldDefinitions,installDesktopProfile,installNetCamProfile,installScannerProfile,scannerFieldDefinitions,installMonochromePrinterProfile,printerFieldDefinitions,netCamFieldDefinitions,computingFieldDefinitions,desktopFieldDefinitions,computerTypeFieldDefinition} from "../src/asset-profiles.js";
 
 const panelAt=(e,name,location,count,start,prefix="")=>{
  const place=e.listPlaces().find(p=>p.name===location&&p.parentId===null)||
@@ -1086,4 +1086,36 @@ test("Composant Scanner V1 : aucune modification aux profils Scanner historiques
  const saved=e.exportState();
  assert.deepEqual(restoreAssetRegistry(saved).getAsset(old.id),before);
  assert.equal(before.scanner,undefined);
+});
+
+test("Imprimante laser monochrome V1 : profil monobac RJ45 sans Scanner ni Wi-Fi",()=>{
+ const r=createAssetRegistry();
+ const init=installMonochromePrinterProfile(r);
+ assert.equal(init.success,true);
+ assert.equal(init.code,"created");
+ assert.deepEqual(init.profile.fields.map(f=>f.key),printerFieldDefinitions.map(f=>f.key));
+ assert.deepEqual(init.profile.fields.map(f=>f.label),["Bac 1","Recto verso","Vitesse"]);
+ assert.equal(installMonochromePrinterProfile(r).code,"already_present");
+ assert.equal(r.listProfiles().filter(p=>p.name==="Imprimante laser monochrome").length,1);
+ const created=r.createAsset(init.profile.id,{name:"IMP-ETH-01"});
+ assert.equal(created.success,true);
+ const a=created.asset;
+ assert.equal(a.ports.length,1);
+ assert.equal(a.ports[0].type,"ethernet-rj45");
+ assert.equal(a.ports[0].name,"LAN01");
+ assert.equal(a.scanner,undefined);
+ assert.equal(a.ports.some(p=>p.type==="wifi"||p.type.startsWith("usb")),false);
+ assert.equal(r.setAssetField(a.id,"printer_bac1",250).success,true);
+ assert.equal(r.setAssetField(a.id,"printer_recto_verso",true).success,true);
+ assert.equal(r.setAssetField(a.id,"printer_vitesse",40).success,true);
+ for(const bad of [0,-1,1.5])assert.equal(r.setAssetField(a.id,"printer_bac1",bad).success,false);
+ for(const bad of [0,-1])assert.equal(r.setAssetField(a.id,"printer_vitesse",bad).success,false);
+ assert.equal(r.getAsset(a.id).values.printer_bac1,250);
+ const ipv4={mode:"static",status:"connected",address:"192.168.1.120",prefix:24,gateway:"192.168.1.1",dns:["1.1.1.1"]};
+ assert.equal(r.setAssetInterfaceIpv4(a.id,a.ports[0].id,ipv4).success,true);
+ assert.deepEqual(r.listAssetNetworkInterfaces(a.id)[0].ipv4,ipv4);
+ const saved=r.exportState();
+ assert.deepEqual(restoreAssetRegistry(saved).exportState(),saved);
+ assert.equal(r.setAssetField(a.id,"printer_bac1",null).success,true);
+ assert.equal(r.getAsset(a.id).values.printer_bac1,null);
 });
