@@ -1415,7 +1415,9 @@ export function createAssetRegistry(saved){
   const a=getA(id),f=a&&getP(a.profileId)?.fields.find(f=>f.key===key);
   if(!f)return result(false,"not_found","Matériel ou champ introuvable.");
   if(!valueValid(f,value))return result(false,"invalid_value","Type de valeur incorrect.");
-  if(getP(a.profileId)?.name==="Scanner"&&key==="scanner_adf_capacite"&&!empty(value)&&(!Number.isInteger(value)||value<0))\n   return result(false,"invalid_value","ADF : capacité entière positive ou zéro attendue.");\n  if(getP(a.profileId)?.name==="Écran"&&!screenFieldValueValid(key,value))
+  if(getP(a.profileId)?.name==="Scanner"&&key==="scanner_adf_capacite"&&!empty(value)&&(!Number.isInteger(value)||value<0))
+   return result(false,"invalid_value","ADF : capacité entière positive ou zéro attendue.");
+  if(getP(a.profileId)?.name==="Écran"&&!screenFieldValueValid(key,value))
    return result(false,"invalid_value","Format incorrect pour ce champ.");
   a.values[key]=empty(value)?null:value;s.revision++;return result(true,"value_updated","Valeur enregistrée.");
  }
