@@ -1011,12 +1011,22 @@ test("Scanner V1 : profil autonome, champs descriptifs et réinstallation sans d
  assert.equal(first.success,true);
  assert.equal(first.code,"created");
  assert.deepEqual(first.profile.fields.map(f=>f.key),scannerFieldDefinitions.map(f=>f.key));
+ assert.deepEqual(first.profile.fields.map(f=>f.label),["Type","ADF","Recto verso","Résolution","Format"]);
+ assert.equal(first.profile.fields.length,5);
+ assert.equal(first.profile.fields.some(f=>f.key==="scanner_adf"),false);
  const second=installScannerProfile(registry);
  assert.equal(second.code,"already_present");
  assert.equal(second.profile.id,first.profile.id);
  assert.equal(registry.listProfiles().filter(p=>p.name==="Scanner").length,1);
  const scanner=registry.createAsset(first.profile.id,{name:"SCAN-01"});
  assert.equal(scanner.success,true);
+ assert.equal(registry.setAssetField(scanner.asset.id,"scanner_adf_capacite",0).success,true);
+ assert.equal(registry.getAsset(scanner.asset.id).values.scanner_adf_capacite,0);
+ assert.equal(registry.setAssetField(scanner.asset.id,"scanner_adf_capacite",50).success,true);
+ assert.equal(registry.setAssetField(scanner.asset.id,"scanner_adf_capacite",-1).success,false);
+ assert.equal(registry.setAssetField(scanner.asset.id,"scanner_adf_capacite",2.5).success,false);
+ assert.equal(registry.setAssetField(scanner.asset.id,"scanner_adf_capacite",null).success,true);
+ assert.equal(registry.setAssetField(scanner.asset.id,"scanner_adf_capacite",50).success,true);
  assert.equal(registry.setAssetField(scanner.asset.id,"scanner_recto_verso",true).success,true);
  assert.equal(registry.setAssetField(scanner.asset.id,"scanner_resolution","600 dpi").success,true);
  const saved=registry.exportState();
@@ -1024,5 +1034,22 @@ test("Scanner V1 : profil autonome, champs descriptifs et réinstallation sans d
  const restored=restoreAssetRegistry(saved).getAsset(scanner.asset.id);
  assert.equal(restored.values.scanner_recto_verso,true);
  assert.equal(restored.values.scanner_resolution,"600 dpi");
+ assert.equal(restored.values.scanner_adf_capacite,50);
  assert.equal(restored.netCamera,undefined);
+});
+
+test("Scanner V1 : conserver les données ADF historiques lors de la réinstallation",()=>{
+ const registry=createAssetRegistry();
+ const created=registry.createProfile("Scanner");
+ assert.equal(created.success,true);
+ assert.equal(registry.addField(created.profile.id,{key:"scanner_adf",label:"Chargeur automatique (ADF)",type:"boolean"}).success,true);
+ assert.equal(registry.addField(created.profile.id,{key:"scanner_adf_capacite",label:"Capacité ADF",type:"number",unit:"feuilles"}).success,true);
+ const scanner=registry.createAsset(created.profile.id,{name:"SCAN-HISTORIQUE"}).asset;
+ assert.equal(registry.setAssetField(scanner.id,"scanner_adf",true).success,true);
+ const reinstall=installScannerProfile(registry);
+ assert.equal(reinstall.success,true);
+ assert.equal(registry.getAsset(scanner.id).values.scanner_adf,true);
+ assert.equal(registry.getProfile(created.profile.id).fields.find(f=>f.key==="scanner_adf_capacite").label,"ADF");
+ const saved=registry.exportState();
+ assert.deepEqual(restoreAssetRegistry(saved).exportState(),saved);
 });
