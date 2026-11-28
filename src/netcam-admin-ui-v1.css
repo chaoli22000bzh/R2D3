@@ -72,6 +72,8 @@
 .netcam-admin .nc-live-night .nc-live-scene{filter:grayscale(1) brightness(.43) contrast(1.42) blur(1.25px)}
 .netcam-admin .nc-live-shading{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,#09121c55 0%,transparent 20%,transparent 74%,#09121cbb 100%);box-shadow:inset 0 0 75px #07111f33}
 .netcam-admin .nc-live-night .nc-live-shading{background:linear-gradient(180deg,#000000dd 0%,#000000b8 25%,#00000075 48%,#00000025 79%,#0000004a 100%),radial-gradient(ellipse 70% 80% at 52% 76%,transparent 21%,#0000004d 68%,#000000a8 100%),repeating-linear-gradient(0deg,#ffffff09 0px,transparent 1px,transparent 3px);box-shadow:inset 0 0 85px #00000080}
+/* Faisceau IR fictif : éclaire légèrement le centre proche, sans relever le fond ni les bords. */
+.netcam-admin .nc-live-night .nc-live-shading::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 42% 44% at 51% 75%,#ffffff32 0%,#ffffff17 38%,transparent 78%);mix-blend-mode:screen}
 .netcam-admin .nc-live-overlays{position:absolute;top:12px;left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;text-shadow:0 1px 3px #000}
 .netcam-admin .nc-live-status{display:inline-flex;gap:7px;align-items:center;background:#101b24ae;border:1px solid #ffffff66;padding:4px 8px;border-radius:4px;font-size:12px;font-weight:700;letter-spacing:.06em}
 .netcam-admin .nc-live-status i{width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 6px #ef444499}
