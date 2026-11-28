@@ -1415,7 +1415,7 @@ export function createAssetRegistry(saved){
   const a=getA(id),f=a&&getP(a.profileId)?.fields.find(f=>f.key===key);
   if(!f)return result(false,"not_found","Matériel ou champ introuvable.");
   if(!valueValid(f,value))return result(false,"invalid_value","Type de valeur incorrect.");
-  if(getP(a.profileId)?.name==="Écran"&&!screenFieldValueValid(key,value))
+  if(getP(a.profileId)?.name==="Scanner"&&key==="scanner_adf_capacite"&&!empty(value)&&(!Number.isInteger(value)||value<0))\n   return result(false,"invalid_value","ADF : capacité entière positive ou zéro attendue.");\n  if(getP(a.profileId)?.name==="Écran"&&!screenFieldValueValid(key,value))
    return result(false,"invalid_value","Format incorrect pour ce champ.");
   a.values[key]=empty(value)?null:value;s.revision++;return result(true,"value_updated","Valeur enregistrée.");
  }
@@ -1579,16 +1579,31 @@ export function installNetCamProfile(registry){
 /* Premier socle Scanner V1 : profil descriptif autonome, sans moteur de numérisation.
    Les cinq destinations restent un chantier fonctionnel distinct. */
 export const scannerFieldDefinitions=[
- {key:"scanner_type",label:"Type de scanner",type:"select",options:["À plat","Défilement","Mixte"]},
- {key:"scanner_adf",label:"Chargeur automatique (ADF)",type:"boolean"},
- {key:"scanner_adf_capacite",label:"Capacité ADF",type:"number",unit:"feuilles"},
- {key:"scanner_recto_verso",label:"Recto verso automatique",type:"boolean"},
- {key:"scanner_resolution",label:"Résolution optique",type:"select",options:["300 dpi","600 dpi","1200 dpi"]},
- {key:"scanner_format",label:"Formats acceptés",type:"select",options:["A4","A3","A4 et A3"]}
+ {key:"scanner_type",label:"Type",type:"select",options:["À plat","Défilement","Mixte"]},
+ {key:"scanner_adf_capacite",label:"ADF",type:"number",unit:"feuilles"},
+ {key:"scanner_recto_verso",label:"Recto verso",type:"boolean"},
+ {key:"scanner_resolution",label:"Résolution",type:"select",options:["300 dpi","600 dpi","1200 dpi"]},
+ {key:"scanner_format",label:"Format",type:"select",options:["A4","A3","A4 et A3"]}
 ];
 export function installScannerProfile(registry){
  const existing=registry.listProfiles().find(p=>p.name==="Scanner");
- if(existing)return {success:true,code:"already_present",profile:existing};
+ if(existing){
+  // Actualiser les libellés sans effacer d'anciennes données d'actifs.
+  for(const field of scannerFieldDefinitions){
+   const older=existing.fields.find(f=>f.key===field.key);
+   if(!older)continue;
+   if(older.label!==field.label||older.unit!==(field.unit||"")){
+    const updated=registry.editField(existing.id,field.key,{label:field.label,unit:field.unit||""});
+    if(!updated.success)return updated;
+   }
+  }
+  if(existing.fields.some(f=>f.key==="scanner_adf")){
+   // Une valeur Oui/Non historique encore saisie reste préservée dans ce profil.
+   const removed=registry.removeField(existing.id,"scanner_adf");
+   if(!removed.success&&removed.code!=="field_in_use")return removed;
+  }
+  return {success:true,code:"already_present",profile:registry.getProfile(existing.id)};
+ }
  const created=registry.createProfile("Scanner");
  if(!created.success)return created;
  for(const field of scannerFieldDefinitions){
