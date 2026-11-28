@@ -12,6 +12,26 @@
 .netcam-admin .nc-form{display:flex;flex-wrap:wrap;gap:11px 15px;align-items:flex-end}
 .netcam-admin label{display:grid;gap:5px;font-size:13px;font-weight:600;flex:0 0 auto;min-width:0;max-width:100%}
 .netcam-admin input,.netcam-admin select{width:100%;max-width:100%;padding:8px 9px;border:1px solid var(--nc-border,#b5c3d1);border-radius:6px;background:var(--nc-input,#fff);color:var(--nc-fg,#1c3852);font-size:14px;min-height:38px}
+/* Menus natifs modernisés : affichage arrondi, navigation clavier et popup navigateur conservés. */
+.netcam-admin select{
+ appearance:none;
+ -webkit-appearance:none;
+ border-radius:999px;
+ padding:8px 34px 8px 13px;
+ cursor:pointer;
+ background-color:var(--nc-input,#fff);
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%233c637f' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+ background-repeat:no-repeat;
+ background-position:right 13px center;
+ background-size:12px 8px;
+ transition:border-color .15s ease,box-shadow .15s ease,background-color .15s ease;
+}
+.netcam-admin select:hover{border-color:#2688ca;box-shadow:0 0 0 2px #2688ca22}
+.netcam-admin select:focus-visible{outline:2px solid #2688ca;outline-offset:2px;border-color:#2688ca}
+.netcam-admin select:disabled{cursor:not-allowed;opacity:.65}
+@media(prefers-color-scheme:dark){
+ .netcam-admin select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23c1cfdd' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+}
 .netcam-admin select[name="portId"]{width:235px}
 .netcam-admin select[name="mode"]{width:205px}
 .netcam-admin .nc-prefix{width:70px}
