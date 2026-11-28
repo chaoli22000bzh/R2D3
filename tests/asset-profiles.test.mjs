@@ -1053,3 +1053,37 @@ test("Scanner V1 : conserver les données ADF historiques lors de la réinstalla
  const saved=registry.exportState();
  assert.deepEqual(restoreAssetRegistry(saved).exportState(),saved);
 });
+
+test("Composant Scanner V1 : ajout, modification, suppression et persistance sans équipement autonome",()=>{
+ const e=createAssetRegistry(),profile=e.createProfile("Imprimante de test").profile;
+ const asset=e.createAsset(profile.id,{name:"IMP-01"}).asset;
+ assert.equal(asset.scanner,undefined);
+ const added=e.addAssetComponent(asset.id,"scanner",{type:"Mixte",adfFeuilles:50,rectoVerso:true,resolution:"600 dpi",format:"A4 et A3"});
+ assert.equal(added.success,true);
+ assert.equal(added.component.id,"scanner-1");
+ assert.equal(e.addAssetComponent(asset.id,"scanner",{}).code,"scanner_exists");
+ assert.equal(e.getAsset(asset.id).ports.length,0,"Le composant ne crée pas de ports");
+ assert.equal(e.getAsset(asset.id).scanner.adfFeuilles,50);
+ assert.equal(e.updateAssetComponent(asset.id,"scanner","scanner-1",{type:"À plat",adfFeuilles:0,rectoVerso:false,resolution:"300 dpi",format:"A4"}).success,true);
+ assert.equal(e.getAsset(asset.id).scanner.adfFeuilles,0);
+ assert.equal(e.getAsset(asset.id).scanner.rectoVerso,false);
+ assert.equal(e.updateAssetComponent(asset.id,"scanner","scanner-1",{adfFeuilles:-1}).success,false);
+ assert.equal(e.updateAssetComponent(asset.id,"scanner","scanner-1",{adfFeuilles:2.5}).success,false);
+ const saved=e.exportState();
+ assert.deepEqual(restoreAssetRegistry(saved).exportState(),saved);
+ assert.equal(restoreAssetRegistry(saved).getAsset(asset.id).scanner.adfFeuilles,0);
+ assert.equal(e.removeAssetComponent(asset.id,"scanner","wrong-id").success,false);
+ assert.equal(e.removeAssetComponent(asset.id,"scanner","scanner-1").success,true);
+ assert.equal(e.getAsset(asset.id).scanner,undefined);
+ assert.equal(e.addAssetComponent(asset.id,"scanner",{adfFeuilles:null}).success,true);
+ assert.equal(e.getAsset(asset.id).scanner.adfFeuilles,null);
+});
+test("Composant Scanner V1 : aucune modification aux profils Scanner historiques",()=>{
+ const e=createAssetRegistry(),profile=installScannerProfile(e).profile;
+ const old=e.createAsset(profile.id,{name:"SCAN-01"}).asset;
+ assert.equal(e.setAssetField(old.id,"scanner_adf_capacite",60).success,true);
+ const before=e.getAsset(old.id);
+ const saved=e.exportState();
+ assert.deepEqual(restoreAssetRegistry(saved).getAsset(old.id),before);
+ assert.equal(before.scanner,undefined);
+});
