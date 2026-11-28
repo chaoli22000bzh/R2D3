@@ -223,11 +223,11 @@ test("DHCP NetCam : Wi-Fi sans bail valide passe en APIPA si serveur box désact
  good(f.registry.setBoxLanConfig(box.asset.id,{...lan,dhcpEnabled:false}));
  const res=requestAssetInterfaceDhcp({registry:f.registry,assetId:f.cam.id,portId:f.wifi.id});
  good(res);assert.equal(res.code,"apipa");
- assert.match(res.address,/^169\\.254\\./);
+ assert.match(res.address,/^169\.254\./);
  assert.equal(res.gateway,null);
 });
 
-test("NetCam Live : aperçu disponible, jour, nuit et panoramique depuis les caractéristiques partagées",()=>{
+test("NetCam Live : modes disponibles selon les options, sélection manuelle et retour au jour",()=>{
  const f=fixture(),box=f.registry.createBoxComposite("BOX-01");good(box);
  const cable=f.registry.createCable();good(cable);
  good(f.registry.connectCableEnd(cable.cable.id,0,f.eth.id));
@@ -237,18 +237,41 @@ test("NetCam Live : aperçu disponible, jour, nuit et panoramique depuis les car
   addEventListener(type,fn){handlers.set(type,fn);},
   removeEventListener(type){handlers.delete(type);},replaceChildren(){}};
  const ui=mountNetCamAdmin({root,registry:f.registry,assetId:f.cam.id});
+ const choose=mode=>handlers.get("change")({target:{
+  matches:s=>s==="[data-nc-live-mode]",value:mode
+ }});
  handlers.get("click")({target:{closest:s=>s==="[data-nc-tab]"?{dataset:{ncTab:"live"}}:null}});
- assert.match(root.innerHTML,/netcam-live-scene-v1\.svg/);
+ assert.match(root.innerHTML,/netcam-live-jour-optimise\.webp/);
  assert.match(root.innerHTML,/Aperçu fixe illustratif/);
- assert.doesNotMatch(root.innerHTML,/nc-live-night/);
- assert.doesNotMatch(root.innerHTML,/nc-live-panorama/);
+ assert.doesNotMatch(root.innerHTML,/data-nc-live-mode/,"Aucune option : aucun sélecteur");
+ assert.doesNotMatch(root.innerHTML,/nc-live-night|nc-live-panorama/);
  good(f.registry.setAssetField(f.cam.id,"vision_nocturne",true));
+ ui.render();
+ assert.match(root.innerHTML,/<option value="night">Nuit infrarouge<\/option>/);
+ assert.doesNotMatch(root.innerHTML,/panorama-day/,"Nuit seule : pas de panoramique");
+ assert.doesNotMatch(root.innerHTML,/nc-live-night/,"L’option n’active pas le mode automatiquement");
+ choose("night");
+ assert.match(root.innerHTML,/nc-live-night/);
+ assert.match(root.innerHTML,/VISION NOCTURNE/);
+ good(f.registry.setAssetField(f.cam.id,"vision_nocturne",false));
  good(f.registry.setAssetField(f.cam.id,"vue_panoramique",true));
  ui.render();
+ assert.match(root.innerHTML,/<option value="panorama-day">Jour panoramique<\/option>/);
+ assert.doesNotMatch(root.innerHTML,/<option value="night">/);
+ assert.doesNotMatch(root.innerHTML,/nc-live-night/,"Mode nuit retiré : retour automatique au jour");
+ choose("panorama-day");
+ assert.match(root.innerHTML,/nc-live-panorama/);
+ assert.match(root.innerHTML,/PANORAMIQUE/);
+ good(f.registry.setAssetField(f.cam.id,"vision_nocturne",true));
+ ui.render();
+ assert.match(root.innerHTML,/<option value="panorama-night">Nuit panoramique<\/option>/);
+ choose("panorama-night");
  assert.match(root.innerHTML,/nc-live-night/);
  assert.match(root.innerHTML,/nc-live-panorama/);
  assert.match(root.innerHTML,/VISION NOCTURNE/);
  assert.match(root.innerHTML,/PANORAMIQUE/);
+ choose("day");
+ assert.doesNotMatch(root.innerHTML,/nc-live-night|nc-live-panorama/);
  ui.destroy();
 });
 test("NetCam Live : équipement hors service ou sans IPv4 utilisable indique indisponible",()=>{
