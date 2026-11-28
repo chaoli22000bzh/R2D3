@@ -93,7 +93,7 @@ export function mountNetCamAdmin({root,registry,assetId,onChange}={}){
   const hasUsableIpv4=network.some(p=>p.ipv4?.address&&!p.ipv4.address.startsWith("169.254."));
   const unavailable=a.status!=="En service"?"Flux indisponible":
    !hasUsableIpv4?"Caméra non joignable":null;
-  const scene="https://chaoli22000bzh.github.io/R2D3/src/netcam-live-jour.webp?live-v2=1";
+  const scene="https://chaoli22000bzh.github.io/R2D3/src/netcam-live-jour-optimise.webp?live-v3=1";
   const fallback="https://chaoli22000bzh.github.io/R2D3/src/netcam-live-scene-v1.svg?live-v1=1";
   return '<section class="nc-panel nc-live-panel"><h3>Live</h3>'+
    '<div class="nc-live-viewport'+(night?" nc-live-night":"")+(panorama?" nc-live-panorama":"")+'" role="img" aria-label="'+
