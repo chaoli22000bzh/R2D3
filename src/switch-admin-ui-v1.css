@@ -888,3 +888,16 @@
 .switch-admin.v4 .port-bank{grid-auto-columns:58px;column-gap:7px}
 .switch-admin.v4 .mini-port{width:56px}
 .switch-admin.v4 .mini-port .mini-label{font-size:12px;white-space:nowrap}
+
+/* Menus natifs harmonisés avec la NetCam : style pilule, tailles métiers conservées. */
+.switch-admin select{
+ appearance:none;-webkit-appearance:none;border-radius:999px;
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%233c637f' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+ background-repeat:no-repeat;background-position:right 11px center;background-size:12px 8px;
+ padding-right:30px;cursor:pointer;
+ transition:border-color .15s ease,box-shadow .15s ease;
+}
+.switch-admin select:hover:not(:disabled){border-color:#2688ca;box-shadow:0 0 0 2px #2688ca22}
+.switch-admin select:focus-visible{outline:2px solid #2688ca;outline-offset:2px;border-color:#2688ca}
+.switch-admin select:disabled{cursor:not-allowed;opacity:.65}
+@media(prefers-color-scheme:dark){.switch-admin select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23c1cfdd' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}}
